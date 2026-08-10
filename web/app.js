@@ -206,6 +206,7 @@ function trainingIntroLine() {
     );
   }
   return (
+    "Welcome home, master! / おかえりなさい、ご主人様!\n" +
     "Let's begin the Maid Cafe English Training! / メイドカフェ英会話研修を始めましょう!\n" +
     "Hello, I am Sakura, your maid trainer! / こんにちは、私はメイドの先生、さくらです!\n" +
     "How old am I, you ask? / 私が何歳か気になりますか?\n" +
@@ -243,6 +244,21 @@ const trainingSteps = [
       "I love the Japanese language! / 私は日本語が大好きです!\n" +
       "I love aikido, judo, shodo (calligraphy), and sado (tea ceremony)! / 合気道、柔道、書道、茶道が大好きです!\n" +
       "I love temples, shrines, and Shinto too! / お寺や神社、神道も大好きです!\n" +
+      "Now let's learn a real maid cafe trick! / 実際のメイドカフェの技を学びましょう!",
+  },
+  {
+    // 実際の秋葉原のメイドカフェ接客の工夫に着想を得た「単語軸」の会話練習
+    // (ユーザー提供の参考記事: 訪日客向けの英会話は流暢な文法より、単語+
+    // 表情・ジェスチャーで会話を成立させる、という実践的な技法)。記事の
+    // 文章を丸ごと転載せず、技法自体を短い引用・要約に留めて練習に翻案。
+    onUserReply: () =>
+      "A real maid cafe secret: you don't need perfect grammar — just key words + a big smile! / メイドカフェの秘密: 完璧な文法は不要、キーワード+満面の笑顔で会話は成立します!\n" +
+      'Real example: "Where are you from?" -> guest: "Australia!" -> maid: "Kangaroo!! 🦘" / 実例: 「どこから来たの?」→「オーストラリア!」→「カンガルー!!」\n' +
+      "Let's try it! Say one word about your country (an animal, food, or famous thing). / 練習しましょう!あなたの国について一言(動物・食べ物・有名なもの)を教えてください。",
+  },
+  {
+    onUserReply: (text) =>
+      `${text}! That's a great word! 🎉 / ${text}!素敵な言葉ですね!🎉\n` +
       "Great job — you finished the self-introduction training! / お疲れ様でした!自己紹介研修は終了です!",
   },
 ];
