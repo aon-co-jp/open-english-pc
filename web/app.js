@@ -49,13 +49,21 @@ function setStatus(ok, text) {
 // 高め・話速を気持りゆっくりにして「案内・接客」らしい丁寧さと、
 // メイドカフェらしい明るさを両立させる、という範囲までに留まる。
 let cachedVoices = [];
-function pickVoice(lang) {
+const femaleNameHints = ["female", "woman", "kyoko", "haruka", "ayumi", "samantha", "zira", "susan", "google 日本語", "google us english"];
+// トラさん風の声(ユーザー指示、2026-08-10「トラさんに切り替えるとトラ
+// さん風の声にして」)を選ぶための男性声ヒント。正直な開示: 実在の
+// 声優・キャラクターの声を再現するものではなく、ブラウザ標準の男性声を
+// 選び、低めのピッチ・やや速い話速で「気さくな中年男性」の印象に
+// 近づけるだけの範囲(Web Speech APIの制約、前述の声質に関する開示と同じ)。
+const maleNameHints = ["male", "man", "ichiro", "otoya", "daniel", "david", "mark", "google 日本語 male"];
+
+function pickVoice(lang, preferMale) {
   if (!cachedVoices.length && "speechSynthesis" in window) {
     cachedVoices = window.speechSynthesis.getVoices();
   }
   const candidates = cachedVoices.filter((v) => v.lang.toLowerCase().startsWith(lang.slice(0, 2)));
-  const femaleNameHints = ["female", "woman", "kyoko", "haruka", "ayumi", "samantha", "zira", "susan", "google 日本語", "google us english"];
-  const preferred = candidates.find((v) => femaleNameHints.some((hint) => v.name.toLowerCase().includes(hint)));
+  const hints = preferMale ? maleNameHints : femaleNameHints;
+  const preferred = candidates.find((v) => hints.some((hint) => v.name.toLowerCase().includes(hint)));
   return preferred || candidates[0] || cachedVoices[0] || null;
 }
 if ("speechSynthesis" in window) {
@@ -77,14 +85,21 @@ function speak(text) {
       const lang = replyLangEl.value === "ja" ? "ja-JP" : "en-US";
       const utter = new SpeechSynthesisUtterance(text);
       utter.lang = lang;
-      const voice = pickVoice(lang);
+      const isHelper = typeof activeCharacter !== "undefined" && activeCharacter === "helper";
+      const voice = pickVoice(lang, isHelper);
       if (voice) utter.voice = voice;
-      // デフォルトの声質(ユーザー指示、2026-08-10「ジャンボジェットの
-      // スチュワーデスの声+メイドカフェの様な声をデフォルトに」):
-      // 大型機の機内アナウンスを思わせる丁寧でゆったりした話速+
-      // メイドカフェらしい明るいピッチ、を両立させる調整値。
-      utter.pitch = 1.1;
-      utter.rate = 0.92;
+      if (isHelper) {
+        // トラさん風の声(気さくな中年男性、低めのピッチ+やや速めの話速)。
+        utter.pitch = 0.75;
+        utter.rate = 1.05;
+      } else {
+        // デフォルトの声質(ユーザー指示、2026-08-10「ジャンボジェットの
+        // スチュワーデスの声+メイドカフェの様な声をデフォルトに」):
+        // 大型機の機内アナウンスを思わせる丁寧でゆったりした話速+
+        // メイドカフェらしい明るいピッチ、を両立させる調整値。
+        utter.pitch = 1.1;
+        utter.rate = 0.92;
+      }
       trainerEl.classList.add("speaking");
       utter.onend = () => trainerEl.classList.remove("speaking");
       window.speechSynthesis.speak(utter);
