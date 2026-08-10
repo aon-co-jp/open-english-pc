@@ -32,6 +32,11 @@
         <option value="ja">日本語のみ</option>
       </select>
     </label>
+    <label class="web-search-toggle">
+      <input type="checkbox" id="web-search-toggle" />
+      Google search boost / Google検索で補強
+    </label>
+    <button type="button" id="google-search-settings-btn" class="setup-btn">🔎 Google Search Setup</button>
     <button type="button" id="setup-btn" class="setup-btn">⚙ Setup aruaru-llm</button>
   </header>
 
@@ -99,6 +104,56 @@ cargo run --release</pre>
         になります(<code>/healthz</code>で確認)。
       </p>
       <button type="button" id="setup-recheck" class="setup-btn">Check connection now / 今すぐ接続確認</button>
+    </div>
+  </div>
+
+  <div id="google-search-modal" class="setup-modal hidden">
+    <div class="setup-panel">
+      <button type="button" id="google-search-close" class="setup-close">✕</button>
+      <h2>Google Search Setup / Google検索の設定</h2>
+      <p class="setup-honest">
+        <strong>Honest disclosure:</strong> This uses the Google Custom Search JSON API.
+        You need your own API key and Search Engine ID (cx) — this app does not include or
+        acquire one for you, and never sends it anywhere except your own local aruaru-llm
+        server (kept in memory only, never written to disk).<br /><br />
+        <strong>正直な開示:</strong> Google Custom Search JSON APIを使用します。
+        APIキーと検索エンジンID(cx)はご自身で取得してください——このアプリは
+        キーを同梱・取得代行しません。入力した値はお使いのPC上のaruaru-llm
+        サーバーへのみ送信され、メモリ上にのみ保持されます(ディスクへの保存は
+        行いません)。
+      </p>
+      <ol class="setup-steps">
+        <li>
+          <a href="https://programmablesearchengine.google.com/" target="_blank" rel="noopener noreferrer">
+            Programmable Search Engine
+          </a> — create a search engine (site: <code>example.com</code> then enable
+          "Search the entire web"), copy the <strong>Search engine ID (cx)</strong>.<br />
+          検索エンジンを作成し(サイトに<code>example.com</code>等を入れてから
+          「全ウェブを検索」をON)、<strong>検索エンジンID(cx)</strong>をコピー。
+        </li>
+        <li>
+          <a href="https://console.cloud.google.com/apis/library/customsearch.googleapis.com" target="_blank" rel="noopener noreferrer">
+            Google Cloud Console
+          </a> — enable "Custom Search API", then create an API key under
+          "APIs &amp; Services → Credentials" (free up to 100 queries/day, no billing
+          required for the free tier).<br />
+          「Custom Search API」を有効化し、「認証情報」からAPIキーを作成
+          (1日100件まで無料、無料枠の範囲では課金設定不要)。
+        </li>
+      </ol>
+      <label class="settings-field">
+        API Key / APIキー
+        <input type="password" id="google-search-api-key" autocomplete="off" placeholder="AIzaSy... (or AQ....)" />
+      </label>
+      <label class="settings-field">
+        Search Engine ID (cx) / 検索エンジンID
+        <input type="text" id="google-search-cx" autocomplete="off" placeholder="e.g. e4990caa4651e48ba" />
+      </label>
+      <div class="settings-buttons">
+        <button type="button" id="google-search-save" class="setup-btn">Save / 保存</button>
+        <button type="button" id="google-search-clear" class="setup-btn">Clear / 消去</button>
+      </div>
+      <p id="google-search-status" class="setup-note"></p>
     </div>
   </div>
   <p class="level-hint">You can change the level and reply language above at any time, before or during the conversation. / レベル・応答言語はいつでも(会話の前でも途中でも)上のメニューから変更できます。</p>

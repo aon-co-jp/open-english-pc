@@ -60,11 +60,20 @@ const logEl = document.getElementById("log");
 const formEl = document.getElementById("chat-form");
 const inputEl = document.getElementById("chat-input");
 const apiBaseEl = document.getElementById("api-base");
+// LAN経由アクセス(スマホ等)対応: このページ自体が`localhost`以外の
+// ホスト名(PCのIPアドレス)で開かれている場合、`aruaru-llm`の既定接続先も
+// 同じホスト名を使うよう自動調整する(ユーザー報告: スマホのWebViewから
+// PC上のopen-english-serverへ接続できても、そのままだと`aruaru-llm`
+// 接続先が`localhost`=スマホ自身を指してしまい、接続に失敗していた)。
+if (apiBaseEl && location.hostname && location.hostname !== "localhost" && location.hostname !== "127.0.0.1") {
+  apiBaseEl.value = `http://${location.hostname}:4600`;
+}
 const statusEl = document.getElementById("status");
 const trainerEl = document.getElementById("trainer");
 const bubbleEl = document.getElementById("speech-bubble");
 const levelEl = document.getElementById("level");
 const replyLangEl = document.getElementById("reply-lang");
+const webSearchToggleEl = document.getElementById("web-search-toggle");
 const micBtn = document.getElementById("mic-btn");
 const voiceOutEl = document.getElementById("voice-out");
 
@@ -435,7 +444,14 @@ async function askTrainer(userText) {
   // しているだけで、GPT-2側が実際にそれを守る保証は無い。
   const prompt = `You are a friendly English conversation trainer at a maid cafe. ${levelInstruction} ${langInstruction}\nStudent: ${userText}\nTrainer:`;
 
-  const res = await fetch(`${base}/v1/generate`, {
+  // Google検索補強(ユーザー指示「発話・入力の都度Google検索する」への
+  // 対応、ブリッジ式)。トグルON時は`/v1/generate-with-search`を叩く
+  // ——`aruaru-llm`側でAPIキー未設定なら自動的に検索無しへフォールバック
+  // する(`used_search:false`、正直な開示としてUIにも表示する)。
+  const useWebSearch = webSearchToggleEl && webSearchToggleEl.checked;
+  const endpoint = useWebSearch ? "/v1/generate-with-search" : "/v1/generate";
+
+  const res = await fetch(`${base}${endpoint}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     // 正直な開示: max_new_tokensを48から24へ縮小した(ユーザー指摘
@@ -450,7 +466,23 @@ async function askTrainer(userText) {
   }
   const data = await res.json();
   const completion = data.completion ?? "(no completion field in response)";
-  return ensureHybridReply(trimDegenerateRepetition(completion), userText);
+  let reply = ensureHybridReply(trimDegenerateRepetition(completion), userText);
+
+  if (useWebSearch) {
+    if (data.used_search && Array.isArray(data.search_results) && data.search_results.length > 0) {
+      // 正直な開示・セキュリティ配慮: 検索結果のtitleは外部(Google経由の
+      // Webサイト)由来のテキストのため、`innerHTML`へそのまま挿入せず
+      // (XSSリスク回避)、`appendMessage`が使うプレーンテキスト
+      // (`textContent`)としてURLをそのまま列挙する。
+      const links = data.search_results.map((r) => `${r.title} (${r.link})`).join(" / ");
+      reply += `\n\n🔎 Google search used / Google検索を使用しました: ${links}`;
+    } else {
+      reply +=
+        "\n\n🔎 Google search was not used (API key not configured on the server) / " +
+        "Google検索は使用されませんでした(サーバー側でAPIキーが未設定)。";
+    }
+  }
+  return reply;
 }
 
 // 正直な開示: 対話ファインチューニングを受けていない素のGPT-2(貪欲
@@ -559,6 +591,78 @@ setupModal.addEventListener("click", (e) => {
   if (e.target === setupModal) setupModal.classList.add("hidden");
 });
 setupRecheck.addEventListener("click", checkHealth);
+
+// Google Search設定パネル(ユーザー指示「利用者がAPIキーの取得とCOPY
+// ペーストが簡単な機能を搭載して」への対応)。値はaruaru-llmの
+// `POST /v1/settings/google-search`(メモリ上保持のみ、ディスクへ保存
+// しない)へ送るだけで、このフロントエンド自身もlocalStorage等へ
+// 保存しない(ページを再読み込みすれば入力欄は空になる、意図的な設計
+// ——ブラウザ内にAPIキーを永続化しない)。
+const googleSearchBtn = document.getElementById("google-search-settings-btn");
+const googleSearchModal = document.getElementById("google-search-modal");
+const googleSearchClose = document.getElementById("google-search-close");
+const googleSearchApiKeyEl = document.getElementById("google-search-api-key");
+const googleSearchCxEl = document.getElementById("google-search-cx");
+const googleSearchSaveBtn = document.getElementById("google-search-save");
+const googleSearchClearBtn = document.getElementById("google-search-clear");
+const googleSearchStatusEl = document.getElementById("google-search-status");
+
+async function refreshGoogleSearchStatus() {
+  try {
+    const base = apiBaseEl.value.trim();
+    const res = await fetch(`${base}/v1/settings/google-search`);
+    const data = await res.json();
+    googleSearchStatusEl.textContent = data.configured
+      ? "✅ Configured / 設定済みです"
+      : "⚪ Not configured yet / まだ設定されていません";
+  } catch (err) {
+    googleSearchStatusEl.textContent = `⚠ Could not check status / 状態を確認できませんでした: ${err.message}`;
+  }
+}
+
+if (googleSearchBtn && googleSearchModal) {
+  googleSearchBtn.addEventListener("click", () => {
+    googleSearchModal.classList.remove("hidden");
+    refreshGoogleSearchStatus();
+  });
+  googleSearchClose.addEventListener("click", () => googleSearchModal.classList.add("hidden"));
+  googleSearchModal.addEventListener("click", (e) => {
+    if (e.target === googleSearchModal) googleSearchModal.classList.add("hidden");
+  });
+  googleSearchSaveBtn.addEventListener("click", async () => {
+    const base = apiBaseEl.value.trim();
+    const api_key = googleSearchApiKeyEl.value.trim();
+    const cx = googleSearchCxEl.value.trim();
+    try {
+      const res = await fetch(`${base}/v1/settings/google-search`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ api_key, cx }),
+      });
+      const data = await res.json();
+      googleSearchStatusEl.textContent = data.configured
+        ? "✅ Saved and configured / 保存・設定できました"
+        : "⚠ Saved but not configured (empty key/cx?) / 保存しましたが未設定のままです(キー/cxが空?)";
+      // 保存後は入力欄をクリアする(画面上に平文で残さない配慮)。
+      googleSearchApiKeyEl.value = "";
+      googleSearchCxEl.value = "";
+    } catch (err) {
+      googleSearchStatusEl.textContent = `⚠ Failed to save / 保存に失敗しました: ${err.message}`;
+    }
+  });
+  googleSearchClearBtn.addEventListener("click", async () => {
+    const base = apiBaseEl.value.trim();
+    try {
+      const res = await fetch(`${base}/v1/settings/google-search`, { method: "DELETE" });
+      const data = await res.json();
+      googleSearchStatusEl.textContent = data.configured
+        ? "⚠ Still configured (unexpected) / まだ設定されたままです(想定外)"
+        : "🗑 Cleared / 消去しました";
+    } catch (err) {
+      googleSearchStatusEl.textContent = `⚠ Failed to clear / 消去に失敗しました: ${err.message}`;
+    }
+  });
+}
 
 document.querySelectorAll(".copy-btn").forEach((btn) => {
   btn.addEventListener("click", async () => {
