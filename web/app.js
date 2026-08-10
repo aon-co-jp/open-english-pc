@@ -79,10 +79,12 @@ function speak(text) {
       utter.lang = lang;
       const voice = pickVoice(lang);
       if (voice) utter.voice = voice;
-      // キャビンアテンダント風の丁寧さ(やや低め・ゆっくり)+
-      // メイドカフェ風の明るさ(やや高めのピッチ)を両立させる調整値。
-      utter.pitch = 1.12;
-      utter.rate = 0.95;
+      // デフォルトの声質(ユーザー指示、2026-08-10「ジャンボジェットの
+      // スチュワーデスの声+メイドカフェの様な声をデフォルトに」):
+      // 大型機の機内アナウンスを思わせる丁寧でゆったりした話速+
+      // メイドカフェらしい明るいピッチ、を両立させる調整値。
+      utter.pitch = 1.1;
+      utter.rate = 0.92;
       trainerEl.classList.add("speaking");
       utter.onend = () => trainerEl.classList.remove("speaking");
       window.speechSynthesis.speak(utter);
@@ -96,19 +98,137 @@ function speak(text) {
   speak._timer = setTimeout(() => trainerEl.classList.remove("speaking"), spokenMs);
 }
 
+// メイドカフェ英会話研修モード(ユーザー指示、2026-08-10)。
+//
+// 正直な開示: これは`aruaru-llm`のAI生成ではなく、固定の会話フロー
+// (有限状態機械)によるスクリプト進行である。GPT-2ベースの`/v1/generate`
+// では指定された自己紹介の順序・内容(名前→年齢ジョーク→出身国→
+// 国別の共通話題→アニメ→食べ物→文化)を確実に守らせることはできない
+// ため、確実性を優先してこのモードのみ決定的なスクリプトとした。
+const countryFunFacts = {
+  australia: "I love kangaroos and koalas! / 私はカンガルーとコアラが大好きです!",
+  usa: "I love baseball and Hollywood movies! / 私は野球とハリウッド映画が大好きです!",
+  america: "I love baseball and Hollywood movies! / 私は野球とハリウッド映画が大好きです!",
+  uk: "I love tea time and football! / 私はお茶の時間とサッカーが大好きです!",
+  england: "I love tea time and football! / 私はお茶の時間とサッカーが大好きです!",
+  canada: "I love maple syrup and hockey! / 私はメープルシロップとホッケーが大好きです!",
+  france: "I love croissants and the Eiffel Tower! / 私はクロワッサンとエッフェル塔が大好きです!",
+  china: "I love pandas and dumplings! / 私はパンダと餃子が大好きです!",
+  korea: "I love K-pop and kimchi! / 私はK-POPとキムチが大好きです!",
+};
+
+function findCountryFunFact(text) {
+  const lower = text.toLowerCase();
+  for (const [key, fact] of Object.entries(countryFunFacts)) {
+    if (lower.includes(key)) return fact;
+  }
+  return "That's wonderful! I'd love to learn more about your country someday! / それは素晴らしいですね!いつかあなたの国についてもっと知りたいです!";
+}
+
+const trainingSteps = [
+  {
+    trainerSays:
+      "Let's begin the Maid Cafe English Training! / メイドカフェ英会話研修を始めましょう!\n" +
+      "Hello, I am Sakura, your maid trainer! / こんにちは、私はメイドの先生、さくらです!\n" +
+      "How old am I, you ask? / 私が何歳か気になりますか?\n" +
+      "A maid is eternally 17 years old! ✨ / メイドは永遠の17歳です!✨\n" +
+      "Now — what is YOUR name? / さて、あなたのお名前は?",
+    onUserReply: (text) =>
+      `Nice to meet you, ${text}! / はじめまして、${text}さん!\n` + "Where are you from? / どこの国からいらっしゃいましたか?",
+  },
+  {
+    onUserReply: (text) =>
+      `${findCountryFunFact(text)}\n` + "Do you know Japanese animation? / 日本のアニメーションを知っていますか?",
+  },
+  {
+    onUserReply: () =>
+      "I love UFO Robot Grendizer! / 私はUFOロボ グレンダイザーが大好きです!\n" +
+      "I love Totoro too! / トトロも大好きです!\n" +
+      "Do you know Japanese food? / 日本の食べ物を知っていますか?",
+  },
+  {
+    onUserReply: () =>
+      "I love katsu curry and kaki-fry curry rice! / 私はカツカレーとカキフライカレーライスが大好きです!\n" +
+      "I love ramen too! / ラーメンも大好きです!\n" +
+      "Do you know Japanese culture? / 日本の文化を知っていますか?",
+  },
+  {
+    onUserReply: () =>
+      "I love the Japanese language! / 私は日本語が大好きです!\n" +
+      "I love aikido, judo, shodo (calligraphy), and sado (tea ceremony)! / 合気道、柔道、書道、茶道が大好きです!\n" +
+      "I love temples, shrines, and Shinto too! / お寺や神社、神道も大好きです!\n" +
+      "Great job — you finished the self-introduction training! / お疲れ様でした!自己紹介研修は終了です!",
+  },
+];
+let trainingStepIndex = 0;
+
+function startTrainingMode() {
+  trainingStepIndex = 0;
+  appendMessage("trainer", trainingSteps[0].trainerSays);
+  speak(trainingSteps[0].trainerSays);
+}
+
+function advanceTrainingMode(userText) {
+  const step = trainingSteps[trainingStepIndex];
+  const reply = step.onUserReply(userText);
+  appendMessage("trainer", reply);
+  speak(reply);
+  trainingStepIndex = Math.min(trainingStepIndex + 1, trainingSteps.length - 1);
+}
+
+// 直前の接続状態(ユーザー指示、2026-08-10「インストール後は自動認識で
+// インストール済みを英日で自動表示して」への対応——未接続→接続に変わった
+// 瞬間だけ、英日ハイブリッドのお知らせを1回表示する)。
+let wasConnected = false;
+
 async function checkHealth() {
   const base = apiBaseEl.value.trim();
   try {
     const res = await fetch(`${base}/healthz`);
     if (res.ok) {
       setStatus(true, "aruaru-llm: connected");
+      if (!wasConnected) {
+        const msg = "aruaru-llm installed and connected! / aruaru-llmがインストールされ接続されました!";
+        appendMessage("system", msg);
+        speak(msg);
+      }
+      wasConnected = true;
     } else {
       setStatus(false, `aruaru-llm: HTTP ${res.status}`);
+      wasConnected = false;
     }
   } catch (err) {
     setStatus(false, "aruaru-llm: unreachable (CORS or server not running?)");
+    wasConnected = false;
   }
 }
+
+// 定期的に自動で接続確認する(ユーザー指示: インストール後の自動認識)。
+// 5秒ごとにポーリングし、上記の初回接続検知ロジックで通知する。
+setInterval(checkHealth, 5000);
+
+// キャラクター切替(ユーザー指示、2026-08-10「メイドカフェ魔法少女と
+// 風天のトラさんをいつでも変更できるように」への対応)。
+let activeCharacter = "maid";
+const charMaidEl = document.getElementById("char-maid");
+const charHelperEl = document.getElementById("char-helper");
+const characterSwitchBtn = document.getElementById("character-switch-btn");
+
+function switchCharacter() {
+  activeCharacter = activeCharacter === "maid" ? "helper" : "maid";
+  if (activeCharacter === "maid") {
+    charMaidEl.style.display = "";
+    charHelperEl.style.display = "none";
+    bubbleEl.textContent = "I'm back! I'm your maid-cafe trainer again! / 戻ってきました!メイドカフェの先生に戻りました!";
+  } else {
+    charMaidEl.style.display = "none";
+    charHelperEl.style.display = "";
+    bubbleEl.textContent =
+      "Yo! It's me, Torasan-style helper — always carrying my Miku-style figure! / よう!風天のトラさんだ、いつも初音ミク風のフィギュアを持ってるぜ!";
+  }
+}
+
+characterSwitchBtn.addEventListener("click", switchCharacter);
 
 async function askTrainer(userText) {
   const base = apiBaseEl.value.trim();
@@ -138,6 +258,11 @@ formEl.addEventListener("submit", async (e) => {
   inputEl.value = "";
   appendMessage("user", text);
 
+  if (levelEl.value === "maid-cafe-training") {
+    advanceTrainingMode(text);
+    return;
+  }
+
   try {
     const reply = await askTrainer(text);
     appendMessage("trainer", reply);
@@ -146,6 +271,12 @@ formEl.addEventListener("submit", async (e) => {
   } catch (err) {
     appendMessage("system", `Error talking to aruaru-llm: ${err.message}`);
     setStatus(false, "aruaru-llm: request failed");
+  }
+});
+
+levelEl.addEventListener("change", () => {
+  if (levelEl.value === "maid-cafe-training") {
+    startTrainingMode();
   }
 });
 

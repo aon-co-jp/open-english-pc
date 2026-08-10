@@ -16,6 +16,7 @@
         <option value="beginner">Beginner / 初心者</option>
         <option value="intermediate" selected>Intermediate / 中級</option>
         <option value="advanced">Advanced / 上級</option>
+        <option value="maid-cafe-training">Maid Cafe English Training / メイドカフェ英会話研修</option>
       </select>
     </label>
     <label class="lang-select">
@@ -100,28 +101,6 @@ cargo run --release</pre>
   <main class="stage">
     <div class="trainer" id="trainer">
       <svg id="trainer-svg" viewBox="0 0 200 280" xmlns="http://www.w3.org/2000/svg">
-        <!-- Original maid-cafe magical-girl trainer character (cuter redesign, 2026-08-10; not a reproduction of any existing IP). -->
-        <ellipse cx="100" cy="270" rx="55" ry="8" fill="#000000" opacity="0.15" />
-        <!-- twin-tail hair (back) -->
-        <path d="M60 60 Q20 90 30 150 Q45 160 55 140 Q45 95 68 65 Z" fill="#c76a9a" />
-        <path d="M140 60 Q180 90 170 150 Q155 160 145 140 Q155 95 132 65 Z" fill="#c76a9a" />
-        <!-- head -->
-        <circle cx="100" cy="70" r="46" fill="#ffe0ea" />
-        <!-- hair front -->
-        <path d="M55 55 Q100 20 145 55 Q140 35 100 30 Q60 35 55 55 Z" fill="#e888b0" />
-        <path d="M52 60 Q60 40 80 38 Q65 55 62 78 Q54 72 52 60 Z" fill="#e888b0" />
-        <path d="M148 60 Q140 40 120 38 Q135 55 138 78 Q146 72 148 60 Z" fill="#e888b0" />
-        <!-- ribbon -->
-        <path d="M78 34 l10 -10 l4 8 l-8 8 Z" fill="#ff5e8e" />
-        <path d="M78 34 l-10 -10 l-4 8 l8 8 Z" fill="#ff5e8e" />
-        <circle cx="78" cy="34" r="4" fill="#ff2e6e" />
-        <!-- eyebrows -->
-        <path d="M72 56 Q80 51 90 55" stroke="#8a5a78" stroke-width="2.4" fill="none" stroke-linecap="round" />
-        <path d="M110 55 Q120 51 128 56" stroke="#8a5a78" stroke-width="2.4" fill="none" stroke-linecap="round" />
-        <!-- blush -->
-        <ellipse cx="72" cy="82" rx="8" ry="5" fill="#ff9dbb" opacity="0.7" />
-        <ellipse cx="128" cy="82" rx="8" ry="5" fill="#ff9dbb" opacity="0.7" />
-        <!-- big anime eyes: white, iris gradient, highlight, lower lash -->
         <defs>
           <radialGradient id="iris-l" cx="45%" cy="35%" r="65%">
             <stop offset="0%" stop-color="#7a5ee0" />
@@ -134,41 +113,139 @@ cargo run --release</pre>
             <stop offset="100%" stop-color="#2a1a5e" />
           </radialGradient>
         </defs>
-        <ellipse cx="80" cy="73" rx="10" ry="13" fill="#ffffff" />
-        <ellipse cx="120" cy="73" rx="10" ry="13" fill="#ffffff" />
-        <g id="eye-left">
-          <ellipse cx="80" cy="74" rx="7.5" ry="10.5" fill="url(#iris-l)" />
-          <circle cx="80" cy="74" r="3.2" fill="#1a0f3e" />
-          <circle cx="83" cy="68" r="2.6" fill="#ffffff" />
-          <circle cx="77" cy="79" r="1.3" fill="#ffffff" opacity="0.85" />
+        <ellipse cx="100" cy="270" rx="55" ry="8" fill="#000000" opacity="0.15" />
+        <!-- ===== メイドカフェ魔法少女(独自デザイン) ===== -->
+        <g id="char-maid">
+          <!-- twin-tail hair (back) -->
+          <path d="M60 60 Q20 90 30 150 Q45 160 55 140 Q45 95 68 65 Z" fill="#241f1c" />
+          <path d="M140 60 Q180 90 170 150 Q155 160 145 140 Q155 95 132 65 Z" fill="#241f1c" />
+          <!-- head -->
+          <circle cx="100" cy="70" r="46" fill="#f0cfa0" />
+          <!-- hair front -->
+          <path d="M52 62 Q52 18 100 16 Q148 18 148 62 Q100 44 52 62 Z" fill="#241f1c" />
+          <path d="M70 40 Q100 26 130 40 Q100 34 70 40 Z" fill="#3a332f" opacity="0.6" />
+          <path d="M52 60 Q60 40 80 38 Q65 55 62 78 Q54 72 52 60 Z" fill="#3a332f" />
+          <path d="M148 60 Q140 40 120 38 Q135 55 138 78 Q146 72 148 60 Z" fill="#3a332f" />
+          <!-- ribbon -->
+          <path d="M78 34 l10 -10 l4 8 l-8 8 Z" fill="#ff5e8e" />
+          <path d="M78 34 l-10 -10 l-4 8 l8 8 Z" fill="#ff5e8e" />
+          <circle cx="78" cy="34" r="4" fill="#ff2e6e" />
+          <!-- eyebrows -->
+          <path d="M72 56 Q80 51 90 55" stroke="#2a2420" stroke-width="2.4" fill="none" stroke-linecap="round" />
+          <path d="M110 55 Q120 51 128 56" stroke="#2a2420" stroke-width="2.4" fill="none" stroke-linecap="round" />
+          <!-- blush -->
+          <ellipse cx="72" cy="82" rx="8" ry="5" fill="#e8916a" opacity="0.6" />
+          <ellipse cx="128" cy="82" rx="8" ry="5" fill="#e8916a" opacity="0.6" />
+          <!-- big anime eyes: white, iris gradient, highlight, lower lash -->
+          <ellipse cx="80" cy="73" rx="10" ry="13" fill="#ffffff" />
+          <ellipse cx="120" cy="73" rx="10" ry="13" fill="#ffffff" />
+          <g id="eye-left">
+            <ellipse cx="80" cy="74" rx="7.5" ry="10.5" fill="url(#iris-l)" />
+            <circle cx="80" cy="74" r="3.2" fill="#1a0f3e" />
+            <circle cx="83" cy="68" r="2.6" fill="#ffffff" />
+            <circle cx="77" cy="79" r="1.3" fill="#ffffff" opacity="0.85" />
+          </g>
+          <g id="eye-right">
+            <ellipse cx="120" cy="74" rx="7.5" ry="10.5" fill="url(#iris-r)" />
+            <circle cx="120" cy="74" r="3.2" fill="#1a0f3e" />
+            <circle cx="123" cy="68" r="2.6" fill="#ffffff" />
+            <circle cx="117" cy="79" r="1.3" fill="#ffffff" opacity="0.85" />
+          </g>
+          <path d="M71 65 Q80 61 89 65" stroke="#2a1a3e" stroke-width="1.6" fill="none" stroke-linecap="round" />
+          <path d="M111 65 Q120 61 129 65" stroke="#2a1a3e" stroke-width="1.6" fill="none" stroke-linecap="round" />
+          <!-- eyelids (used for blinking, hidden above the eyes normally) -->
+          <rect id="eyelid-left" x="69" y="61" width="22" height="0" fill="#f0cfa0" />
+          <rect id="eyelid-right" x="109" y="61" width="22" height="0" fill="#f0cfa0" />
+          <!-- small nose -->
+          <path d="M99 82 Q100 86 98 88" stroke="#c98858" stroke-width="1.4" fill="none" stroke-linecap="round" />
+          <!-- mouth -->
+          <path id="mouth" d="M92 94 Q100 100 108 94" stroke="#c05070" stroke-width="3" fill="none" stroke-linecap="round" />
+          <!-- classic maid-cafe uniform: black dress + white apron/frills (ユーザー指示、2026-08-10「ピンクメインではなくメイドカフェのイメージに」) -->
+          <rect x="55" y="118" width="90" height="95" rx="16" fill="#2b2622" />
+          <!-- white collar -->
+          <path d="M78 118 L100 132 L122 118 L122 126 L100 140 L78 126 Z" fill="#ffffff" />
+          <!-- white apron bib+skirt -->
+          <path d="M82 138 L118 138 L124 150 L112 150 L112 205 L88 205 L88 150 L76 150 Z" fill="#ffffff" />
+          <rect x="45" y="205" width="110" height="16" rx="6" fill="#ffffff" />
+          <!-- apron frill trim -->
+          <path d="M45 205 q5 -6 10 0 q5 -6 10 0 q5 -6 10 0 q5 -6 10 0 q5 -6 10 0 q5 -6 10 0 q5 -6 10 0 q5 -6 10 0 q5 -6 10 0 q5 -6 10 0 l0 4 L45 209 Z" fill="#ffffff" />
+          <!-- small red ribbon accent (not pink-dominant, just a bow at the collar) -->
+          <path d="M96 132 l-6 -5 l0 10 Z" fill="#c0392b" />
+          <path d="M104 132 l6 -5 l0 10 Z" fill="#c0392b" />
+          <circle cx="100" cy="132" r="2.5" fill="#8e2a1e" />
+          <rect x="60" y="221" width="32" height="42" rx="6" fill="#3a2e28" />
+          <rect x="108" y="221" width="32" height="42" rx="6" fill="#3a2e28" />
+          <!-- magic wand sparkle -->
+          <circle cx="165" cy="150" r="4" fill="#ffe066" />
+          <circle cx="172" cy="140" r="2.5" fill="#ffe066" />
+          <circle cx="160" cy="135" r="2" fill="#ffe066" />
         </g>
-        <g id="eye-right">
-          <ellipse cx="120" cy="74" rx="7.5" ry="10.5" fill="url(#iris-r)" />
-          <circle cx="120" cy="74" r="3.2" fill="#1a0f3e" />
-          <circle cx="123" cy="68" r="2.6" fill="#ffffff" />
-          <circle cx="117" cy="79" r="1.3" fill="#ffffff" opacity="0.85" />
+        <!-- ===== 助っ人「風天のトラさん」(車寅次郎風キャラのオマージュ、
+             独自デザイン。初音ミク風フィギュアを常に持っている設定——実際の
+             意匠再現ではなくオリジナルの造形) ===== -->
+        <g id="char-helper" style="display:none">
+          <!-- hat -->
+          <ellipse cx="100" cy="42" rx="42" ry="8" fill="#3a2a20" />
+          <path d="M68 42 Q68 15 100 15 Q132 15 132 42 Z" fill="#4a3628" />
+          <!-- head -->
+          <circle cx="100" cy="72" r="40" fill="#f0cfa0" />
+          <!-- ears -->
+          <circle cx="63" cy="74" r="7" fill="#f0cfa0" />
+          <circle cx="137" cy="74" r="7" fill="#f0cfa0" />
+          <!-- eyebrows (thick, friendly) -->
+          <path d="M75 62 Q84 56 94 61" stroke="#3a2a20" stroke-width="3.2" fill="none" stroke-linecap="round" />
+          <path d="M106 61 Q116 56 125 62" stroke="#3a2a20" stroke-width="3.2" fill="none" stroke-linecap="round" />
+          <!-- simple friendly eyes -->
+          <ellipse cx="84" cy="74" rx="5" ry="6" fill="#2a1a10" />
+          <ellipse cx="116" cy="74" rx="5" ry="6" fill="#2a1a10" />
+          <circle cx="86" cy="71" r="1.5" fill="#ffffff" />
+          <circle cx="118" cy="71" r="1.5" fill="#ffffff" />
+          <rect id="eyelid-left-helper" x="76" y="65" width="16" height="0" fill="#f0cfa0" />
+          <rect id="eyelid-right-helper" x="108" y="65" width="16" height="0" fill="#f0cfa0" />
+          <!-- nose -->
+          <ellipse cx="100" cy="82" rx="4" ry="3" fill="#e0b888" />
+          <!-- mustache (friendly, not identity-specific) -->
+          <path d="M84 90 Q100 96 116 90" stroke="#4a3628" stroke-width="3.5" fill="none" stroke-linecap="round" />
+          <!-- mouth -->
+          <path id="mouth-helper" d="M90 96 Q100 101 110 96" stroke="#8a4a30" stroke-width="2.6" fill="none" stroke-linecap="round" />
+          <!-- neckerchief -->
+          <path d="M70 112 L100 128 L130 112 L130 122 L100 140 L70 122 Z" fill="#c0392b" />
+          <!-- traveling coat -->
+          <rect x="52" y="118" width="96" height="95" rx="14" fill="#8a6a3a" />
+          <path d="M100 118 L100 213" stroke="#6a4e28" stroke-width="2" />
+          <rect x="52" y="118" width="14" height="95" rx="6" fill="#7a5a2e" />
+          <rect x="134" y="118" width="14" height="95" rx="6" fill="#7a5a2e" />
+          <!-- 腹巻き(ユーザー指示、2026-08-10「腹巻きをしている感じに」、
+               コートの前が少し開いていて腹巻きが見えている表現) -->
+          <rect x="72" y="152" width="56" height="38" rx="6" fill="#e8ddb8" />
+          <rect x="72" y="160" width="56" height="4" fill="#c0392b" opacity="0.75" />
+          <rect x="72" y="170" width="56" height="4" fill="#c0392b" opacity="0.75" />
+          <rect x="72" y="180" width="56" height="4" fill="#c0392b" opacity="0.75" />
+          <!-- 腕・手(ユーザー指示、2026-08-10) -->
+          <!-- left arm (down at his side) -->
+          <rect x="34" y="128" width="18" height="55" rx="8" fill="#8a6a3a" />
+          <circle cx="43" cy="188" r="10" fill="#f0cfa0" />
+          <!-- right arm (raised, holding the figure) -->
+          <path d="M148 128 Q168 132 148 150" stroke="#8a6a3a" stroke-width="18" fill="none" stroke-linecap="round" />
+          <circle cx="148" cy="150" r="10" fill="#f0cfa0" />
+          <!-- 足(ユーザー指示、2026-08-10) -->
+          <rect x="66" y="213" width="20" height="30" fill="#4a3a24" />
+          <rect x="114" y="213" width="20" height="30" fill="#4a3a24" />
+          <ellipse cx="76" cy="245" rx="16" ry="7" fill="#2a2018" />
+          <ellipse cx="124" cy="245" rx="16" ry="7" fill="#2a2018" />
+          <!-- 初音ミク風フィギュア(独自デザイン、常に手に持っている設定) -->
+          <g transform="translate(148,150)">
+            <path d="M-6 10 Q-14 -6 -2 -10 Q10 -14 12 0 Q13 10 4 14 Z" fill="#3ab5c9" />
+            <circle cx="2" cy="0" r="9" fill="#ffe0d0" />
+            <path d="M-6 -4 Q-2 -14 8 -12 Q14 -8 10 -2 Q6 4 -2 2 Z" fill="#3ab5c9" />
+            <circle cx="0" cy="-1" r="1.3" fill="#1a1a2a" />
+            <circle cx="5" cy="-1" r="1.3" fill="#1a1a2a" />
+            <rect x="-2" y="8" width="8" height="14" rx="3" fill="#2a2a3a" />
+          </g>
         </g>
-        <path d="M71 65 Q80 61 89 65" stroke="#2a1a3e" stroke-width="1.6" fill="none" stroke-linecap="round" />
-        <path d="M111 65 Q120 61 129 65" stroke="#2a1a3e" stroke-width="1.6" fill="none" stroke-linecap="round" />
-        <!-- eyelids (used for blinking, hidden above the eyes normally) -->
-        <rect id="eyelid-left" x="69" y="61" width="22" height="0" fill="#ffe0ea" />
-        <rect id="eyelid-right" x="109" y="61" width="22" height="0" fill="#ffe0ea" />
-        <!-- small nose -->
-        <path d="M99 82 Q100 86 98 88" stroke="#e8a8b8" stroke-width="1.4" fill="none" stroke-linecap="round" />
-        <!-- mouth -->
-        <path id="mouth" d="M92 94 Q100 100 108 94" stroke="#c05070" stroke-width="3" fill="none" stroke-linecap="round" />
-        <!-- maid dress with heart -->
-        <rect x="55" y="118" width="90" height="95" rx="16" fill="#ff9ec2" />
-        <rect x="45" y="205" width="110" height="16" rx="6" fill="#ffffff" />
-        <path d="M100 150 l6 6 q6 6 0 12 q-6 6 -12 0 q-6 -6 0 -12 Z" fill="#ffffff" opacity="0.85" />
-        <rect x="60" y="221" width="32" height="42" rx="6" fill="#e888b0" />
-        <rect x="108" y="221" width="32" height="42" rx="6" fill="#e888b0" />
-        <!-- magic wand sparkle -->
-        <circle cx="165" cy="150" r="4" fill="#ffe066" />
-        <circle cx="172" cy="140" r="2.5" fill="#ffe066" />
-        <circle cx="160" cy="135" r="2" fill="#ffe066" />
       </svg>
       <div class="speech-bubble" id="speech-bubble">Hi! I'm your English trainer. Choose your level above, then type or press the mic to start! / レベルを選んで、話すか入力してね!</div>
+      <button type="button" id="character-switch-btn" class="character-switch-btn">🔄 Switch Character / キャラ変更</button>
       <div class="voice-controls">
         <button type="button" id="mic-btn" title="Speak / 話す">🎙 Speak</button>
         <label class="voice-toggle"><input type="checkbox" id="voice-out" checked /> Voice reply / 音声で返答</label>

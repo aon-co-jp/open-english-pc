@@ -70,6 +70,11 @@ body {
 .trainer {
   flex: 0 0 220px;
   text-align: center;
+  /* キャラクター周りだけ薄いピンク背景(ユーザー指示、2026-08-10)、
+     ページ全体の紺色背景(body)はそのまま維持する。 */
+  background: #fbe4ec;
+  border-radius: 20px;
+  padding: 16px 10px;
 }
 
 #trainer-svg {
@@ -90,7 +95,9 @@ body {
 }
 
 #eyelid-left,
-#eyelid-right {
+#eyelid-right,
+#eyelid-left-helper,
+#eyelid-right-helper {
   animation: blink 4.5s ease-in-out infinite;
 }
 
@@ -126,13 +133,26 @@ body {
   }
 }
 
-#mouth {
+#mouth,
+#mouth-helper {
   transform-origin: 100px 94px;
   transition: transform 0.1s ease;
 }
 
-.trainer.speaking #mouth {
+.trainer.speaking #mouth,
+.trainer.speaking #mouth-helper {
   animation: talk 0.22s infinite alternate;
+}
+
+.character-switch-btn {
+  margin-top: 10px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: none;
+  background: #444;
+  color: #fff;
+  cursor: pointer;
+  font-size: 0.8rem;
 }
 
 @keyframes talk {
@@ -179,7 +199,7 @@ body {
 }
 
 .voice-toggle {
-  color: #cbb;
+  color: #5a3040;
 }
 
 .speech-bubble {
@@ -190,6 +210,7 @@ body {
   padding: 10px 12px;
   font-size: 0.9rem;
   min-height: 60px;
+  white-space: pre-line;
 }
 
 .chat-panel {
@@ -227,6 +248,7 @@ body {
   border-radius: 10px;
   font-size: 0.9rem;
   line-height: 1.4;
+  white-space: pre-line;
 }
 
 .msg.user {
