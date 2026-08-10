@@ -281,7 +281,13 @@ cargo run --release</pre>
         with no dialogue fine-tuning. Response quality and level-matching are not
         guaranteed. Voice input/output uses the browser's built-in Web Speech API
         (not all browsers support it). This is a Phase 0 prototype, not a
-        production tutor.
+        production tutor.<br /><br />
+        <strong>正直な開示:</strong> AIの応答は、対話用のファインチューニングを
+        受けていない素のGPT-2言語モデル(<code>aruaru-llm</code>の
+        <code>/v1/generate</code>経由)が生成しています。応答の品質・
+        指定レベルへの適合は保証されません。声の入出力はブラウザ標準の
+        Web Speech API(対応ブラウザのみ)を使用します。これはPhase 0の
+        試作品であり、本番運用レベルの講師ではありません。
       </div>
 
       <div id="log" class="log" aria-live="polite"></div>
