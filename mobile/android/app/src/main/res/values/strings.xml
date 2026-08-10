@@ -1,0 +1,13 @@
+<resources>
+    <string name="app_name">open-english</string>
+    <string name="url_hint">http://192.168.1.10:4601 (PCのIPアドレス:4601)</string>
+    <string name="connect_button">Connect / 接続</string>
+    <string name="setup_help">
+        PC上で aruaru-llm と open-english の server を起動してから、
+        同じWi-Fi内でPCのIPアドレスを上に入力してください。
+        コマンド操作はPC側の1回だけで、スマホ側では不要です。
+        \n\nFirst start aruaru-llm and the open-english server on your
+        PC, then enter your PC\'s IP address above (same Wi-Fi network).
+        No command-line steps are needed on the phone.
+    </string>
+</resources>
