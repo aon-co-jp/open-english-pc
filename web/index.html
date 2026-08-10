@@ -38,10 +38,22 @@
         this Phase 0 script still requires Git and the Rust toolchain
         (<a href="https://rustup.rs" target="_blank" rel="noopener">rustup.rs</a>)
         to be installed first, and it builds from source. A prebuilt-binary
-        download (via <code>open-easy-web</code>) is planned for later.<br />
+        download (via <code>open-easy-web</code>) is planned for later.
+        Also: <code>aruaru-llm</code> has real, non-optional cross-repo path
+        dependencies deeper than expected — it needs <code>open-cuda</code>,
+        <code>RPoem</code>, <code>open-web-server</code>, and
+        <code>RS-SmartTCP</code> cloned as sibling folders, not just itself.
+        This "easy setup" clones all five; it's not actually a lightweight
+        single-repo build.<br />
         正直な開示: まだワンクリック・インストーラーはありません。このPhase 0
         スクリプトはGitとRustツールチェーン(<a href="https://rustup.rs" target="_blank" rel="noopener">rustup.rs</a>)
         が事前に必要で、ソースからビルドします。実行ファイル配布(<code>open-easy-web</code>経由)は今後の予定です。
+        また、<code>aruaru-llm</code>は想定以上に深いクロスリポジトリの
+        必須依存(オプションではない)を持っており、<code>open-cuda</code>・
+        <code>RPoem</code>・<code>open-web-server</code>・
+        <code>RS-SmartTCP</code>を同じ階層にクローンする必要があります。
+        この「簡単セットアップ」は5リポジトリすべてをクローンします——
+        実際には単一リポジトリの軽量ビルドではありません。
       </p>
 
       <h3>Windows (PowerShell)</h3>
@@ -54,6 +66,10 @@
         フォルダ内にクローンされます。
       </p>
       <pre class="setup-script" data-script="win">cd $env:USERPROFILE
+git clone https://github.com/aon-co-jp/open-cuda
+git clone https://github.com/aon-co-jp/RS-SmartTCP
+git clone https://github.com/aon-co-jp/open-web-server
+git clone https://github.com/aon-co-jp/RPoem
 git clone https://github.com/aon-co-jp/aruaru-llm
 cd aruaru-llm
 cargo run --release</pre>
@@ -61,6 +77,10 @@ cargo run --release</pre>
 
       <h3>Linux / macOS (bash)</h3>
       <pre class="setup-script" data-script="unix">cd ~
+git clone https://github.com/aon-co-jp/open-cuda
+git clone https://github.com/aon-co-jp/RS-SmartTCP
+git clone https://github.com/aon-co-jp/open-web-server
+git clone https://github.com/aon-co-jp/RPoem
 git clone https://github.com/aon-co-jp/aruaru-llm
 cd aruaru-llm
 cargo run --release</pre>
