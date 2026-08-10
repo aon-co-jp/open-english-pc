@@ -128,6 +128,26 @@ if ("speechSynthesis" in window) {
   };
 }
 
+// 各行が"English sentence / 日本語訳"形式(このアプリ全体で使われている
+// 規約)になっている発話テキストから、実際に読み上げる言語の部分だけを
+// 抽出する(ユーザー指摘、2026-08-10「メイドの喋りが途切れ途切れ」への
+// 対応)。**根本原因**: 発話全体を単一の`utter.lang`(en-US または
+// ja-JP)で読ませていたが、テキスト自体は英語・日本語が"/"区切りで
+// 混在していたため、ブラウザのTTSエンジンが片方の言語の発音規則で
+// もう片方の言語の文字列を無理に読もうとし、不自然な途切れ・詰まりが
+// 発生していた。行ごとに"/"で分割し、`lang`に一致する側だけを選んで
+// 読点でつなぐことで、単一言語の滑らかな文章として読み上げさせる。
+function extractSpeechText(text, lang) {
+  const wantJapanese = lang.startsWith("ja");
+  const lines = text.split("\n").filter((line) => line.trim().length > 0);
+  const picked = lines.map((line) => {
+    const parts = line.split(" / ");
+    if (parts.length < 2) return line.trim();
+    return wantJapanese ? parts[1].trim() : parts[0].trim();
+  });
+  return picked.join(wantJapanese ? "。" : ". ");
+}
+
 function speak(text) {
   bubbleEl.textContent = text;
 
@@ -139,7 +159,7 @@ function speak(text) {
     try {
       window.speechSynthesis.cancel();
       const lang = replyLangEl.value === "ja" ? "ja-JP" : "en-US";
-      const utter = new SpeechSynthesisUtterance(text);
+      const utter = new SpeechSynthesisUtterance(extractSpeechText(text, lang));
       utter.lang = lang;
       const isHelper = typeof activeCharacter !== "undefined" && activeCharacter === "helper";
       const voice = pickVoice(lang, isHelper);
@@ -153,8 +173,10 @@ function speak(text) {
         // スチュワーデスの声+メイドカフェの様な声をデフォルトに」):
         // 大型機の機内アナウンスを思わせる丁寧でゆったりした話速+
         // メイドカフェらしい明るいピッチ、を両立させる調整値。
+        // 2026-08-10追記: 「もう少しゆっくり喋って」との指示により
+        // さらに話速を落とした(0.92→0.82)。
         utter.pitch = 1.1;
-        utter.rate = 0.92;
+        utter.rate = 0.82;
       }
       trainerEl.classList.add("speaking");
       utter.onend = () => trainerEl.classList.remove("speaking");
@@ -244,6 +266,20 @@ const trainingSteps = [
       "I love the Japanese language! / 私は日本語が大好きです!\n" +
       "I love aikido, judo, shodo (calligraphy), and sado (tea ceremony)! / 合気道、柔道、書道、茶道が大好きです!\n" +
       "I love temples, shrines, and Shinto too! / お寺や神社、神道も大好きです!\n" +
+      "Did you know Japan is having a huge boom overseas right now? / 今、日本は海外で大ブームなんですよ!",
+  },
+  {
+    // 日英でGoogle検索して調査した内容(ユーザー指示、2026-08-10)に基づく、
+    // 海外で人気の日本文化トピックの紹介ステップ。誇張しないよう、
+    // 検索で確認できた範囲の事実(概数・傾向)のみを取り上げる。
+    onUserReply: () =>
+      "Manga and anime like Demon Slayer and Attack on Titan are loved worldwide! / 「鬼滅の刃」や「進撃の巨人」のような漫画・アニメは世界中で愛されています!\n" +
+      "Anime songs (anisong) even have huge live concerts like Animelo Summer Live! / アニソンには「Animelo Summer Live」のような大きなライブもあります!\n" +
+      "Japanese video games are booming overseas too! / 日本のゲームも海外で大ブームです!\n" +
+      "About 3.79 million people study Japanese around the world! / 世界中で約379万人が日本語を学んでいます!\n" +
+      "Foreign tourists love collecting goshuin (temple & shrine stamps)! / 外国人観光客は御朱印集めも大好きです!\n" +
+      "Onsen ryokan (hot spring inns) and shrine/temple tours are a huge tourism boom! / 温泉旅館や神社・お寺巡りも観光ブームです!\n" +
+      "And Japanese food — sushi, ramen — is loved everywhere! / そして日本食(寿司・ラーメン等)も世界中で大好かれています!\n" +
       "Now let's learn a real maid cafe trick! / 実際のメイドカフェの技を学びましょう!",
   },
   {
