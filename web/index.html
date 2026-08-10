@@ -5,6 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>open-english: Maid Cafe English Trainer (Phase 0)</title>
 <link rel="stylesheet" href="style.css" />
+<link rel="manifest" href="manifest.json" />
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png" />
+<link rel="icon" type="image/png" sizes="32x32" href="icons/icon-32.png" />
+<link rel="apple-touch-icon" sizes="180x180" href="icons/icon-180.png" />
+<meta name="theme-color" content="#f096be" />
 </head>
 <body>
   <header class="topbar">
@@ -231,15 +236,24 @@ cargo run --release</pre>
           <!-- 足(ユーザー指示、2026-08-10) -->
           <rect x="66" y="213" width="20" height="30" fill="#4a3a24" />
           <rect x="114" y="213" width="20" height="30" fill="#4a3a24" />
-          <ellipse cx="76" cy="245" rx="16" ry="7" fill="#2a2018" />
-          <ellipse cx="124" cy="245" rx="16" ry="7" fill="#2a2018" />
+          <!-- わらじの様なサンダル(ユーザー指示、2026-08-10「靴じゃなくて
+               わらじの様なサンダルに」、編み目のあるわら草履+足の甲を
+               留める鼻緒ベルトで、靴ではなく履物であることを表現) -->
+          <ellipse cx="76" cy="246" rx="17" ry="6" fill="#c9a876" />
+          <path d="M64 246 Q76 249 88 246" stroke="#9c7a4a" stroke-width="1.4" fill="none" opacity="0.7" />
+          <path d="M65 243 Q76 246 87 243" stroke="#9c7a4a" stroke-width="1.2" fill="none" opacity="0.6" />
+          <path d="M76 234 L70 244 M76 234 L82 244" stroke="#5a4020" stroke-width="2.2" fill="none" stroke-linecap="round" />
+          <ellipse cx="124" cy="246" rx="17" ry="6" fill="#c9a876" />
+          <path d="M112 246 Q124 249 136 246" stroke="#9c7a4a" stroke-width="1.4" fill="none" opacity="0.7" />
+          <path d="M113 243 Q124 246 135 243" stroke="#9c7a4a" stroke-width="1.2" fill="none" opacity="0.6" />
+          <path d="M124 234 L118 244 M124 234 L130 244" stroke="#5a4020" stroke-width="2.2" fill="none" stroke-linecap="round" />
           <!-- 四角いカバン(ユーザー指示、2026-08-10「片手に初音ミク、
-               もう片手(=左手側)に四角いカバンを床に置く」、風呂敷包み
-               行商人風の柄) -->
-          <g transform="translate(28,222)">
-            <rect x="0" y="0" width="30" height="24" rx="2" fill="#5a3a28" />
-            <rect x="0" y="0" width="30" height="6" fill="#7a5a3a" />
-            <rect x="12" y="-6" width="6" height="8" fill="#3a2418" />
+               もう片手(=左手側)に四角いカバンを床に置く」、2026-08-10
+               追記「もっと大きく、薄茶色に」で拡大+色調変更) -->
+          <g transform="translate(16,208)">
+            <rect x="0" y="0" width="46" height="38" rx="3" fill="#c9a876" />
+            <rect x="0" y="0" width="46" height="9" fill="#dcc198" />
+            <rect x="18" y="-9" width="10" height="12" fill="#a9895a" />
           </g>
           <!-- 初音ミク風フィギュア(独自デザイン、常に手に持っている設定) -->
           <g transform="translate(148,150)">

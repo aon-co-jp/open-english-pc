@@ -29,12 +29,68 @@ const replyLangEl = document.getElementById("reply-lang");
 const micBtn = document.getElementById("mic-btn");
 const voiceOutEl = document.getElementById("voice-out");
 
+// 風天のトラさんキャラクターへの切替時に流れる短いジングル(ユーザー
+// 指示、2026-08-10「男はつらいよの映画のメインテーマのBGMのパロディが
+// 短く流れるように」)。
+// 正直な開示: 実在する楽曲のメロディ・録音を一切使用しない完全新規の
+// オリジナル作曲(音階・雰囲気のみを「祭り囃子・旅回りの下町演歌」風に
+// 参考にしたに留まる)。Web Audio APIのオシレーターで手書き合成する
+// (追加ライブラリ・音源ファイル不使用)。
+function playToraSanJingle() {
+  try {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    const now = ctx.currentTime;
+    // 下町演歌調を意識した、五音音階(ヨナ抜き)の短い上昇→着地フレーズ。
+    const notes = [
+      { freq: 392.0, start: 0.0, dur: 0.16 }, // G4
+      { freq: 440.0, start: 0.16, dur: 0.16 }, // A4
+      { freq: 523.25, start: 0.32, dur: 0.22 }, // C5
+      { freq: 587.33, start: 0.56, dur: 0.16 }, // D5
+      { freq: 659.25, start: 0.74, dur: 0.42 }, // E5(着地音、少し長め)
+    ];
+    for (const note of notes) {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "triangle"; // 尺八・篠笛風の柔らかい音色に近づける
+      osc.frequency.value = note.freq;
+      const t0 = now + note.start;
+      const t1 = t0 + note.dur;
+      gain.gain.setValueAtTime(0.0001, t0);
+      gain.gain.exponentialRampToValueAtTime(0.22, t0 + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t1);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(t0);
+      osc.stop(t1 + 0.02);
+    }
+    const totalMs = (notes[notes.length - 1].start + notes[notes.length - 1].dur + 0.1) * 1000;
+    setTimeout(() => ctx.close(), totalMs);
+  } catch (err) {
+    // 音声合成APIが使えない環境ではジングル無しで継続する(致命的にしない)。
+  }
+}
+
 function appendMessage(role, text) {
   const div = document.createElement("div");
   div.className = `msg ${role}`;
   div.textContent = text;
+  div.dataset.role = role;
   logEl.appendChild(div);
   logEl.scrollTop = logEl.scrollHeight;
+  return div;
+}
+
+function replaceLastMessage(role, text) {
+  const nodes = logEl.querySelectorAll(`.msg.${role}`);
+  const last = nodes[nodes.length - 1];
+  if (last) {
+    last.textContent = text;
+    logEl.scrollTop = logEl.scrollHeight;
+    return true;
+  }
+  return false;
 }
 
 function setStatus(ok, text) {
@@ -140,14 +196,29 @@ function findCountryFunFact(text) {
   return "That's wonderful! I'd love to learn more about your country someday! / それは素晴らしいですね!いつかあなたの国についてもっと知りたいです!";
 }
 
+function trainingIntroLine() {
+  const isHelper = typeof activeCharacter !== "undefined" && activeCharacter === "helper";
+  if (isHelper) {
+    return (
+      "Let's begin the Maid Cafe English Training! / メイドカフェ英会話研修を始めましょう!\n" +
+      "Hello, I am Tora, your butler trainer! / こんにちは、私は執事の先生、トラです!\n" +
+      "Now — what is YOUR name? / さて、あなたのお名前は?"
+    );
+  }
+  return (
+    "Let's begin the Maid Cafe English Training! / メイドカフェ英会話研修を始めましょう!\n" +
+    "Hello, I am Sakura, your maid trainer! / こんにちは、私はメイドの先生、さくらです!\n" +
+    "How old am I, you ask? / 私が何歳か気になりますか?\n" +
+    "A maid is eternally 17 years old! ✨ / メイドは永遠の17歳です!✨\n" +
+    "Now — what is YOUR name? / さて、あなたのお名前は?"
+  );
+}
+
 const trainingSteps = [
   {
-    trainerSays:
-      "Let's begin the Maid Cafe English Training! / メイドカフェ英会話研修を始めましょう!\n" +
-      "Hello, I am Sakura, your maid trainer! / こんにちは、私はメイドの先生、さくらです!\n" +
-      "How old am I, you ask? / 私が何歳か気になりますか?\n" +
-      "A maid is eternally 17 years old! ✨ / メイドは永遠の17歳です!✨\n" +
-      "Now — what is YOUR name? / さて、あなたのお名前は?",
+    get trainerSays() {
+      return trainingIntroLine();
+    },
     onUserReply: (text) =>
       `Nice to meet you, ${text}! / はじめまして、${text}さん!\n` + "Where are you from? / どこの国からいらっしゃいましたか?",
   },
@@ -240,6 +311,18 @@ function switchCharacter() {
     charHelperEl.style.display = "";
     bubbleEl.textContent =
       "Yo! It's me, Torasan-style helper — always carrying my Miku-style figure! / よう!風天のトラさんだ、いつも初音ミク風のフィギュアを持ってるぜ!";
+    playToraSanJingle();
+  }
+  // 研修モードの自己紹介(まだユーザーが名前等に返答していない最初の
+  // ステップ)を表示した後にキャラを切り替えた場合、表示済みの挨拶
+  // メッセージがそのまま古いキャラのままになってしまう問題への対応
+  // (ユーザー指摘、2026-08-10「トラさんに切り替えたのにまだ…さくらと
+  // 名乗ってますね」)——研修モードでまだ最初のステップにいる間だけ、
+  // 直前の挨拶メッセージを新しいキャラの台詞へ差し替える。
+  if (levelEl.value === "maid-cafe-training" && trainingStepIndex === 0) {
+    const newIntro = trainingIntroLine();
+    replaceLastMessage("trainer", newIntro);
+    speak(newIntro);
   }
 }
 
@@ -257,13 +340,38 @@ async function askTrainer(userText) {
   const res = await fetch(`${base}/v1/generate`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ prompt, max_new_tokens: 48 }),
+    // 正直な開示: max_new_tokensを48から24へ縮小した(ユーザー指摘
+    // 「反応も遅すぎ」への対応)。GPT-2(CPU貪欲デコード)は1トークンごとに
+    // ほぼ一定時間かかるため、トークン数を減らすことがそのまま応答時間の
+    // 短縮になる——ファインチューニング無しの素のモデルであるという
+    // 制約自体は変わらない。
+    body: JSON.stringify({ prompt, max_new_tokens: 24 }),
   });
   if (!res.ok) {
     throw new Error(`aruaru-llm returned HTTP ${res.status}`);
   }
   const data = await res.json();
-  return data.completion ?? "(no completion field in response)";
+  const completion = data.completion ?? "(no completion field in response)";
+  return trimDegenerateRepetition(completion);
+}
+
+// 正直な開示: 対話ファインチューニングを受けていない素のGPT-2(貪欲
+// デコード)は、しばしば同じ文字列("Student: Hello"等)を繰り返す
+// 劣化ループに陥る(ユーザー報告「しつこく繰り返すバグ」)。モデル自体を
+// 差し替えず、フロントエンド側で「プロンプト構造を再現し始めた箇所
+// (次の"Student:"や改行の連続)」を検出して、そこより前だけを表示する
+// 応急処置。根本解決(繰り返しペナルティ・専用対話モデルへの差し替え)は
+// aruaru-llm側の別対応が必要。
+function trimDegenerateRepetition(text) {
+  const cutMarkers = ["\nStudent:", "Student:", "\n\n\n"];
+  let cutAt = text.length;
+  for (const marker of cutMarkers) {
+    const idx = text.indexOf(marker);
+    if (idx !== -1 && idx < cutAt) cutAt = idx;
+  }
+  let trimmed = text.slice(0, cutAt).trim();
+  if (!trimmed) trimmed = "(Trainer had nothing more to add — try rephrasing! / 何も返ってきませんでした、言い換えてみてください!)";
+  return trimmed;
 }
 
 formEl.addEventListener("submit", async (e) => {
