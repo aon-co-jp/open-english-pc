@@ -17,6 +17,45 @@ const langInstructions = {
   hybrid: "Reply with a short mix of English and Japanese in the same message (e.g. give the English sentence, then a brief Japanese translation or note), to help the student learn both.",
 };
 
+// バージョン表示(ユーザー指示「バージョン管理する機能も搭載して」)。
+// `version.json`の`version`(セマンティックバージョン)をフッターへ表示する。
+(async function showAppVersion() {
+  const label = document.getElementById("app-version-label");
+  if (!label) return;
+  try {
+    const res = await fetch("version.json", { cache: "no-store" });
+    const data = await res.json();
+    label.textContent = data.version ? `v${data.version}` : "";
+  } catch (err) {
+    label.textContent = "";
+  }
+})();
+
+// 日本語文字(ひらがな・カタカナ・漢字)を含むかどうかの簡易判定。
+// 正規表現の\p{Script=...}(Unicodeプロパティエスケープ)はモダンブラウザ
+// (Chrome/Firefox/Safari最新版)で対応済みのため追加ライブラリ不要。
+function containsJapanese(text) {
+  return /[\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Han}]/u.test(text);
+}
+
+// 正直な開示: GPT-2/DistilGPT-2は英語中心の語彙(BPE)で事前学習されており、
+// 日本語の生成能力が本質的に弱い。ハイブリッドモード(英日併記)を選んで
+// いても、モデルが英語だけで応答してしまうことがある——ユーザー報告
+// 「日本語でしゃべっても英語と日本語で返事して」への対応として、
+// (1)ユーザーの発話が日本語の場合はその原文をプロンプトへ明示的に
+// 埋め込みモデルに気づかせる、(2)それでもモデルの返答に日本語が
+// 一切含まれなければ、フロントエンド側で必ず日本語の一言を補い、
+// 「ハイブリッド(英日併記)」という構造だけは常に保証する
+// (機械翻訳の質を偽って主張しない、あくまで定型の一言を添えるのみ)。
+function ensureHybridReply(completion, userText) {
+  if (replyLangEl.value !== "hybrid") return completion;
+  if (containsJapanese(completion)) return completion;
+  const note = containsJapanese(userText)
+    ? "(This small AI model can't reliably write Japanese yet — please keep speaking Japanese, I'll answer in English! / このAIはまだ日本語の生成が苦手です。日本語で話しかけ続けてくださいね、英語でお答えします!)"
+    : "(Here is a short Japanese note so you can compare both languages. / 英語と日本語を見比べられるよう、日本語のメモを添えました。)";
+  return `${completion}\n\n${note}`;
+}
+
 const logEl = document.getElementById("log");
 const formEl = document.getElementById("chat-form");
 const inputEl = document.getElementById("chat-input");
@@ -384,7 +423,14 @@ async function askTrainer(userText) {
   const base = apiBaseEl.value.trim();
   const level = levelEl.value;
   const levelInstruction = levelInstructions[level] || "";
-  const langInstruction = langInstructions[replyLangEl.value] || "";
+  let langInstruction = langInstructions[replyLangEl.value] || "";
+  // ユーザーの発話が日本語の場合、その事実をプロンプトへ明示する
+  // (ユーザー報告「日本語でしゃべっても英語と日本語で返事して」への
+  // 対応、第一段階)。GPT-2は英語中心の語彙のため、これだけでは
+  // 日本語生成が保証されない——保証はensureHybridReply()側で行う。
+  if (replyLangEl.value === "hybrid" && containsJapanese(userText)) {
+    langInstruction += " The student just wrote in Japanese, so make sure your reply includes a Japanese part too.";
+  }
   // 正直な開示: プロンプトへの指示文付加のみでレベル・言語を守らせようと
   // しているだけで、GPT-2側が実際にそれを守る保証は無い。
   const prompt = `You are a friendly English conversation trainer at a maid cafe. ${levelInstruction} ${langInstruction}\nStudent: ${userText}\nTrainer:`;
@@ -404,7 +450,7 @@ async function askTrainer(userText) {
   }
   const data = await res.json();
   const completion = data.completion ?? "(no completion field in response)";
-  return trimDegenerateRepetition(completion);
+  return ensureHybridReply(trimDegenerateRepetition(completion), userText);
 }
 
 // 正直な開示: 対話ファインチューニングを受けていない素のGPT-2(貪欲
