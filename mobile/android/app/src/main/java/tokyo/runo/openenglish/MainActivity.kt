@@ -34,6 +34,18 @@ import java.net.URL
  * `http://127.0.0.1:<port>/`(端末内で完結、外部ネットワーク不要)を
  * 読み込む。
  *
+ * **2026-08-11追記: `aruaru-llm`(AI応答エンジン)も同梱**。同じ
+ * `ProcessBuilder`方式で`libaruarullm.so`を`127.0.0.1:4600`限定
+ * (`ARUARU_LLM_BIND`環境変数)で起動する。**正直な開示(重要)**:
+ * 実際の推論に必要なモデル重み(GPT-2系〈数百MB〉・multilingual-e5-
+ * small埋め込みモデル〈約470MB〉)はAPKには同梱していない(著作権・
+ * サイズの都合上、既存のPC版と同じくユーザー自身が別途ダウンロードする
+ * 前提)——モデルが無い場合、`aruaru-llm`は既存の設計通りbag-of-words
+ * フォールバックや`503`で正直にその旨を返す(黙って動くふりをしない)。
+ * つまり本バージョンでは「サーバー自体が端末内で起動すること」までを
+ * 実証しており、「実用的な応答品質のAI会話」はモデル重みの別途配置が
+ * 前提のまま。
+ *
  * **正直な開示**: 内蔵サーバー自体の自動アップデート(`self_update.rs`)は
  * Windows専用のインストーラー差し替え方式のままであり、Android上では
  * (Windows向けアセットが無いため)何もしない設計のまま——アプリ自体の
@@ -49,7 +61,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var updateNotice: TextView
 
     private var serverProcess: Process? = null
+    private var aruaruLlmProcess: Process? = null
     private val serverPort = 24601
+    private val aruaruLlmPort = 4600
 
     companion object {
         private const val PREFS_NAME = "open_english_prefs"
@@ -58,6 +72,7 @@ class MainActivity : AppCompatActivity() {
         private const val GITHUB_RELEASES_PAGE =
             "https://github.com/aon-co-jp/open-english/releases"
         private const val NATIVE_BINARY_NAME = "libopenenglishserver.so"
+        private const val ARUARU_LLM_BINARY_NAME = "libaruarullm.so"
         private const val WEBROOT_ASSET_DIR = "webroot"
     }
 
@@ -91,6 +106,7 @@ class MainActivity : AppCompatActivity() {
                 try {
                     extractWebrootAssets()
                     launchServerProcess()
+                    launchAruaruLlmProcess()
                     waitForServerReady()
                 } catch (e: Exception) {
                     false
@@ -150,6 +166,24 @@ class MainActivity : AppCompatActivity() {
         serverProcess = pb.start()
     }
 
+    private fun launchAruaruLlmProcess() {
+        if (aruaruLlmProcess?.isAlive == true) return
+        val binaryPath = File(applicationInfo.nativeLibraryDir, ARUARU_LLM_BINARY_NAME)
+        if (!binaryPath.exists()) return // 同梱されていないビルドでも本体サーバーは動かす。
+        val pb = ProcessBuilder(binaryPath.absolutePath)
+        pb.environment()["ARUARU_LLM_BIND"] = "127.0.0.1:$aruaruLlmPort"
+        // モデル重み(GPT-2系・埋め込みモデル)はAPKに同梱していないため
+        // (冒頭のクラスdoc参照)、実際にダウンロード済みのモデルを配置
+        // する場合はこのパスへ置く想定(内部ストレージ、ユーザー自身の
+        // 操作が前提——将来的な自動ダウンロード機能は未実装)。
+        val modelsRoot = File(filesDir, "aruaru-llm-models")
+        pb.environment()["ARUARU_LLM_MODELS_ROOT"] = modelsRoot.absolutePath
+        pb.environment()["ARUARU_LLM_GPT2_DIR"] = File(modelsRoot, "distilgpt2").absolutePath
+        pb.environment()["ARUARU_LLM_EMBED_MODEL_DIR"] = File(modelsRoot, "multilingual-e5-small").absolutePath
+        pb.redirectErrorStream(true)
+        aruaruLlmProcess = pb.start()
+    }
+
     private suspend fun waitForServerReady(): Boolean {
         repeat(30) {
             try {
@@ -168,6 +202,7 @@ class MainActivity : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
         serverProcess?.destroy()
+        aruaruLlmProcess?.destroy()
     }
 
     override fun onBackPressed() {

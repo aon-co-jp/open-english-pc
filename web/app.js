@@ -40,6 +40,17 @@ const langInstructions = {
   hybrid: "Reply with a short mix of English and Japanese in the same message (e.g. give the English sentence, then a brief Japanese translation or note), to help the student learn both.",
 };
 
+// 学びたい言語の方向(ユーザー指示「英会話か日本語会話か学びたい言語を
+// 選べるようにして」への対応)。従来は常に「英語トレーナー」固定だった
+// プロンプトの役割部分を、選択に応じて入れ替える。`reply-lang`
+// (応答言語の混在方針)とは独立した軸——こちらは「主に何を教える
+// トレーナーか」を決める。
+const trainerRoleByTarget = {
+  english: "You are a friendly English conversation trainer at a maid cafe.",
+  japanese: "You are a friendly Japanese conversation trainer at a maid cafe, helping the student practice speaking Japanese.",
+};
+const learnTargetEl = document.getElementById("learn-target");
+
 // バージョン表示(ユーザー指示「バージョン管理する機能も搭載して」)。
 // `version.json`の`version`(セマンティックバージョン)をフッターへ表示する。
 (async function showAppVersion() {
@@ -695,7 +706,8 @@ async function askTrainer(userText) {
   }
   // 正直な開示: プロンプトへの指示文付加のみでレベル・言語を守らせようと
   // しているだけで、GPT-2側が実際にそれを守る保証は無い。
-  const prompt = `You are a friendly English conversation trainer at a maid cafe. ${levelInstruction} ${langInstruction}\nStudent: ${userText}\nTrainer:`;
+  const trainerRole = trainerRoleByTarget[learnTargetEl ? learnTargetEl.value : "english"] || trainerRoleByTarget.english;
+  const prompt = `${trainerRole} ${levelInstruction} ${langInstruction}\nStudent: ${userText}\nTrainer:`;
 
   // Google検索補強(ユーザー指示「発話・入力の都度Google検索する」への
   // 対応、ブリッジ式)。トグルON時は`/v1/generate-with-search`を叩く
@@ -873,6 +885,24 @@ setupModal.addEventListener("click", (e) => {
 });
 setupRecheck.addEventListener("click", checkHealth);
 
+// aruaru-db & PostgreSQLセットアップ案内(ユーザー指示「open-easy-web
+// とPostgreSQLとaruaru-dbをSETUPして頂きますと、将来大量の情報をより
+// 高速で処理する事も可能になる予定です」+「SETUPは、なるべく簡単に
+// して」への対応)。既存の`aruaru-db`の`install.sh`/`install.ps1`
+// (すでに用意されているインストーラースクリプト)を案内するのみ——
+// このアプリ自体がPostgreSQLやaruaru-dbを操作・インストールすることは
+// ない(正直な開示、`.setup-honest`内に明記済み)。
+const aruaruDbSetupBtn = document.getElementById("aruaru-db-setup-btn");
+const aruaruDbSetupModal = document.getElementById("aruaru-db-setup-modal");
+const aruaruDbSetupClose = document.getElementById("aruaru-db-setup-close");
+if (aruaruDbSetupBtn && aruaruDbSetupModal) {
+  aruaruDbSetupBtn.addEventListener("click", () => aruaruDbSetupModal.classList.remove("hidden"));
+  aruaruDbSetupClose.addEventListener("click", () => aruaruDbSetupModal.classList.add("hidden"));
+  aruaruDbSetupModal.addEventListener("click", (e) => {
+    if (e.target === aruaruDbSetupModal) aruaruDbSetupModal.classList.add("hidden");
+  });
+}
+
 // Google Search設定パネル(ユーザー指示「利用者がAPIキーの取得とCOPY
 // ペーストが簡単な機能を搭載して」への対応)。値はaruaru-llmの
 // `POST /v1/settings/google-search`(メモリ上保持のみ、ディスクへ保存
@@ -1030,6 +1060,73 @@ const EXAM_PREP_QUESTIONS = {
     { q: "It is essential that every student ___ the assignment on time.", choices: ["submits", "submit", "submitted", "submitting"], answer: 1 },
     { q: "The researchers were unable to draw a definitive conclusion ___ the limited sample size.", choices: ["because", "because of", "although", "despite"], answer: 1 },
   ],
+  // 日本語能力試験(JLPT)N5〜N1相当のオリジナル模擬問題(ユーザー指示
+  // 「日本語検定と日本語能力検定の擬似的な模擬試験機能も搭載」への
+  // 対応)。実際のJLPT過去問(著作権保護対象・実施団体: 国際交流基金/
+  // 日本国際教育支援協会)は使用していない、本アプリ用の書き下ろし。
+  jlptN5: [
+    { q: "これ ___ わたしの本です。", choices: ["は", "を", "に", "で"], answer: 0 },
+    { q: "きのう、友達 ___ 会いました。(I met a friend yesterday.)", choices: ["を", "に", "は", "も"], answer: 1 },
+    { q: "毎朝7時 ___ 起きます。(I get up at 7 every morning.)", choices: ["に", "で", "を", "へ"], answer: 0 },
+    { q: "この本は ___ おもしろいです。(This book is very interesting.)", choices: ["とても", "あまり", "すこし", "ぜんぜん"], answer: 0 },
+    { q: "水 ___ 一杯ください。(A glass of water, please.)", choices: ["を", "が", "は", "も"], answer: 0 },
+  ],
+  jlptN4: [
+    { q: "電車が来た ___、走りました。(When the train came, I ran.)", choices: ["ので", "とき", "なら", "けど"], answer: 1 },
+    { q: "宿題をやらなければ ___。(You must do your homework.)", choices: ["いけません", "いいです", "だめでした", "しました"], answer: 0 },
+    { q: "この漢字は ___ 読みますか。(How do you read this kanji?)", choices: ["どう", "なぜ", "いつ", "どこ"], answer: 0 },
+    { q: "雨が降って ___、出かけませんでした。(Since it rained, I didn't go out.)", choices: ["いるので", "いたので", "いても", "いたら"], answer: 1 },
+    { q: "田中さんは英語が ___ 話せます。(Tanaka can speak English fluently.)", choices: ["じょうずに", "じょうずで", "じょうずだ", "じょうず"], answer: 0 },
+  ],
+  jlptN3: [
+    { q: "この機械は使い方が ___ で、誰でも操作できる。(This machine is easy to use.)", choices: ["簡単", "簡単に", "簡単な", "簡単さ"], answer: 0 },
+    { q: "会議は3時から始まる ___ だ。(The meeting is scheduled to start at 3.)", choices: ["こと", "はず", "もの", "つもり"], answer: 1 },
+    { q: "彼は忙しい ___ かかわらず、手伝ってくれた。(Despite being busy, he helped.)", choices: ["にも", "だけ", "ほど", "さえ"], answer: 0 },
+    { q: "この問題は思った ___ 難しくなかった。(This problem wasn't as hard as I thought.)", choices: ["ほど", "だけ", "まま", "ばかり"], answer: 0 },
+    { q: "食べ ___ ば食べるほど、おいしくなる。(The more you eat, the tastier it gets.)", choices: ["れ", "る", "た", "て"], answer: 1 },
+  ],
+  jlptN2: [
+    { q: "彼の話を聞く ___、彼は来月引っ越すらしい。(According to what he said, he's moving next month.)", choices: ["かぎり", "うえで", "かわりに", "かたわら"], answer: 0 },
+    { q: "この結果を ___ して、新しい計画を立てる。(Based on this result, we'll make a new plan.)", choices: ["踏まえ", "問わ", "限ら", "際し"], answer: 0 },
+    { q: "彼女は忙しい ___、いつも笑顔を絶やさない。(Despite being busy, she always smiles.)", choices: ["にもかかわらず", "におうじて", "にかけては", "につき"], answer: 0 },
+    { q: "この薬は熱を下げる ___ 効果がある。(This medicine is effective in lowering fever.)", choices: ["のに", "ものの", "ばかりに", "あげく"], answer: 0 },
+    { q: "検討した ___、この案を採用することにした。(After consideration, we decided to adopt this plan.)", choices: ["結果", "反面", "うちに", "ながらに"], answer: 0 },
+  ],
+  jlptN1: [
+    { q: "彼の発言は、誤解を招く ___ ものだった。(His remark was such as to invite misunderstanding.)", choices: ["きらいがある", "べからざる", "に足る", "にすぎない"], answer: 0 },
+    { q: "苦労した ___、その成果は大きかった。(Given the hardship endured, the results were significant.)", choices: ["だけあって", "ならでは", "とばかりに", "ながらも"], answer: 0 },
+    { q: "彼は謝罪する ___、さらに批判を浴びた。(Rather than apologizing, he drew even more criticism.)", choices: ["どころか", "なりに", "ゆえに", "うえは"], answer: 0 },
+    { q: "この規則は、いかなる理由 ___ 変更できない。(This rule cannot be changed for any reason.)", choices: ["があろうとも", "にとどまらず", "をおいて", "にひきいられ"], answer: 0 },
+    { q: "彼女の実力 ___、この結果は当然だ。(Given her ability, this result is only natural.)", choices: ["からすれば", "とあれば", "であれ", "ですら"], answer: 0 },
+  ],
+  // 日本語検定(実施団体: 特定非営利活動法人日本語検定委員会)相当の
+  // オリジナル模擬問題(ユーザー指示「日本語検定の擬似的模擬試験も
+  // 選択可能にして」への対応)。JLPT(外国語としての日本語能力を測る)
+  // とは異なり、日本語検定は**日本語を母語とする話者も対象**に、敬語・
+  // 語彙・漢字・言葉の由来等のより深い運用力を問う試験——この違いを
+  // 反映し、敬語の使い分け・慣用表現・漢字語彙を中心に出題した。
+  // 正直な開示: 実際の日本語検定委員会の過去問は使用していない。
+  nihongoKentei3: [
+    { q: "お客様が来られたら、こちらへ ___ ください。(尊敬語)", choices: ["ご案内し", "ご案内になって", "案内されて", "案内し"], answer: 1 },
+    { q: "「拝見する」は誰の行為を表す謙譲語か。", choices: ["自分の行為", "相手の行為", "第三者の行為", "どちらでもよい"], answer: 0 },
+    { q: "「時期尚早」の意味に最も近いものを選べ。", choices: ["まだ早すぎる", "もう遅い", "ちょうど良い時期", "予定通り"], answer: 0 },
+    { q: "「愛想」の正しい読み方は?", choices: ["あいそう", "あいそ", "あいしょう", "あいそく"], answer: 1 },
+    { q: "上司に資料を渡すとき、最も適切な言い方は?", choices: ["資料をあげます", "資料をやります", "資料をお渡しします", "資料をわたす"], answer: 2 },
+  ],
+  nihongoKentei2: [
+    { q: "「役不足」の正しい意味は?", choices: ["能力に対して役目が軽すぎる", "能力が役目に足りない", "役目が多すぎる", "役目が無い"], answer: 0 },
+    { q: "取引先に自社の資料を送るとき、最も適切な表現は?", choices: ["お送りいたします", "お送りします", "送っておきます", "送信しておく"], answer: 0 },
+    { q: "「相手の気持ちを推し量る」を意味する言葉は?", choices: ["忖度する", "邁進する", "逡巡する", "斟酌しない"], answer: 0 },
+    { q: "「檄を飛ばす」の意味として正しいものは?", choices: ["激しく励ます・呼びかける", "強く非難する", "静かに諭す", "無視する"], answer: 0 },
+    { q: "会議で意見が対立したとき、相手を敬いつつ反論する適切な言い方は?", choices: ["おっしゃることは分かりますが、私はこう考えます", "それは違います", "そんなことはありません", "考え直してください"], answer: 0 },
+  ],
+  nihongoKentei1: [
+    { q: "「言を左右にする」の意味として正しいものは?", choices: ["はっきりと言わずに態度をあいまいにする", "はっきりと断言する", "左右対称に話す", "急に話題を変える"], answer: 0 },
+    { q: "「僭越ながら」の使い方として最も適切な場面は?", choices: ["自分の立場を超えて意見を述べる前置き", "相手を褒めるとき", "謝罪するとき", "依頼を断るとき"], answer: 0 },
+    { q: "「机上の空論」に近い意味を持つ言葉は?", choices: ["絵に描いた餅", "石橋を叩いて渡る", "背水の陣", "水を得た魚"], answer: 0 },
+    { q: "取引先からの厳しい要求に対し、丁重に断る場合の適切な表現は?", choices: ["誠に恐れ入りますが、今回は見送らせていただきます", "できません", "無理です", "それは困ります"], answer: 0 },
+    { q: "「琴線に触れる」の正しい意味は?", choices: ["深く感動させる", "怒らせる", "困らせる", "驚かせる"], answer: 0 },
+  ],
 };
 
 const examPrepBtn = document.getElementById("exam-prep-btn");
@@ -1103,9 +1200,20 @@ function practiceExamPrepWithTrainer() {
   const targets = examPrepMissedQuestions.length > 0 ? examPrepMissedQuestions : questions.map((item) => ({ q: item.q, correctChoice: item.choices[item.answer] }));
   if (targets.length === 0) return;
 
+  const isJlpt = exam.startsWith("jlpt") || exam.startsWith("nihongoKentei");
+  // JLPT受験後は「日本語教室」へ移行する(ユーザー指示「テスト後に
+  // 日本語教室に移って、英語と日本語で表示としゃべって」への対応)。
+  // learn-targetを日本語へ、reply-langをhybrid(英日併記の表示・
+  // 読み上げ、既存のspeakBilingual系の仕組みをそのまま活用)へ切替える。
+  if (isJlpt) {
+    if (learnTargetEl) learnTargetEl.value = "japanese";
+    if (replyLangEl) replyLangEl.value = "hybrid";
+  }
+
   const summary = targets.map((t, i) => `${i + 1}) "${t.q}" (answer: ${t.correctChoice})`).join(" ");
-  const requestText =
-    `I just took a ${examLabel} practice quiz. Can you help me understand and practice these questions in conversation? ${summary}`;
+  const requestText = isJlpt
+    ? `I just took a ${examLabel} practice quiz. Please switch to Japanese conversation practice and help me understand these in both English and Japanese. ${summary}`
+    : `I just took a ${examLabel} practice quiz. Can you help me understand and practice these questions in conversation? ${summary}`;
 
   examPrepModal.classList.add("hidden");
   inputEl.value = requestText;

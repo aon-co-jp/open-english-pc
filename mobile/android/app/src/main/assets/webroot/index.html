@@ -35,6 +35,13 @@
       </select>
     </label>
     <label class="level-select">
+      Learn / 学びたい言語:
+      <select id="learn-target">
+        <option value="english" selected>English conversation / 英会話</option>
+        <option value="japanese">Japanese conversation / 日本語会話</option>
+      </select>
+    </label>
+    <label class="level-select">
       Level / レベル:
       <select id="level">
         <option value="super-beginner">Super Beginner / 超初心者</option>
@@ -63,6 +70,7 @@
     <button type="button" id="google-search-settings-btn" class="setup-btn">🔎 Google Search Setup</button>
     <button type="button" id="setup-btn" class="setup-btn">⚙ Setup aruaru-llm</button>
     <button type="button" id="exam-prep-btn" class="setup-btn">📝 Exam Prep / 資格対策</button>
+    <button type="button" id="aruaru-db-setup-btn" class="setup-btn">🗄 Setup aruaru-db</button>
   </header>
 
   <div id="setup-modal" class="setup-modal hidden">
@@ -182,18 +190,79 @@ cargo run --release</pre>
     </div>
   </div>
 
+  <div id="aruaru-db-setup-modal" class="setup-modal hidden">
+    <div class="setup-panel">
+      <button type="button" id="aruaru-db-setup-close" class="setup-close">✕</button>
+      <h2>Setup aruaru-db & PostgreSQL / aruaru-db・PostgreSQLのセットアップ</h2>
+      <p class="setup-honest">
+        Setting up <code>open-easy-web</code> + PostgreSQL + <code>aruaru-db</code> will let this
+        app (and others) process large amounts of information faster in the future.<br /><br />
+        <code>open-easy-web</code>とPostgreSQLと<code>aruaru-db</code>をセットアップして頂きますと、
+        将来大量の情報をより高速で処理する事も可能になる予定です。
+      </p>
+      <p class="setup-honest">
+        <strong>Honest disclosure:</strong> This is shared infrastructure — install it
+        <strong>once per machine/server</strong> (not once per app). It is managed by
+        <code>open-easy-web</code>'s multi-tenant ("shadow clone") design, so once it's running,
+        other apps/domains on the same machine can reuse it without reinstalling. This app
+        (<code>open-english</code>) works fine without it (the geography/travel content falls
+        back to a built-in dataset).<br /><br />
+        <strong>正直な開示:</strong> これは共有インフラです——マシン/サーバーごとに
+        <strong>一度だけ</strong>セットアップすれば十分です(アプリごとに毎回インストールする
+        ものではありません)。<code>open-easy-web</code>の分身の術(マルチテナント)構成で管理されるため、
+        一度動かせば同じマシン上の他のアプリ/ドメインも再インストール不要で使い回せます。
+        本アプリ(<code>open-english</code>)自体は無くても動作します(地理・観光の内容は
+        組み込みデータへ自動的にフォールバックします)。
+      </p>
+      <h3>1. PostgreSQL</h3>
+      <p class="setup-note">
+        <a href="https://www.postgresql.org/download/" target="_blank" rel="noopener noreferrer">
+          postgresql.org/download</a> から、お使いのOS向けのインストーラーをダウンロード・実行
+        してください(Windows/Linux/macOSいずれも公式インストーラーあり)。
+      </p>
+      <h3>2. aruaru-db(既存のインストーラースクリプトを使用)</h3>
+      <p class="setup-note">
+        <code>aruaru-db</code>には既に簡単セットアップスクリプトが用意されています——
+        新規にスクリプトを書く必要はありません。
+      </p>
+      <h3>Windows (PowerShell)</h3>
+      <pre class="setup-script" data-script="aruaru-db-win">cd $env:USERPROFILE
+git clone https://github.com/aon-co-jp/aruaru-db
+cd aruaru-db
+./install.ps1</pre>
+      <button type="button" class="copy-btn" data-target="aruaru-db-win">Copy</button>
+
+      <h3>Linux / macOS (bash)</h3>
+      <pre class="setup-script" data-script="aruaru-db-unix">cd ~
+git clone https://github.com/aon-co-jp/aruaru-db
+cd aruaru-db
+./install.sh</pre>
+      <button type="button" class="copy-btn" data-target="aruaru-db-unix">Copy</button>
+
+      <p class="setup-note">
+        セットアップ後、<code>open-easy-web</code>から他のアプリ/ドメインを登録すると
+        同じPostgreSQL/aruaru-dbインスタンスをそのまま共有できます(詳細は
+        <a href="https://github.com/aon-co-jp/open-easy-web" target="_blank" rel="noopener noreferrer">open-easy-web</a>参照)。
+      </p>
+    </div>
+  </div>
+
   <div id="exam-prep-modal" class="setup-modal hidden">
     <div class="setup-panel">
       <button type="button" id="exam-prep-close" class="setup-close">✕</button>
       <h2>Certification Exam Prep / 資格試験対策コーナー</h2>
       <p class="setup-honest">
         <strong>Honest disclosure:</strong> These are original practice questions written for
-        this app, not real past questions from Eiken (STEP), TOEIC, or TOEFL — those are
-        copyrighted and we do not reproduce them. Difficulty is only a loose approximation of
-        each real exam's level, not an official prediction.<br /><br />
+        this app, not real past questions from Eiken (STEP), TOEIC, TOEFL, the Japanese Language
+        Proficiency Test (JLPT), or the
+        <a href="https://www.nihongokentei.jp/" target="_blank" rel="noopener noreferrer">Nihongo
+        Kentei</a> (日本語検定) — those are copyrighted and we do not reproduce them. Difficulty is
+        only a loose approximation of each real exam's level, not an official prediction.<br /><br />
         <strong>正直な開示:</strong> これらは本アプリ用に作成したオリジナルの練習問題であり、
-        英検・TOEIC・TOEFLの実際の過去問(著作権保護対象)ではありません。難易度も
-        各試験の実際のレベルへの大まかな目安に過ぎず、公式の予測スコアではありません。
+        英検・TOEIC・TOEFL・日本語能力試験(JLPT)・
+        <a href="https://www.nihongokentei.jp/" target="_blank" rel="noopener noreferrer">日本語検定</a>
+        の実際の過去問(著作権保護対象)ではありません。
+        難易度も各試験の実際のレベルへの大まかな目安に過ぎず、公式の予測スコアではありません。
       </p>
       <label class="settings-field">
         Exam / 試験
@@ -206,6 +275,14 @@ cargo run --release</pre>
           <option value="eiken5">英検5級 / Eiken Grade 5</option>
           <option value="toeic">TOEIC</option>
           <option value="toefl">TOEFL</option>
+          <option value="jlptN1">日本語能力試験 N1 / JLPT N1</option>
+          <option value="jlptN2">日本語能力試験 N2 / JLPT N2</option>
+          <option value="jlptN3">日本語能力試験 N3 / JLPT N3</option>
+          <option value="jlptN4">日本語能力試験 N4 / JLPT N4</option>
+          <option value="jlptN5">日本語能力試験 N5 / JLPT N5</option>
+          <option value="nihongoKentei1">日本語検定 1級 / Nihongo Kentei Grade 1</option>
+          <option value="nihongoKentei2">日本語検定 2級 / Nihongo Kentei Grade 2</option>
+          <option value="nihongoKentei3">日本語検定 3級 / Nihongo Kentei Grade 3</option>
         </select>
       </label>
       <div id="exam-prep-quiz"></div>
