@@ -8,8 +8,31 @@ const levelInstructions = {
   "super-beginner": "Use only very simple words and short sentences.",
   beginner: "Use simple vocabulary and short sentences.",
   intermediate: "Use natural, everyday English.",
-  advanced: "Use rich vocabulary and more complex sentence structures.",
+  native: "Use rich vocabulary, idioms, and native-level sentence structures.",
 };
+
+// 年齢層別の言葉づかい調整(ユーザー指示「保育園児、幼稚園児、小学生、
+// 中学生、高校生、大学生などのどれか一つ選択」への対応)。学習内容自体を
+// 差し替えるのではなく、プロンプトへの指示文で語彙・話題の難度を調整する
+// 簡易的な仕組み(GPT-2系は指示追従が保証されないため、確実な遵守を主張
+// しない、既存の`levelInstructions`と同じ「正直な開示」方針)。
+const ageGroupInstructions = {
+  infant: "The student is an infant/toddler (under nursery age). Use extremely short, gentle, sing-song words and lots of repetition, as if talking to a very young child.",
+  nursery: "The student is a nursery-age child (around 2-3 years old). Use extremely simple, friendly, playful words.",
+  kindergarten: "The student is a kindergarten-age child (around 4-6 years old). Use simple, friendly, playful words.",
+  elementary: "The student is an elementary school student. Use simple, clear words and short sentences.",
+  "junior-high": "The student is a junior high school student. Use clear, everyday words.",
+  "high-school": "The student is a high school student. Use natural, everyday English.",
+  university: "The student is a university student or adult. Natural, everyday English is fine.",
+  "working-adult": "The student is a working adult. Use natural, professional, everyday English.",
+  senior: "The student is a senior adult. Use clear, natural English at a comfortable, unhurried pace.",
+};
+
+// ビジネス英会話の追加選択(ユーザー指示「もう一つ複数選択でビジネス
+// 英会話も追加選択可能」への対応、他の年齢層/レベル選択とは独立した
+// チェックボックスとして併用できる)。
+const BUSINESS_ENGLISH_INSTRUCTION =
+  "Also weave in some polite business English phrases (greetings, meetings, email requests) suitable for a workplace context.";
 
 const langInstructions = {
   en: "Reply only in English.",
@@ -29,6 +52,30 @@ const langInstructions = {
   } catch (err) {
     label.textContent = "";
   }
+})();
+
+// メンテナンス中バナー(ユーザー指示「open-englishを起動中に2分間、
+// ただいまメンテナンス中です。2分ほどお待ち下さいと日本語と英語で
+// 表示して」、後日「メンテナンスは毎回一分にしよう」の指示で1分に短縮)。
+// バックエンド(aruaru-db)側の地理・観光データseed投入・ウォームアップ
+// 処理と時間的に対応させる目的の簡易実装——実際のseed完了通知を待つ
+// のではなく、固定60秒のカウントダウン表示に留める(正直な開示:
+// バックエンド側の実処理時間と厳密には連動しない)。ページを開く/
+// 再読み込みするたびに毎回表示される仕様(ユーザー指示通り)。
+(function showMaintenanceBanner() {
+  const banner = document.getElementById("maintenance-banner");
+  const countdownEl = document.getElementById("maintenance-countdown");
+  if (!banner || !countdownEl) return;
+  banner.classList.remove("hidden");
+  let remaining = 60;
+  const timer = setInterval(() => {
+    remaining -= 1;
+    countdownEl.textContent = String(Math.max(remaining, 0));
+    if (remaining <= 0) {
+      clearInterval(timer);
+      banner.classList.add("hidden");
+    }
+  }, 1000);
 })();
 
 // 日本語文字(ひらがな・カタカナ・漢字)を含むかどうかの簡易判定。
@@ -72,6 +119,8 @@ const statusEl = document.getElementById("status");
 const trainerEl = document.getElementById("trainer");
 const bubbleEl = document.getElementById("speech-bubble");
 const levelEl = document.getElementById("level");
+const ageGroupEl = document.getElementById("age-group");
+const businessEnglishEl = document.getElementById("business-english-toggle");
 const replyLangEl = document.getElementById("reply-lang");
 const webSearchToggleEl = document.getElementById("web-search-toggle");
 const micBtn = document.getElementById("mic-btn");
@@ -196,6 +245,48 @@ function extractSpeechText(text, lang) {
   return picked.join(wantJapanese ? "。" : ". ");
 }
 
+// メイドカフェ研修モード専用: 英語のワンフレーズを話したら、続けて
+// 対応する日本語も話す(ユーザー指示「英語で一言ワンフレーズしゃべったら
+// 対応する日本語でもしゃべってを繰り返して」への対応)。通常モードの
+// `speak()`は`replyLangEl`の設定に応じて英語または日本語の一方だけを
+// 話すが、この関数は常に両方を順番に話す(音声合成キューに2つの
+// utteranceを積むだけで、`cancel()`を挟まなければブラウザが順番に
+// 再生してくれる)。
+function speakBilingual(text) {
+  bubbleEl.textContent = text;
+  if (!(voiceOutEl.checked && "speechSynthesis" in window)) return;
+  try {
+    window.speechSynthesis.cancel();
+    const isHelper = typeof activeCharacter !== "undefined" && activeCharacter === "helper";
+    const enText = extractSpeechText(text, "en-US");
+    const jaText = extractSpeechText(text, "ja-JP");
+    [
+      { text: enText, lang: "en-US" },
+      { text: jaText, lang: "ja-JP" },
+    ].forEach(({ text: part, lang }) => {
+      if (!part) return;
+      const utter = new SpeechSynthesisUtterance(part);
+      utter.lang = lang;
+      const voice = pickVoice(lang, isHelper);
+      if (voice) utter.voice = voice;
+      if (isHelper) {
+        utter.pitch = 0.75;
+        utter.rate = 1.05;
+      } else {
+        utter.pitch = 1.1;
+        utter.rate = 0.82;
+      }
+      window.speechSynthesis.speak(utter);
+    });
+    trainerEl.classList.add("speaking");
+    const spokenMs = Math.min(6000, (enText.length + jaText.length) * 60);
+    clearTimeout(speak._timer);
+    speak._timer = setTimeout(() => trainerEl.classList.remove("speaking"), spokenMs);
+  } catch (err) {
+    // フォールバック: 音声合成に失敗したら口パクのみで継続する。
+  }
+}
+
 function speak(text) {
   bubbleEl.textContent = text;
 
@@ -258,12 +349,48 @@ const countryFunFacts = {
   korea: "I love K-pop and kimchi! / 私はK-POPとキムチが大好きです!",
 };
 
-function findCountryFunFact(text) {
+// 地理・観光DB(2026-08-11追加、`aruaru-llm`の`POST /v1/geo/lookup`)から
+// 実際の国名で検索し、ランドマーク・名物料理・お土産を使った一言を作る。
+// DB未接続・該当なしの場合は、従来の固定マップ(`countryFunFacts`)へ
+// フォールバックする(サービスを止めない既存方針を踏襲)。
+async function findCountryFunFact(text) {
   const lower = text.toLowerCase();
   for (const [key, fact] of Object.entries(countryFunFacts)) {
     if (lower.includes(key)) return fact;
   }
+  try {
+    const base = apiBaseEl.value.trim();
+    const res = await fetch(`${base}/v1/geo/lookup`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ country: text.trim() }),
+    });
+    const data = await res.json();
+    if (data.found && data.capital) {
+      const c = data.capital;
+      return (
+        `I love ${c.landmark_en} and ${c.food_en}! / 私は${c.landmark_ja}と${c.food_ja}が大好きです!\n` +
+        `A popular souvenir there is ${c.souvenir_en}. / そこの人気のお土産は${c.souvenir_ja}です。`
+      );
+    }
+  } catch (err) {
+    // DB未接続時は静かにフォールバックする(既存の可用性優先方針)。
+  }
   return "That's wonderful! I'd love to learn more about your country someday! / それは素晴らしいですね!いつかあなたの国についてもっと知りたいです!";
+}
+
+// 「今度オーストラリアに旅行/出張の予定がある」のような発話の検出
+// (ユーザー指示「今度どこどこの国に観光やお仕事で行く予定があるんだ
+// けど、の様なフレーズにもDBで対応して」)。厳密な自然言語理解ではなく、
+// countryFunFactsのキー(国名)が発話に含まれているかの簡易検出——
+// GPT-2系に意図分類を確実にやらせることはできないため、確実性を優先
+// した単純な文字列一致とする(正直な開示、既存のtrainingStepsと同じ方針)。
+async function replyToTravelPlanMention(text) {
+  const fact = await findCountryFunFact(text);
+  return (
+    "Oh, a trip coming up? How exciting! / 今度旅行があるんですね!素敵です!\n" +
+    `${fact}`
+  );
 }
 
 function trainingIntroLine() {
@@ -294,8 +421,8 @@ const trainingSteps = [
       `Nice to meet you, ${text}! / はじめまして、${text}さん!\n` + "Where are you from? / どこの国からいらっしゃいましたか?",
   },
   {
-    onUserReply: (text) =>
-      `${findCountryFunFact(text)}\n` + "Do you know Japanese animation? / 日本のアニメーションを知っていますか?",
+    onUserReply: async (text) =>
+      `${await findCountryFunFact(text)}\n` + "Do you know Japanese animation? / 日本のアニメーションを知っていますか?",
   },
   {
     onUserReply: () =>
@@ -347,19 +474,57 @@ const trainingSteps = [
   },
 ];
 let trainingStepIndex = 0;
+// `trainingStepIndex`は最終ステップ到達後もその値のまま固定される
+// (`advanceTrainingMode`の`Math.min`によるクランプ)ため、それだけを
+// 「最終ステップかどうか」の判定に使うと、研修完了後にユーザーが
+// さらにメッセージを送るたびに毎回`wasLastStep`が真になり、トラさんへの
+// 引き継ぎ処理(`switchCharacter()`のトグル)が繰り返し発火してしまう
+// バグがあった(ユーザー報告「トラさんに切り替えるとすぐにもとの
+// メイドさんに自動で切り替わるBUG」の実際の原因)。1回だけ発火させる
+// ためのフラグを別途持つ。
+let trainingHandoffTriggered = false;
 
 function startTrainingMode() {
   trainingStepIndex = 0;
+  trainingHandoffTriggered = false;
   appendMessage("trainer", trainingSteps[0].trainerSays);
-  speak(trainingSteps[0].trainerSays);
+  speakBilingual(trainingSteps[0].trainerSays);
 }
 
-function advanceTrainingMode(userText) {
+// メイドの研修が一通り終わったら、トラさんのジングル(BGM代わり)を
+// 鳴らしてキャラを引き継ぎ、トラさんが話し始める(ユーザー指示
+// 「メイドが一通りしゃべったら、次はトラさんのテーマのBGMが流れて、
+// 今度はトラさんがしゃべって」への対応)。
+function toraHandoffLine() {
+  return (
+    "Training complete! Great job! / 研修完了です!お疲れ様でした!\n" +
+    "Now let's keep practicing together — I'm Tora, your next trainer! / さあ、続けて練習しましょう!次の先生はトラだよ!"
+  );
+}
+
+async function advanceTrainingMode(userText) {
   const step = trainingSteps[trainingStepIndex];
-  const reply = step.onUserReply(userText);
+  const wasLastStep = trainingStepIndex === trainingSteps.length - 1;
+  const reply = await step.onUserReply(userText);
   appendMessage("trainer", reply);
-  speak(reply);
+  speakBilingual(reply);
   trainingStepIndex = Math.min(trainingStepIndex + 1, trainingSteps.length - 1);
+
+  if (wasLastStep && activeCharacter === "maid") {
+    const delayMs = Math.min(6000, reply.length * 60) + 800;
+    setTimeout(() => {
+      // ユーザーがこの待ち時間中に手動でキャラを切り替えていた場合、
+      // ここで無条件に`switchCharacter()`(トグル)を呼ぶと元に戻って
+      // しまうバグがあった(ユーザー報告「トラさんに切り替えると
+      // すぐにもとのメイドさんに自動で切り替わる」)。実行時点の
+      // 状態を再確認し、まだメイドのままの場合のみ切り替える。
+      if (activeCharacter !== "maid") return;
+      switchCharacter(); // トラさんのジングルはここで再生される
+      const line = toraHandoffLine();
+      appendMessage("trainer", line);
+      speakBilingual(line);
+    }, delayMs);
+  }
 }
 
 // 直前の接続状態(ユーザー指示、2026-08-10「インストール後は自動認識で
@@ -422,7 +587,7 @@ function switchCharacter() {
   if (levelEl.value === "maid-cafe-training" && trainingStepIndex === 0) {
     const newIntro = trainingIntroLine();
     replaceLastMessage("trainer", newIntro);
-    speak(newIntro);
+    speakBilingual(newIntro);
   }
 }
 
@@ -431,7 +596,12 @@ characterSwitchBtn.addEventListener("click", switchCharacter);
 async function askTrainer(userText) {
   const base = apiBaseEl.value.trim();
   const level = levelEl.value;
-  const levelInstruction = levelInstructions[level] || "";
+  let levelInstruction = levelInstructions[level] || "";
+  const ageInstruction = ageGroupEl ? ageGroupInstructions[ageGroupEl.value] || "" : "";
+  if (ageInstruction) levelInstruction = `${ageInstruction} ${levelInstruction}`;
+  if (businessEnglishEl && businessEnglishEl.checked) {
+    levelInstruction = `${levelInstruction} ${BUSINESS_ENGLISH_INSTRUCTION}`;
+  }
   let langInstruction = langInstructions[replyLangEl.value] || "";
   // ユーザーの発話が日本語の場合、その事実をプロンプトへ明示する
   // (ユーザー報告「日本語でしゃべっても英語と日本語で返事して」への
@@ -512,7 +682,7 @@ formEl.addEventListener("submit", async (e) => {
   appendMessage("user", text);
 
   if (levelEl.value === "maid-cafe-training") {
-    advanceTrainingMode(text);
+    await advanceTrainingMode(text);
     return;
   }
 

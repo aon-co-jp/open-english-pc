@@ -12,17 +12,41 @@
 <meta name="theme-color" content="#f096be" />
 </head>
 <body>
+  <div id="maintenance-banner" class="maintenance-banner hidden">
+    <p>
+      🛠️ Under maintenance. Please wait about 1 minute. / ただいまメンテナンス中です。1分ほどお待ち下さい。
+      (<span id="maintenance-countdown">60</span>s)
+    </p>
+  </div>
   <header class="topbar">
     <h1>open-english <span class="phase-badge">Phase 0</span></h1>
+    <label class="level-select">
+      Age group / 年齢層:
+      <select id="age-group">
+        <option value="infant">Infant / Toddler / 保育園児未満(乳幼児)</option>
+        <option value="nursery">Nursery / 保育園児</option>
+        <option value="kindergarten">Kindergarten / 幼稚園児</option>
+        <option value="elementary">Elementary school / 小学生</option>
+        <option value="junior-high">Junior high school / 中学生</option>
+        <option value="high-school">High school / 高校生</option>
+        <option value="university" selected>University / 大学生</option>
+        <option value="working-adult">Working adult / 社会人</option>
+        <option value="senior">Senior / 社会人以上(シニア)</option>
+      </select>
+    </label>
     <label class="level-select">
       Level / レベル:
       <select id="level">
         <option value="super-beginner">Super Beginner / 超初心者</option>
         <option value="beginner">Beginner / 初心者</option>
-        <option value="intermediate" selected>Intermediate / 中級</option>
-        <option value="advanced">Advanced / 上級</option>
+        <option value="intermediate" selected>Intermediate / 中級者</option>
+        <option value="native">Native / ネイティブ</option>
         <option value="maid-cafe-training">Maid Cafe English Training / メイドカフェ英会話研修</option>
       </select>
+    </label>
+    <label class="web-search-toggle">
+      <input type="checkbox" id="business-english-toggle" />
+      Business English / ビジネス英会話を追加
     </label>
     <label class="lang-select">
       Reply lang / 応答言語:

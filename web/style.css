@@ -331,6 +331,23 @@ body {
   cursor: pointer;
 }
 
+.maintenance-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: #f0ad4e;
+  color: #222;
+  text-align: center;
+  padding: 10px 16px;
+  font-weight: bold;
+  z-index: 20;
+}
+
+.maintenance-banner.hidden {
+  display: none;
+}
+
 .setup-modal {
   position: fixed;
   inset: 0;
