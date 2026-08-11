@@ -378,15 +378,87 @@ async function findCountryFunFact(text) {
     const data = await res.json();
     if (data.found && data.capital) {
       const c = data.capital;
-      return (
+      let reply =
         `I love ${c.landmark_en} and ${c.food_en}! / 私は${c.landmark_ja}と${c.food_ja}が大好きです!\n` +
-        `A popular souvenir there is ${c.souvenir_en}. / そこの人気のお土産は${c.souvenir_ja}です。`
-      );
+        `A popular souvenir there is ${c.souvenir_en}. / そこの人気のお土産は${c.souvenir_ja}です。`;
+      // 富士山の話題が出た場合は、安全上の注意+登山バス/タクシー予約先+
+      // 山小屋一覧+登山用品店を必ず日英併記で案内する(ユーザー指示
+      // 「富士山が好きとか富士山の紹介をするなら…富士山の話題が出たら
+      // 日本語と英語で紹介して」+「スキーウェアとヘルメットと登山靴
+      // などを安く販売しているお店なども…紹介する機能を持たせて」)。
+      if (c.landmark_en.includes("Fuji") || c.landmark_ja.includes("富士山")) {
+        reply += `\n\n${await fujiInfoText()}`;
+      }
+      // 日本・世界どちらの国が話題になっても、観光ツアーの紹介と
+      // オンライン予約先をその都度検索して案内する(ユーザー指示
+      // 「日本も世界も観光で訪れるなら、観光ツアーの紹介とオンライン
+      // 予約をその都度検索して、Google検索結果とYoutube検索結果を
+      // 日本語と英語で表示して」)。
+      reply += `\n\n${await tourSearchText(c.country_en)}`;
+      return reply;
     }
   } catch (err) {
     // DB未接続時は静かにフォールバックする(既存の可用性優先方針)。
   }
   return "That's wonderful! I'd love to learn more about your country someday! / それは素晴らしいですね!いつかあなたの国についてもっと知りたいです!";
+}
+
+// 富士山の安全上の注意+山小屋・登山バス/タクシー・登山用品店の一覧
+// (`aruaru-llm`の`GET /v1/geo/fuji`、2026-08-11新設)を日英併記の
+// 短いテキストへ整形する。取得失敗時は静かに空文字を返す(既存の
+// 可用性優先方針)。
+async function fujiInfoText() {
+  try {
+    const base = apiBaseEl.value.trim();
+    const res = await fetch(`${base}/v1/geo/fuji`);
+    const info = await res.json();
+    const hut = info.mountain_huts && info.mountain_huts[0];
+    const transport = info.transport_reservations && info.transport_reservations[0];
+    const gear = info.gear_shops && info.gear_shops[0];
+    let text = `⚠️ ${info.safety_en}\n⚠️ ${info.safety_ja}`;
+    if (hut) {
+      text += `\n\n🏠 Example hut you can reserve: ${hut.name_en} (${hut.station_en}, ${hut.phone}) / 予約できる山小屋の例: ${hut.name_ja}(${hut.station_ja}、${hut.phone})`;
+    }
+    if (transport) {
+      text += `\n🚌 Bus/permit booking: ${transport.name_en} / バス・通行予約: ${transport.name_ja}`;
+    }
+    if (gear) {
+      text += `\n🎽 Gear rental: ${gear.name_en} (ski wear, helmet, boots) / 登山用品レンタル: ${gear.name_ja}(スキーウェア・ヘルメット・登山靴)`;
+    }
+    return text;
+  } catch (err) {
+    return "";
+  }
+}
+
+// 話題に出た国・地域の観光ツアー紹介+オンライン予約先をその都度検索
+// して案内する(`aruaru-llm`の`POST /v1/geo/tours`、2026-08-11新設)。
+// aruaru-llm側にGoogle Search APIキーが設定されていない場合は、その旨を
+// 正直に伝えるだけに留める(黙って結果を偽装しない)。
+async function tourSearchText(place) {
+  try {
+    const base = apiBaseEl.value.trim();
+    const res = await fetch(`${base}/v1/geo/tours`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ place }),
+    });
+    const data = await res.json();
+    let text = `🧳 Tours & booking for ${place} / ${place}の観光ツアー・予約情報`;
+    if (data.configured && data.web_results && data.web_results.length) {
+      data.web_results.slice(0, 3).forEach((r) => {
+        text += `\n・${r.title}`;
+      });
+    } else {
+      text += `\n(${data.disclosure_en} / ${data.disclosure_ja})`;
+    }
+    if (data.youtube_search_url) {
+      text += `\n🎥 YouTube search / YouTube検索: ${data.youtube_search_url}`;
+    }
+    return text;
+  } catch (err) {
+    return "";
+  }
 }
 
 // 「今度オーストラリアに旅行/出張の予定がある」のような発話の検出
