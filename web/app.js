@@ -1153,16 +1153,16 @@ const EXAM_PREP_QUESTIONS = {
     { q: "彼女の説明を ___、状況はまだ不明確だ。(Even after hearing her explanation, the situation is still unclear.)", choices: ["聞いても", "聞くなり", "聞くまでもなく", "聞かんばかりに"], answer: 0 },
   ],
   jlptN1: [
-    { q: "彼の発言は、誤解を招く ___ ものだった。(His remark was such as to invite misunderstanding.)", choices: ["きらいがある", "べからざる", "に足る", "にすぎない"], answer: 0 },
-    { q: "苦労した ___、その成果は大きかった。(Given the hardship endured, the results were significant.)", choices: ["だけあって", "ならでは", "とばかりに", "ながらも"], answer: 0 },
-    { q: "彼は謝罪する ___、さらに批判を浴びた。(Rather than apologizing, he drew even more criticism.)", choices: ["どころか", "なりに", "ゆえに", "うえは"], answer: 0 },
+    { q: "彼の発言は、誤解を招く ___ ものだった。(His remark was such as to invite misunderstanding.)", choices: ["に足る", "べからざる", "きらいがある", "にすぎない"], answer: 2 },
+    { q: "苦労した ___、その成果は大きかった。(Given the hardship endured, the results were significant.)", choices: ["ながらも", "ならでは", "とばかりに", "だけあって"], answer: 3 },
+    { q: "彼は謝罪する ___、さらに批判を浴びた。(Rather than apologizing, he drew even more criticism.)", choices: ["なりに", "どころか", "ゆえに", "うえは"], answer: 1 },
     { q: "この規則は、いかなる理由 ___ 変更できない。(This rule cannot be changed for any reason.)", choices: ["があろうとも", "にとどまらず", "をおいて", "にひきいられ"], answer: 0 },
-    { q: "彼女の実力 ___、この結果は当然だ。(Given her ability, this result is only natural.)", choices: ["からすれば", "とあれば", "であれ", "ですら"], answer: 0 },
-    { q: "彼の功績は、いかに批判されようとも ___ ものだ。(His achievements are undeniable no matter how much he is criticized.)", choices: ["否定しがたい", "否定するに足る", "否定せんばかりの", "否定ならでは"], answer: 0 },
-    { q: "この計画は、失敗する ___ 覚悟で進めるべきだ。(This plan should proceed with the resolve that it might fail.)", choices: ["ことも", "もの", "べく", "だに"], answer: 0 },
+    { q: "彼女の実力 ___、この結果は当然だ。(Given her ability, this result is only natural.)", choices: ["ですら", "とあれば", "であれ", "からすれば"], answer: 3 },
+    { q: "彼の功績は、いかに批判されようとも ___ ものだ。(His achievements are undeniable no matter how much he is criticized.)", choices: ["否定するに足る", "否定しがたい", "否定せんばかりの", "否定ならでは"], answer: 1 },
+    { q: "この計画は、失敗する ___ 覚悟で進めるべきだ。(This plan should proceed with the resolve that it might fail.)", choices: ["べく", "もの", "ことも", "だに"], answer: 2 },
     { q: "彼は言うに ___、行動でそれを示した。(Rather than saying it, he showed it through action.)", choices: ["及ばず", "至らず", "事欠かず", "たえず"], answer: 0 },
-    { q: "彼女は多忙 ___ を極めているが、笑顔を絶やさない。(She is extremely busy, but never stops smiling.)", choices: ["きわみ", "ゆえ", "こそ", "すら"], answer: 0 },
-    { q: "この事態は予測 ___ ものであった。(This situation was beyond prediction.)", choices: ["し難い", "するに足る", "してやまない", "せんばかりの"], answer: 0 },
+    { q: "彼女は多忙 ___ を極めているが、笑顔を絶やさない。(She is extremely busy, but never stops smiling.)", choices: ["すら", "ゆえ", "こそ", "きわみ"], answer: 3 },
+    { q: "この事態は予測 ___ ものであった。(This situation was beyond prediction.)", choices: ["するに足る", "し難い", "してやまない", "せんばかりの"], answer: 1 },
   ],
   // 日本語検定(実施団体: 特定非営利活動法人日本語検定委員会)相当の
   // オリジナル模擬問題(ユーザー指示「日本語検定の擬似的模擬試験も
@@ -1173,39 +1173,39 @@ const EXAM_PREP_QUESTIONS = {
   // 正直な開示: 実際の日本語検定委員会の過去問は使用していない。
   nihongoKentei3: [
     { q: "お客様が来られたら、こちらへ ___ ください。(尊敬語)", choices: ["ご案内し", "ご案内になって", "案内されて", "案内し"], answer: 1 },
-    { q: "「拝見する」は誰の行為を表す謙譲語か。", choices: ["自分の行為", "相手の行為", "第三者の行為", "どちらでもよい"], answer: 0 },
-    { q: "「時期尚早」の意味に最も近いものを選べ。", choices: ["まだ早すぎる", "もう遅い", "ちょうど良い時期", "予定通り"], answer: 0 },
+    { q: "「拝見する」は誰の行為を表す謙譲語か。", choices: ["第三者の行為", "相手の行為", "自分の行為", "どちらでもよい"], answer: 2 },
+    { q: "「時期尚早」の意味に最も近いものを選べ。", choices: ["予定通り", "もう遅い", "ちょうど良い時期", "まだ早すぎる"], answer: 3 },
     { q: "「愛想」の正しい読み方は?", choices: ["あいそう", "あいそ", "あいしょう", "あいそく"], answer: 1 },
     { q: "上司に資料を渡すとき、最も適切な言い方は?", choices: ["資料をあげます", "資料をやります", "資料をお渡しします", "資料をわたす"], answer: 2 },
-    { q: "「おっしゃる」は何の敬語か。", choices: ["尊敬語", "謙譲語", "丁寧語", "美化語"], answer: 0 },
-    { q: "「相槎(あいづち)」の正しい意味は?", choices: ["会話中の短い応答・反応", "反対意見", "自己主張", "沈黙"], answer: 0 },
-    { q: "「杓子定規」の意味に最も近いものは?", choices: ["一つの基準にこだわり融通がきかない", "臨機応変に対応する", "細かいことを気にしない", "常に前向きである"], answer: 0 },
-    { q: "「大は小を兼ねる」の意味として正しいものは?", choices: ["大きいものは小さい用途にも使える", "小さいものが有利である", "大小は関係ない", "大きすぎると使えない"], answer: 0 },
-    { q: "電話で相手の名前が分からないとき、最も適切な言い方は?", choices: ["失礼ですが、お名前をお伺いしてもよろしいでしょうか", "あなたの名前は?", "誰ですか", "名前を教えろ"], answer: 0 },
+    { q: "「おっしゃる」は何の敬語か。", choices: ["謙譲語", "尊敬語", "丁寧語", "美化語"], answer: 1 },
+    { q: "「相槎(あいづち)」の正しい意味は?", choices: ["自己主張", "反対意見", "会話中の短い応答・反応", "沈黙"], answer: 2 },
+    { q: "「杓子定規」の意味に最も近いものは?", choices: ["常に前向きである", "臨機応変に対応する", "細かいことを気にしない", "一つの基準にこだわり融通がきかない"], answer: 3 },
+    { q: "「大は小を兼ねる」の意味として正しいものは?", choices: ["小さいものが有利である", "大きいものは小さい用途にも使える", "大小は関係ない", "大きすぎると使えない"], answer: 1 },
+    { q: "電話で相手の名前が分からないとき、最も適切な言い方は?", choices: ["誰ですか", "あなたの名前は?", "失礼ですが、お名前をお伺いしてもよろしいでしょうか", "名前を教えろ"], answer: 2 },
   ],
   nihongoKentei2: [
-    { q: "「役不足」の正しい意味は?", choices: ["能力に対して役目が軽すぎる", "能力が役目に足りない", "役目が多すぎる", "役目が無い"], answer: 0 },
-    { q: "取引先に自社の資料を送るとき、最も適切な表現は?", choices: ["お送りいたします", "お送りします", "送っておきます", "送信しておく"], answer: 0 },
-    { q: "「相手の気持ちを推し量る」を意味する言葉は?", choices: ["忖度する", "邁進する", "逡巡する", "斟酌しない"], answer: 0 },
+    { q: "「役不足」の正しい意味は?", choices: ["役目が多すぎる", "能力が役目に足りない", "能力に対して役目が軽すぎる", "役目が無い"], answer: 2 },
+    { q: "取引先に自社の資料を送るとき、最も適切な表現は?", choices: ["送信しておく", "お送りします", "送っておきます", "お送りいたします"], answer: 3 },
+    { q: "「相手の気持ちを推し量る」を意味する言葉は?", choices: ["邁進する", "忖度する", "逡巡する", "斟酌しない"], answer: 1 },
     { q: "「檄を飛ばす」の意味として正しいものは?", choices: ["激しく励ます・呼びかける", "強く非難する", "静かに諭す", "無視する"], answer: 0 },
-    { q: "会議で意見が対立したとき、相手を敬いつつ反論する適切な言い方は?", choices: ["おっしゃることは分かりますが、私はこう考えます", "それは違います", "そんなことはありません", "考え直してください"], answer: 0 },
-    { q: "「二の足を踏む」の意味として正しいものは?", choices: ["ためらう・決心がつかない", "急いで行動する", "堂々と進む", "後悔する"], answer: 0 },
-    { q: "取引先へお礼のメールを送るとき、最も適切な結びの言葉は?", choices: ["今後ともよろしくお願いいたします", "またね", "以上です", "よろしく"], answer: 0 },
+    { q: "会議で意見が対立したとき、相手を敬いつつ反論する適切な言い方は?", choices: ["考え直してください", "それは違います", "そんなことはありません", "おっしゃることは分かりますが、私はこう考えます"], answer: 3 },
+    { q: "「二の足を踏む」の意味として正しいものは?", choices: ["急いで行動する", "ためらう・決心がつかない", "堂々と進む", "後悔する"], answer: 1 },
+    { q: "取引先へお礼のメールを送るとき、最も適切な結びの言葉は?", choices: ["以上です", "またね", "今後ともよろしくお願いいたします", "よろしく"], answer: 2 },
     { q: "「腹を割って話す」の意味として正しいものは?", choices: ["本音で話す", "怒って話す", "簡潔に話す", "遠回しに話す"], answer: 0 },
-    { q: "「間髪を容れず」の正しい読み方は?", choices: ["かんぱつをいれず", "かんはつをいれず", "まがみをいれず", "かんぱついれず"], answer: 0 },
-    { q: "上司からの指示に対し、承知したことを丁寧に伝える言い方は?", choices: ["承知いたしました", "了解", "オーケーです", "分かった"], answer: 0 },
+    { q: "「間髪を容れず」の正しい読み方は?", choices: ["かんぱついれず", "かんはつをいれず", "まがみをいれず", "かんぱつをいれず"], answer: 3 },
+    { q: "上司からの指示に対し、承知したことを丁寧に伝える言い方は?", choices: ["了解", "承知いたしました", "オーケーです", "分かった"], answer: 1 },
   ],
   nihongoKentei1: [
-    { q: "「言を左右にする」の意味として正しいものは?", choices: ["はっきりと言わずに態度をあいまいにする", "はっきりと断言する", "左右対称に話す", "急に話題を変える"], answer: 0 },
-    { q: "「僭越ながら」の使い方として最も適切な場面は?", choices: ["自分の立場を超えて意見を述べる前置き", "相手を褒めるとき", "謝罪するとき", "依頼を断るとき"], answer: 0 },
-    { q: "「机上の空論」に近い意味を持つ言葉は?", choices: ["絵に描いた餅", "石橋を叩いて渡る", "背水の陣", "水を得た魚"], answer: 0 },
+    { q: "「言を左右にする」の意味として正しいものは?", choices: ["左右対称に話す", "はっきりと断言する", "はっきりと言わずに態度をあいまいにする", "急に話題を変える"], answer: 2 },
+    { q: "「僭越ながら」の使い方として最も適切な場面は?", choices: ["依頼を断るとき", "相手を褒めるとき", "謝罪するとき", "自分の立場を超えて意見を述べる前置き"], answer: 3 },
+    { q: "「机上の空論」に近い意味を持つ言葉は?", choices: ["石橋を叩いて渡る", "絵に描いた餅", "背水の陣", "水を得た魚"], answer: 1 },
     { q: "取引先からの厳しい要求に対し、丁重に断る場合の適切な表現は?", choices: ["誠に恐れ入りますが、今回は見送らせていただきます", "できません", "無理です", "それは困ります"], answer: 0 },
-    { q: "「琴線に触れる」の正しい意味は?", choices: ["深く感動させる", "怒らせる", "困らせる", "驚かせる"], answer: 0 },
-    { q: "「白眉」の意味として正しいものは?", choices: ["多数の中で最も優れているもの", "最も劣っているもの", "最初のもの", "最後のもの"], answer: 0 },
-    { q: "重要な取引先との会談を丁重に切り上げる際の適切な表現は?", choices: ["本日はお時間を頂き、誠にありがとうございました", "もう時間がないので", "終わりにしましょう", "また今度話しましょう"], answer: 0 },
+    { q: "「琴線に触れる」の正しい意味は?", choices: ["驚かせる", "怒らせる", "困らせる", "深く感動させる"], answer: 3 },
+    { q: "「白眉」の意味として正しいものは?", choices: ["最も劣っているもの", "多数の中で最も優れているもの", "最初のもの", "最後のもの"], answer: 1 },
+    { q: "重要な取引先との会談を丁重に切り上げる際の適切な表現は?", choices: ["終わりにしましょう", "もう時間がないので", "本日はお時間を頂き、誠にありがとうございました", "また今度話しましょう"], answer: 2 },
     { q: "「不惜身命」の意味として正しいものは?", choices: ["自分の身を惜しまず全力を尽くすこと", "身の安全を最優先すること", "無関心であること", "怠けること"], answer: 0 },
-    { q: "「一斑を見て全豹を卜す」の意味に近いものは?", choices: ["一部を見て全体を推測する", "全体を見て判断する", "何も見ずに判断する", "詳細を全て確認する"], answer: 0 },
-    { q: "「胸襟を開く」の意味として正しいものは?", choices: ["心を開いて本心を話す", "服のボタンを開ける", "怒りを表す", "無関心を示す"], answer: 0 },
+    { q: "「一斑を見て全豹を卜す」の意味に近いものは?", choices: ["詳細を全て確認する", "全体を見て判断する", "何も見ずに判断する", "一部を見て全体を推測する"], answer: 3 },
+    { q: "「胸襟を開く」の意味として正しいものは?", choices: ["服のボタンを開ける", "心を開いて本心を話す", "怒りを表す", "無関心を示す"], answer: 1 },
   ],
 };
 
@@ -1222,10 +1222,41 @@ const examPrepPracticeBtn = document.getElementById("exam-prep-practice-btn");
 // ユーザー指示「英検で採点後の英会話学習をつなぐようにして」への対応)。
 let examPrepMissedQuestions = [];
 
+/**
+ * Fisher-Yatesで配列をシャッフルした新しい配列を返す(元の配列は変更しない)。
+ */
+function shuffledCopy(array) {
+  const copy = array.slice();
+  for (let i = copy.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
+}
+
+// 直近にrenderExamPrepQuiz()で組み立てた「今回の出題」(問題の出題順・
+// 選択肢の並びを毎回シャッフルした結果)を保持する(ユーザー指示
+// 「正解位置を問題ごとにランダムに分散させて」「問題も...ランダムに
+// 組み合わせて出題」への対応)。scoreExamPrepQuiz/practiceExamPrepWithTrainer
+// は元のEXAM_PREP_QUESTIONS(固定の並び)を再度読むのではなく、必ずこの
+// 配列を参照する——採点時にシャッフル結果がずれて誤採点にならないため。
+let currentExamPrepQuiz = [];
+
 function renderExamPrepQuiz() {
   const exam = examPrepExamEl.value;
-  const questions = EXAM_PREP_QUESTIONS[exam] || [];
-  examPrepQuizEl.innerHTML = questions
+  const pool = EXAM_PREP_QUESTIONS[exam] || [];
+  // 出題順も毎回シャッフルし、各問の選択肢の並び(正解の位置)も
+  // 毎回シャッフルする——正解が常に同じ位置に来る/常に同じ順番で
+  // 出題される、という予測可能性を排除する。
+  currentExamPrepQuiz = shuffledCopy(pool).map((item) => {
+    const order = shuffledCopy(item.choices.map((_, ci) => ci));
+    return {
+      q: item.q,
+      choices: order.map((ci) => item.choices[ci]),
+      answer: order.indexOf(item.answer),
+    };
+  });
+  examPrepQuizEl.innerHTML = currentExamPrepQuiz
     .map((item, qi) => {
       const choices = item.choices
         .map(
@@ -1243,8 +1274,7 @@ function renderExamPrepQuiz() {
 }
 
 function scoreExamPrepQuiz() {
-  const exam = examPrepExamEl.value;
-  const questions = EXAM_PREP_QUESTIONS[exam] || [];
+  const questions = currentExamPrepQuiz;
   let correct = 0;
   examPrepMissedQuestions = [];
   questions.forEach((item, qi) => {
@@ -1276,7 +1306,7 @@ function scoreExamPrepQuiz() {
 function practiceExamPrepWithTrainer() {
   const exam = examPrepExamEl.value;
   const examLabel = examPrepExamEl.options[examPrepExamEl.selectedIndex].textContent.trim();
-  const questions = EXAM_PREP_QUESTIONS[exam] || [];
+  const questions = currentExamPrepQuiz;
   const targets = examPrepMissedQuestions.length > 0 ? examPrepMissedQuestions : questions.map((item) => ({ q: item.q, correctChoice: item.choices[item.answer] }));
   if (targets.length === 0) return;
 
