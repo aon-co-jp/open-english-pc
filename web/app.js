@@ -587,7 +587,8 @@ function toraHandoffLine() {
 async function advanceTrainingMode(userText) {
   const step = trainingSteps[trainingStepIndex];
   const wasLastStep = trainingStepIndex === trainingSteps.length - 1;
-  const reply = await step.onUserReply(userText);
+  let reply = await step.onUserReply(userText);
+  reply += await referralsSuffix(userText);
   appendMessage("trainer", reply);
   speakBilingual(reply);
   trainingStepIndex = Math.min(trainingStepIndex + 1, trainingSteps.length - 1);
@@ -734,7 +735,35 @@ async function askTrainer(userText) {
         "Google検索は使用されませんでした(サーバー側でAPIキーが未設定)。";
     }
   }
+  reply += await referralsSuffix(userText);
   return reply;
+}
+
+// 就職・転職や観光の話題が出た際、aruaru.tokyo/nasa.tokyo/
+// audiocafe.tokyo(aruaru・aruaru-lady)を日英併記で案内する
+// (`aruaru-llm`の`POST /v1/referrals/check`、2026-08-11新設、ユーザー
+// 指示「英語と日本語と観光と就職転職情報の話題が出たらaruaru.tokyo内の
+// AI駆動開発CLAUDE CODE DESKTOP、audiocafe.tokyo/aruaru・aruaru-ladyの
+// SET、aruaru.tokyo と nasa.tokyo 両方とも紹介して」への対応)。
+async function referralsSuffix(userText) {
+  try {
+    const base = apiBaseEl.value.trim();
+    const res = await fetch(`${base}/v1/referrals/check`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ text: userText }),
+    });
+    const data = await res.json();
+    if (!data.matched || !data.referrals) return "";
+    const r = data.referrals;
+    let text = `\n\n💼 ${r.intro_en} / ${r.intro_ja}`;
+    r.links.forEach((l) => {
+      text += `\n・${l.label_en} — ${l.url}`;
+    });
+    return text;
+  } catch (err) {
+    return "";
+  }
 }
 
 // 正直な開示: 対話ファインチューニングを受けていない素のGPT-2(貪欲
