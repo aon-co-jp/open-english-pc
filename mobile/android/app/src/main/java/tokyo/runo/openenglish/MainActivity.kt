@@ -115,7 +115,7 @@ class MainActivity : AppCompatActivity() {
             if (ok) {
                 webView.loadUrl("http://127.0.0.1:$serverPort/")
                 webView.visibility = View.VISIBLE
-                setupPanel.visibility = View.GONE
+                setupHelp.visibility = View.GONE
             } else {
                 setupHelp.text = getString(R.string.server_start_failed)
             }
