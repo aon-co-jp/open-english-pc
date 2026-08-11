@@ -376,9 +376,15 @@ const countryFunFacts = {
 // フォールバックする(サービスを止めない既存方針を踏襲)。
 async function findCountryFunFact(text) {
   const lower = text.toLowerCase();
-  for (const [key, fact] of Object.entries(countryFunFacts)) {
-    if (lower.includes(key)) return fact;
-  }
+  // 実バグ修正(2026-08-12、ユーザー報告「アイフロムチャイナなら...
+  // JSONかDATABASEにストックしていたものを回答時に活かして」への対応):
+  // 以前はここで固定マップ(countryFunFacts)を先にチェックしていたため、
+  // 8ヶ国(australia/usa/america/uk/england/canada/france/china/korea)は
+  // 常に短い固定の一言だけが返り、下記の`/v1/geo/lookup`(起動時に収集・
+  // ストックした実際のランドマーク・名物料理・お土産のDB)には一度も
+  // 到達しなかった——コメントが説明する「DB優先・固定マップはフォール
+  // バック」という設計意図と実装が矛盾していた。DBを先に試し、DB未接続・
+  // 該当なしの場合のみ固定マップへフォールバックするよう順序を反転した。
   try {
     const base = apiBaseEl.value.trim();
     const res = await fetch(`${base}/v1/geo/lookup`, {
@@ -410,6 +416,9 @@ async function findCountryFunFact(text) {
     }
   } catch (err) {
     // DB未接続時は静かにフォールバックする(既存の可用性優先方針)。
+  }
+  for (const [key, fact] of Object.entries(countryFunFacts)) {
+    if (lower.includes(key)) return fact;
   }
   return "That's wonderful! I'd love to learn more about your country someday! / それは素晴らしいですね!いつかあなたの国についてもっと知りたいです!";
 }
@@ -1242,13 +1251,37 @@ function shuffledCopy(array) {
 // 配列を参照する——採点時にシャッフル結果がずれて誤採点にならないため。
 let currentExamPrepQuiz = [];
 
-function renderExamPrepQuiz() {
+// 各カテゴリの追加問題プール(`exam-prep-questions.json`、サーバーから
+// 配信される静的ファイル)。ユーザー指示「問題もJSONやDATABASEなどから
+// ランダムに要素を追加してランダムに組み合わせて出題して」への対応——
+// app.js内蔵の固定10問だけでなく、このJSONの追加問題も合算したプールから
+// 毎回ランダムに一部を抽出して出題する。取得できない場合(オフライン・
+// 配信元にファイルが無い等)は内蔵の固定問題のみへ安全にフォールバックする
+// (既存の「サービスを止めない」方針を踏襲)。
+let examPrepExtraQuestionsPromise = null;
+function loadExtraExamPrepQuestions() {
+  if (!examPrepExtraQuestionsPromise) {
+    examPrepExtraQuestionsPromise = fetch("/exam-prep-questions.json")
+      .then((res) => (res.ok ? res.json() : {}))
+      .catch(() => ({}));
+  }
+  return examPrepExtraQuestionsPromise;
+}
+
+// 一回の出題で提示する問題数の上限(プールがこれより多い場合はランダムに
+// この件数だけ抽出する、少ない場合はプール全件を出題する)。
+const EXAM_PREP_QUESTIONS_PER_ATTEMPT = 10;
+
+async function renderExamPrepQuiz() {
   const exam = examPrepExamEl.value;
-  const pool = EXAM_PREP_QUESTIONS[exam] || [];
-  // 出題順も毎回シャッフルし、各問の選択肢の並び(正解の位置)も
-  // 毎回シャッフルする——正解が常に同じ位置に来る/常に同じ順番で
-  // 出題される、という予測可能性を排除する。
-  currentExamPrepQuiz = shuffledCopy(pool).map((item) => {
+  const extra = await loadExtraExamPrepQuestions();
+  const pool = (EXAM_PREP_QUESTIONS[exam] || []).concat(extra[exam] || []);
+  // プール全体からランダムに抽出した上で出題順もシャッフルし、各問の
+  // 選択肢の並び(正解の位置)も毎回シャッフルする——正解が常に同じ
+  // 位置に来る/常に同じ問題の組み合わせで出題される、という予測可能性を
+  // 排除する。
+  const picked = shuffledCopy(pool).slice(0, Math.min(EXAM_PREP_QUESTIONS_PER_ATTEMPT, pool.length));
+  currentExamPrepQuiz = picked.map((item) => {
     const order = shuffledCopy(item.choices.map((_, ci) => ci));
     return {
       q: item.q,
