@@ -62,6 +62,7 @@
     </label>
     <button type="button" id="google-search-settings-btn" class="setup-btn">🔎 Google Search Setup</button>
     <button type="button" id="setup-btn" class="setup-btn">⚙ Setup aruaru-llm</button>
+    <button type="button" id="exam-prep-btn" class="setup-btn">📝 Exam Prep / 資格対策</button>
   </header>
 
   <div id="setup-modal" class="setup-modal hidden">
@@ -178,6 +179,44 @@ cargo run --release</pre>
         <button type="button" id="google-search-clear" class="setup-btn">Clear / 消去</button>
       </div>
       <p id="google-search-status" class="setup-note"></p>
+    </div>
+  </div>
+
+  <div id="exam-prep-modal" class="setup-modal hidden">
+    <div class="setup-panel">
+      <button type="button" id="exam-prep-close" class="setup-close">✕</button>
+      <h2>Certification Exam Prep / 資格試験対策コーナー</h2>
+      <p class="setup-honest">
+        <strong>Honest disclosure:</strong> These are original practice questions written for
+        this app, not real past questions from Eiken (STEP), TOEIC, or TOEFL — those are
+        copyrighted and we do not reproduce them. Difficulty is only a loose approximation of
+        each real exam's level, not an official prediction.<br /><br />
+        <strong>正直な開示:</strong> これらは本アプリ用に作成したオリジナルの練習問題であり、
+        英検・TOEIC・TOEFLの実際の過去問(著作権保護対象)ではありません。難易度も
+        各試験の実際のレベルへの大まかな目安に過ぎず、公式の予測スコアではありません。
+      </p>
+      <label class="settings-field">
+        Exam / 試験
+        <select id="exam-prep-exam">
+          <option value="eiken1">英検1級 / Eiken Grade 1</option>
+          <option value="eiken2">英検2級 / Eiken Grade 2</option>
+          <option value="eiken-pre2">英検準2級 / Eiken Grade Pre-2</option>
+          <option value="eiken3" selected>英検3級 / Eiken Grade 3</option>
+          <option value="eiken4">英検4級 / Eiken Grade 4</option>
+          <option value="eiken5">英検5級 / Eiken Grade 5</option>
+          <option value="toeic">TOEIC</option>
+          <option value="toefl">TOEFL</option>
+        </select>
+      </label>
+      <div id="exam-prep-quiz"></div>
+      <div class="settings-buttons">
+        <button type="button" id="exam-prep-start" class="setup-btn">Start / 開始</button>
+        <button type="button" id="exam-prep-submit" class="setup-btn hidden">Submit / 採点</button>
+      </div>
+      <p id="exam-prep-result" class="setup-note"></p>
+      <button type="button" id="exam-prep-practice-btn" class="setup-btn hidden">
+        💬 Practice these with your trainer / トレーナーと練習する
+      </button>
     </div>
   </div>
   <p class="level-hint">You can change the level and reply language above at any time, before or during the conversation. / レベル・応答言語はいつでも(会話の前でも途中でも)上のメニューから変更できます。</p>

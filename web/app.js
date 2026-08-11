@@ -962,3 +962,165 @@ document.querySelectorAll(".copy-btn").forEach((btn) => {
     }
   });
 });
+
+// 資格試験対策コーナー(2026-08-11新設、ユーザー指示「英検1級2級3級4級
+// 5級とTOEICとTOEFLの様々なレベル別擬似的模擬試験機能とその資格対策
+// コーナーを搭載して」への対応)。
+//
+// 正直な開示(最重要): ここに収録した問題はすべて本アプリ用に書き
+// 下ろしたオリジナル問題であり、英検(実施団体: 日本英語検定協会)・
+// TOEIC・TOEFLの実際の過去問(著作権保護対象)は一切使用・転載していない。
+// 難易度も各試験の実際のレベルへの大まかな目安に過ぎず、公式の合否・
+// スコア予測ではない。サーバー(aruaru-llm)不要・完全にクライアント側の
+// JavaScriptのみで完結するため、Android単体版でもそのまま動作する。
+const EXAM_PREP_QUESTIONS = {
+  eiken5: [
+    { q: "This is ___ apple.", choices: ["a", "an", "the", "some"], answer: 1 },
+    { q: "I ___ a student.", choices: ["am", "is", "are", "be"], answer: 0 },
+    { q: "She ___ to school every day.", choices: ["go", "goes", "going", "gone"], answer: 1 },
+    { q: "What ___ your name?", choices: ["is", "are", "am", "be"], answer: 0 },
+    { q: "There ___ two cats on the sofa.", choices: ["is", "am", "are", "be"], answer: 2 },
+  ],
+  eiken4: [
+    { q: "I have ___ finished my homework.", choices: ["already", "yet", "still", "ago"], answer: 0 },
+    { q: "He is taller ___ his brother.", choices: ["as", "than", "then", "that"], answer: 1 },
+    { q: "If it ___ tomorrow, we will stay home.", choices: ["rain", "rains", "rained", "raining"], answer: 1 },
+    { q: "This book is ___ interesting than that one.", choices: ["more", "most", "much", "many"], answer: 0 },
+    { q: "She has been living here ___ 2020.", choices: ["for", "since", "during", "at"], answer: 1 },
+  ],
+  eiken3: [
+    { q: "I have never ___ sushi before.", choices: ["eat", "ate", "eaten", "eating"], answer: 2 },
+    { q: "The letter ___ by my sister yesterday.", choices: ["wrote", "was written", "is writing", "writes"], answer: 1 },
+    { q: "You ___ study harder to pass the exam.", choices: ["must", "may", "can", "will"], answer: 0 },
+    { q: "This is the book ___ I bought last week.", choices: ["who", "which", "whose", "what"], answer: 1 },
+    { q: "By the time we arrived, the movie ___ already started.", choices: ["has", "have", "had", "was"], answer: 2 },
+  ],
+  "eiken-pre2": [
+    { q: "I wish I ___ more time to travel.", choices: ["have", "had", "will have", "having"], answer: 1 },
+    { q: "The project, ___ took two years, was finally completed.", choices: ["that", "which", "who", "what"], answer: 1 },
+    { q: "Not only ___ he late, but he also forgot his homework.", choices: ["was", "he was", "did", "he did"], answer: 0 },
+    { q: "She suggested ___ to the new restaurant.", choices: ["go", "to go", "going", "went"], answer: 2 },
+    { q: "It's high time we ___ a decision.", choices: ["make", "made", "will make", "making"], answer: 1 },
+  ],
+  eiken2: [
+    { q: "Had I known about the traffic, I ___ earlier.", choices: ["would leave", "would have left", "will leave", "left"], answer: 1 },
+    { q: "The committee is composed ___ five members.", choices: ["of", "by", "with", "from"], answer: 0 },
+    { q: "Little ___ that his decision would change everything.", choices: ["he knew", "did he know", "he did know", "knew he"], answer: 1 },
+    { q: "The report needs to be submitted ___ Friday at the latest.", choices: ["until", "by", "in", "at"], answer: 1 },
+    { q: "She is used to ___ up early for work.", choices: ["get", "got", "getting", "have gotten"], answer: 2 },
+  ],
+  eiken1: [
+    { q: "The negotiations broke down, ___ leading to a prolonged strike.", choices: ["thereby", "therefore", "wherein", "albeit"], answer: 0 },
+    { q: "His argument, though eloquent, was fundamentally ___.", choices: ["flawless", "specious", "unanimous", "verbatim"], answer: 1 },
+    { q: "Were it not for her intervention, the deal ___ collapsed.", choices: ["would have", "will have", "had", "has"], answer: 0 },
+    { q: "The policy has been criticized as ___ short-term gains over long-term stability.", choices: ["prioritizing", "to prioritize", "prioritize", "prioritized"], answer: 0 },
+    { q: "He remained ___ in the face of overwhelming criticism.", choices: ["obstinate", "gregarious", "affable", "candid"], answer: 0 },
+  ],
+  toeic: [
+    { q: "Please submit the report ___ the end of the week.", choices: ["by", "until", "since", "for"], answer: 0 },
+    { q: "The meeting has been ___ to next Monday.", choices: ["postponed", "postpone", "postponing", "postpones"], answer: 0 },
+    { q: "All employees are required ___ the new safety guidelines.", choices: ["follow", "to follow", "following", "followed"], answer: 1 },
+    { q: "Sales figures ___ significantly since the new campaign launched.", choices: ["has increased", "have increased", "increasing", "increase"], answer: 1 },
+    { q: "The invoice should be sent directly ___ the accounting department.", choices: ["to", "at", "with", "for"], answer: 0 },
+  ],
+  toefl: [
+    { q: "The professor's lecture focused on the factors ___ contribute to climate change.", choices: ["that", "who", "whom", "what"], answer: 0 },
+    { q: "Despite ___ evidence, the theory remains widely accepted.", choices: ["limit", "limited", "limiting", "limitation"], answer: 1 },
+    { q: "The study suggests that early intervention can ___ the long-term effects.", choices: ["mitigate", "mitigating", "mitigation", "mitigated"], answer: 0 },
+    { q: "It is essential that every student ___ the assignment on time.", choices: ["submits", "submit", "submitted", "submitting"], answer: 1 },
+    { q: "The researchers were unable to draw a definitive conclusion ___ the limited sample size.", choices: ["because", "because of", "although", "despite"], answer: 1 },
+  ],
+};
+
+const examPrepBtn = document.getElementById("exam-prep-btn");
+const examPrepModal = document.getElementById("exam-prep-modal");
+const examPrepClose = document.getElementById("exam-prep-close");
+const examPrepExamEl = document.getElementById("exam-prep-exam");
+const examPrepQuizEl = document.getElementById("exam-prep-quiz");
+const examPrepStartBtn = document.getElementById("exam-prep-start");
+const examPrepSubmitBtn = document.getElementById("exam-prep-submit");
+const examPrepResultEl = document.getElementById("exam-prep-result");
+const examPrepPracticeBtn = document.getElementById("exam-prep-practice-btn");
+// 直近の採点で間違えた問題(採点後にトレーナーへの引き継ぎで使う、
+// ユーザー指示「英検で採点後の英会話学習をつなぐようにして」への対応)。
+let examPrepMissedQuestions = [];
+
+function renderExamPrepQuiz() {
+  const exam = examPrepExamEl.value;
+  const questions = EXAM_PREP_QUESTIONS[exam] || [];
+  examPrepQuizEl.innerHTML = questions
+    .map((item, qi) => {
+      const choices = item.choices
+        .map(
+          (choice, ci) =>
+            `<label class="exam-prep-choice"><input type="radio" name="exam-prep-q${qi}" value="${ci}" /> ${choice}</label>`
+        )
+        .join("");
+      return `<div class="exam-prep-question"><p>${qi + 1}. ${item.q}</p>${choices}</div>`;
+    })
+    .join("");
+  examPrepResultEl.textContent = "";
+  examPrepSubmitBtn.classList.remove("hidden");
+  examPrepPracticeBtn.classList.add("hidden");
+  examPrepMissedQuestions = [];
+}
+
+function scoreExamPrepQuiz() {
+  const exam = examPrepExamEl.value;
+  const questions = EXAM_PREP_QUESTIONS[exam] || [];
+  let correct = 0;
+  examPrepMissedQuestions = [];
+  questions.forEach((item, qi) => {
+    const selected = examPrepQuizEl.querySelector(`input[name="exam-prep-q${qi}"]:checked`);
+    const isCorrect = selected && Number(selected.value) === item.answer;
+    if (isCorrect) {
+      correct += 1;
+    } else {
+      examPrepMissedQuestions.push({ q: item.q, correctChoice: item.choices[item.answer] });
+    }
+  });
+  const total = questions.length;
+  examPrepResultEl.textContent =
+    `Score / 得点: ${correct} / ${total} — ` +
+    "practice questions only, not an official score prediction. / " +
+    "練習問題のみです。公式のスコア予測ではありません。";
+  // 間違えた問題(または満点なら全問)をトレーナーとの練習へつなげる
+  // ボタンを表示する。満点の場合でも復習として練習できるよう、全問を
+  // 対象にする。
+  examPrepPracticeBtn.classList.toggle("hidden", questions.length === 0);
+}
+
+/**
+ * 採点結果をメイドカフェ英会話トレーナーへの練習リクエストへ変換し、
+ * モーダルを閉じてチャットへ渡す(ユーザー指示「英検で採点後の英会話
+ * 学習をつなぐようにして」への対応)。間違えた問題が無ければ、直近に
+ * 解いた問題全体を復習練習として渡す。
+ */
+function practiceExamPrepWithTrainer() {
+  const exam = examPrepExamEl.value;
+  const examLabel = examPrepExamEl.options[examPrepExamEl.selectedIndex].textContent.trim();
+  const questions = EXAM_PREP_QUESTIONS[exam] || [];
+  const targets = examPrepMissedQuestions.length > 0 ? examPrepMissedQuestions : questions.map((item) => ({ q: item.q, correctChoice: item.choices[item.answer] }));
+  if (targets.length === 0) return;
+
+  const summary = targets.map((t, i) => `${i + 1}) "${t.q}" (answer: ${t.correctChoice})`).join(" ");
+  const requestText =
+    `I just took a ${examLabel} practice quiz. Can you help me understand and practice these questions in conversation? ${summary}`;
+
+  examPrepModal.classList.add("hidden");
+  inputEl.value = requestText;
+  formEl.dispatchEvent(new Event("submit", { cancelable: true }));
+}
+
+if (examPrepBtn && examPrepModal) {
+  examPrepBtn.addEventListener("click", () => {
+    examPrepModal.classList.remove("hidden");
+  });
+  examPrepClose.addEventListener("click", () => examPrepModal.classList.add("hidden"));
+  examPrepModal.addEventListener("click", (e) => {
+    if (e.target === examPrepModal) examPrepModal.classList.add("hidden");
+  });
+  examPrepStartBtn.addEventListener("click", renderExamPrepQuiz);
+  examPrepSubmitBtn.addEventListener("click", scoreExamPrepQuiz);
+  examPrepPracticeBtn.addEventListener("click", practiceExamPrepWithTrainer);
+}

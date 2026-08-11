@@ -374,6 +374,22 @@ body {
   overflow-y: auto;
 }
 
+/* google-search-modal・exam-prep-modalが使うパネル(2026-08-11修正:
+   .setup-cardと同じスクロール可能な箱スタイルが定義されておらず、
+   実機で「問題が画面外にはみ出して下へスクロールできず、それ以上
+   回答できない」という実バグとして発覚したため追加)。 */
+.setup-panel {
+  position: relative;
+  background: var(--panel);
+  border: 2px solid var(--pink);
+  border-radius: 12px;
+  padding: 24px;
+  max-width: 640px;
+  max-height: 85vh;
+  overflow-y: auto;
+  width: 100%;
+}
+
 .setup-card h2 {
   margin-top: 0;
   font-size: 1.1rem;
@@ -441,4 +457,22 @@ body {
   align-items: center;
   gap: 4px;
   font-size: 0.95rem;
+}
+
+/* 資格試験対策コーナー(2026-08-11新設)。 */
+.exam-prep-question {
+  margin: 12px 0;
+  padding: 10px 12px;
+  background: #241925;
+  border-radius: 8px;
+}
+.exam-prep-choice {
+  display: block;
+  margin: 4px 0 4px 12px;
+  font-size: 0.95rem;
+}
+
+/* 汎用の非表示クラス(exam-prep-submit等、モーダル本体以外の要素にも使う)。 */
+.hidden {
+  display: none !important;
 }
