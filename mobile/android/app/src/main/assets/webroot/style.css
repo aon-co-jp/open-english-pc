@@ -1,0 +1,444 @@
+:root {
+  --bg: #1a1220;
+  --panel: #241a30;
+  --pink: #f096be;
+  --text: #f5eef7;
+  --accent: #ffce54;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 12px 20px;
+  background: var(--panel);
+  border-bottom: 2px solid var(--pink);
+}
+
+.topbar h1 {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.phase-badge {
+  font-size: 0.9rem;
+  background: var(--accent);
+  color: #332200;
+  padding: 2px 8px;
+  border-radius: 8px;
+  vertical-align: middle;
+}
+
+.level-select select,
+.lang-select select {
+  margin-left: 6px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: none;
+}
+
+.level-hint {
+  text-align: center;
+  font-size: 0.95rem;
+  color: #cbb;
+  margin: 8px 20px 0;
+}
+
+.stage {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  padding: 24px;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.trainer {
+  flex: 0 0 220px;
+  text-align: center;
+  /* キャラクター周りだけ薄いピンク背景(ユーザー指示、2026-08-10)、
+     ページ全体の紺色背景(body)はそのまま維持する。 */
+  background: #fbe4ec;
+  border-radius: 20px;
+  padding: 16px 10px;
+}
+
+#trainer-svg {
+  width: 200px;
+  height: 280px;
+  animation: breathe 3.2s ease-in-out infinite;
+  transform-origin: 100px 200px;
+}
+
+@keyframes breathe {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    transform: translateY(-3px) scale(1.01, 0.99);
+  }
+}
+
+#eyelid-left,
+#eyelid-right,
+#eyelid-left-helper,
+#eyelid-right-helper {
+  animation: blink 4.5s ease-in-out infinite;
+}
+
+@keyframes blink {
+  0%,
+  92%,
+  100% {
+    height: 0;
+  }
+  95% {
+    height: 15px;
+  }
+}
+
+#eye-left,
+#eye-right {
+  animation: look-around 6s ease-in-out infinite;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+@keyframes look-around {
+  0%,
+  60%,
+  100% {
+    transform: translate(0, 0);
+  }
+  70% {
+    transform: translate(1.2px, 0);
+  }
+  80% {
+    transform: translate(-1px, 0.6px);
+  }
+}
+
+#mouth,
+#mouth-helper {
+  transform-origin: 100px 94px;
+  transition: transform 0.1s ease;
+}
+
+.trainer.speaking #mouth,
+.trainer.speaking #mouth-helper {
+  animation: talk 0.22s infinite alternate;
+}
+
+.character-switch-btn {
+  margin-top: 10px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: none;
+  background: #444;
+  color: #fff;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+@keyframes talk {
+  from {
+    transform: scaleY(1);
+  }
+  to {
+    transform: scaleY(2.2);
+  }
+}
+
+.voice-controls {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.9rem;
+}
+
+#mic-btn {
+  padding: 8px 14px;
+  border-radius: 20px;
+  border: none;
+  background: var(--accent);
+  color: #332200;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+#mic-btn.listening {
+  background: #ff5e8e;
+  color: #fff;
+  animation: pulse 0.6s infinite alternate;
+}
+
+@keyframes pulse {
+  from {
+    box-shadow: 0 0 0 0 rgba(255, 94, 142, 0.6);
+  }
+  to {
+    box-shadow: 0 0 0 8px rgba(255, 94, 142, 0);
+  }
+}
+
+.voice-toggle {
+  color: #5a3040;
+}
+
+.speech-bubble {
+  margin-top: 12px;
+  background: var(--panel);
+  border: 2px solid var(--pink);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 1.0rem;
+  min-height: 60px;
+  white-space: pre-line;
+}
+
+.chat-panel {
+  flex: 1 1 400px;
+  min-width: 300px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.disclosure {
+  background: #3a2a1a;
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.log {
+  background: var(--panel);
+  border-radius: 8px;
+  padding: 12px;
+  min-height: 260px;
+  max-height: 420px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.msg {
+  max-width: 80%;
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-size: 1.0rem;
+  line-height: 1.4;
+  white-space: pre-line;
+}
+
+.msg.user {
+  align-self: flex-end;
+  background: #3a5a8c;
+}
+
+.msg.trainer {
+  align-self: flex-start;
+  background: #5a3a5a;
+}
+
+.msg.system {
+  align-self: center;
+  background: transparent;
+  color: #bba;
+  font-size: 0.95rem;
+}
+
+.chat-form {
+  display: flex;
+  gap: 8px;
+}
+
+.chat-form input {
+  flex: 1;
+  padding: 10px;
+  border-radius: 8px;
+  border: none;
+}
+
+.chat-form button {
+  padding: 10px 16px;
+  border-radius: 8px;
+  border: none;
+  background: var(--pink);
+  color: #200;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.settings {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.9rem;
+  color: #cbb;
+}
+
+.settings input {
+  padding: 4px 6px;
+  border-radius: 6px;
+  border: none;
+  min-width: 220px;
+}
+
+.status {
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: #333;
+}
+
+.status.ok {
+  background: #2a5a2a;
+  color: #cfc;
+}
+
+.status.error {
+  background: #5a2a2a;
+  color: #fcc;
+}
+
+.setup-btn {
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: none;
+  background: var(--accent);
+  color: #332200;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.maintenance-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: #f0ad4e;
+  color: #222;
+  text-align: center;
+  padding: 10px 16px;
+  font-weight: bold;
+  z-index: 20;
+}
+
+.maintenance-banner.hidden {
+  display: none;
+}
+
+.setup-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 10;
+}
+
+.setup-modal.hidden {
+  display: none;
+}
+
+.setup-card {
+  position: relative;
+  background: var(--panel);
+  border: 2px solid var(--pink);
+  border-radius: 12px;
+  padding: 24px;
+  max-width: 640px;
+  max-height: 85vh;
+  overflow-y: auto;
+}
+
+.setup-card h2 {
+  margin-top: 0;
+  font-size: 1.1rem;
+}
+
+.setup-card h3 {
+  font-size: 1.05rem;
+  margin-bottom: 6px;
+}
+
+.setup-honest,
+.setup-note {
+  font-size: 0.9rem;
+  background: #3a2a1a;
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  padding: 10px 12px;
+  line-height: 1.5;
+}
+
+.setup-script {
+  background: #111;
+  color: #cfc;
+  padding: 10px 12px;
+  border-radius: 8px;
+  overflow-x: auto;
+  font-size: 0.95rem;
+  margin: 0 0 8px;
+}
+
+.copy-btn {
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: none;
+  background: #444;
+  color: #fff;
+  cursor: pointer;
+  margin-bottom: 16px;
+}
+
+.copy-btn.copied {
+  background: #2a5a2a;
+}
+
+.setup-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-size: 1.1rem;
+  cursor: pointer;
+}
+
+.app-version {
+  text-align: center;
+  padding: 8px 0 16px;
+  font-size: 0.95rem;
+  color: #888;
+}
+
+.web-search-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.95rem;
+}

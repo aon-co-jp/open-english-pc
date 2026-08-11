@@ -4,6 +4,12 @@
     android:layout_height="match_parent"
     android:orientation="vertical">
 
+    <!--
+      2026-08-11: 単体動作版へ移行(PCのIPアドレス入力は不要になった)。
+      内蔵サーバー起動中/失敗時の状態表示のみを残す(setup_panelという
+      ID名は既存レイアウトから引き継ぎ、役割を「接続設定」から
+      「起動状態表示」へ変更)。
+    -->
     <LinearLayout
         android:id="@+id/setup_panel"
         android:layout_width="match_parent"
@@ -18,20 +24,6 @@
             android:text="@string/setup_help"
             android:textSize="14sp"
             android:paddingBottom="12dp" />
-
-        <EditText
-            android:id="@+id/server_url_input"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="@string/url_hint"
-            android:inputType="textUri" />
-
-        <Button
-            android:id="@+id/connect_button"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/connect_button"
-            android:layout_marginTop="8dp" />
 
         <TextView
             android:id="@+id/update_notice"
