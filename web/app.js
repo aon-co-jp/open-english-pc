@@ -217,7 +217,17 @@ function pickVoice(lang, preferMale) {
   const candidates = cachedVoices.filter((v) => v.lang.toLowerCase().startsWith(lang.slice(0, 2)));
   const hints = preferMale ? maleNameHints : femaleNameHints;
   const preferred = candidates.find((v) => hints.some((hint) => v.name.toLowerCase().includes(hint)));
-  return preferred || candidates[0] || cachedVoices[0] || null;
+  // 正直な開示・バグ修正(ユーザー報告「17歳を英語の部分でジュウナナ
+  // イヤーズと発音していた」): 以前はここで`candidates`(要求言語に
+  // マッチする声)が1件も無い場合、無関係な言語(例: 日本語)の声へ
+  // フォールバックしていた(`cachedVoices[0]`)。多くのブラウザは
+  // `utterance.voice`が設定されるとその声自身の言語の発音規則
+  // (数字の読み方等)を`utterance.lang`より優先するため、英語の
+  // "17 years old"が日本語の声で読まれ「ジュウナナ」のように誤発音
+  // される実バグがあった。要求言語に合う声が1件も無い場合は`voice`を
+  // 設定せず`null`を返すことで、ブラウザ既定の`utterance.lang`側の
+  // 発音規則(セブンティーン)にそのまま委ねる。
+  return preferred || candidates[0] || null;
 }
 if ("speechSynthesis" in window) {
   window.speechSynthesis.onvoiceschanged = () => {
