@@ -35,7 +35,7 @@ body {
 }
 
 .phase-badge {
-  font-size: 0.7rem;
+  font-size: 0.9rem;
   background: var(--accent);
   color: #332200;
   padding: 2px 8px;
@@ -53,7 +53,7 @@ body {
 
 .level-hint {
   text-align: center;
-  font-size: 0.75rem;
+  font-size: 0.95rem;
   color: #cbb;
   margin: 8px 20px 0;
 }
@@ -152,7 +152,7 @@ body {
   background: #444;
   color: #fff;
   cursor: pointer;
-  font-size: 0.8rem;
+  font-size: 0.9rem;
 }
 
 @keyframes talk {
@@ -170,7 +170,7 @@ body {
   flex-direction: column;
   align-items: center;
   gap: 6px;
-  font-size: 0.8rem;
+  font-size: 0.9rem;
 }
 
 #mic-btn {
@@ -208,7 +208,7 @@ body {
   border: 2px solid var(--pink);
   border-radius: 10px;
   padding: 10px 12px;
-  font-size: 0.9rem;
+  font-size: 1.0rem;
   min-height: 60px;
   white-space: pre-line;
 }
@@ -226,7 +226,7 @@ body {
   border: 1px solid var(--accent);
   border-radius: 8px;
   padding: 10px 12px;
-  font-size: 0.8rem;
+  font-size: 0.9rem;
   line-height: 1.4;
 }
 
@@ -246,7 +246,7 @@ body {
   max-width: 80%;
   padding: 8px 12px;
   border-radius: 10px;
-  font-size: 0.9rem;
+  font-size: 1.0rem;
   line-height: 1.4;
   white-space: pre-line;
 }
@@ -265,7 +265,7 @@ body {
   align-self: center;
   background: transparent;
   color: #bba;
-  font-size: 0.75rem;
+  font-size: 0.95rem;
 }
 
 .chat-form {
@@ -294,7 +294,7 @@ body {
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 0.8rem;
+  font-size: 0.9rem;
   color: #cbb;
 }
 
@@ -380,13 +380,13 @@ body {
 }
 
 .setup-card h3 {
-  font-size: 0.95rem;
+  font-size: 1.05rem;
   margin-bottom: 6px;
 }
 
 .setup-honest,
 .setup-note {
-  font-size: 0.8rem;
+  font-size: 0.9rem;
   background: #3a2a1a;
   border: 1px solid var(--accent);
   border-radius: 8px;
@@ -400,7 +400,7 @@ body {
   padding: 10px 12px;
   border-radius: 8px;
   overflow-x: auto;
-  font-size: 0.85rem;
+  font-size: 0.95rem;
   margin: 0 0 8px;
 }
 
@@ -432,7 +432,7 @@ body {
 .app-version {
   text-align: center;
   padding: 8px 0 16px;
-  font-size: 0.75rem;
+  font-size: 0.95rem;
   color: #888;
 }
 
@@ -440,5 +440,5 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 0.85rem;
+  font-size: 0.95rem;
 }
