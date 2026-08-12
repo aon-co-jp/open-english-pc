@@ -17,8 +17,24 @@
           番ポート)であり、公開インターネット上のhttpsサーバーではない
           ため平文HTTPを許可する(LAN内接続、正直な開示)。
         -->
+        <!--
+          android:configChanges: 実機検証(2026-08-12、ユーザー指示
+          「アンドロイドスマホとタブレットは縦画面と横画面の両方に対応
+          して」)で発覚した実バグへの対応。screenOrientationを固定して
+          いない(=デフォルトで両方向とも回転可能)ものの、configChanges
+          未指定のままだと画面回転のたびにActivity自体が破棄・再生成され、
+          WebView側のJS状態(会話履歴・試験問題の進行状況・設定画面の
+          入力内容等)が全て失われることを実機で確認した(内蔵サーバー
+          プロセス自体はlaunchServerProcess()の多重起動防止ガードにより
+          クラッシュしないが、UI状態は毎回リセットされてしまう)。
+          orientation|screenSize|screenLayoutを指定してActivityの再生成
+          自体を止め、WebViewはCSSのレスポンシブレイアウトで画面サイズ
+          変化に追従させる(index.html/style.css側は元々特定の画面向きを
+          前提にしていない)。
+        -->
         <activity
             android:name=".MainActivity"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
