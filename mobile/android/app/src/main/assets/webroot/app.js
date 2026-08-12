@@ -358,27 +358,50 @@ function speak(text) {
 // では指定された自己紹介の順序・内容(名前→年齢ジョーク→出身国→
 // 国別の共通話題→アニメ→食べ物→文化)を確実に守らせることはできない
 // ため、確実性を優先してこのモードのみ決定的なスクリプトとした。
-const countryFunFacts = {
-  australia: "I love kangaroos and koalas! / 私はカンガルーとコアラが大好きです!",
-  usa: "I love baseball and Hollywood movies! / 私は野球とハリウッド映画が大好きです!",
-  america: "I love baseball and Hollywood movies! / 私は野球とハリウッド映画が大好きです!",
-  uk: "I love tea time and football! / 私はお茶の時間とサッカーが大好きです!",
-  england: "I love tea time and football! / 私はお茶の時間とサッカーが大好きです!",
-  canada: "I love maple syrup and hockey! / 私はメープルシロップとホッケーが大好きです!",
-  france: "I love croissants and the Eiffel Tower! / 私はクロワッサンとエッフェル塔が大好きです!",
-  china: "I love pandas and dumplings! / 私はパンダと餃子が大好きです!",
-  korea: "I love K-pop and kimchi! / 私はK-POPとキムチが大好きです!",
+// 各国について「合っていればどれを答えてもよい」個別の話題候補
+// (ユーザー指示「アイフロムチャイナなら、アイラブ北京ダッグや餃子、
+// アイラブパンダや万里の長城なども回答としてあっていればランダムで
+// 答えて」——固定の1文ではなく、正しい候補の中からランダムに選ぶ)。
+// 下記`findCountryFunFact`が、これらとDB(`/v1/geo/lookup`)由来の
+// ランドマーク・名物料理を1つの候補プールへ合算し、その中から
+// ランダムに1つ選んで返す。
+const countryExtraFunFacts = {
+  australia: ["I love kangaroos! / 私はカンガルーが大好きです!", "I love koalas! / 私はコアラが大好きです!"],
+  usa: ["I love baseball! / 私は野球が大好きです!", "I love Hollywood movies! / 私はハリウッド映画が大好きです!"],
+  america: ["I love baseball! / 私は野球が大好きです!", "I love Hollywood movies! / 私はハリウッド映画が大好きです!"],
+  uk: ["I love tea time! / 私はお茶の時間が大好きです!", "I love football! / 私はサッカーが大好きです!"],
+  england: ["I love tea time! / 私はお茶の時間が大好きです!", "I love football! / 私はサッカーが大好きです!"],
+  canada: ["I love maple syrup! / 私はメープルシロップが大好きです!", "I love hockey! / 私はホッケーが大好きです!"],
+  france: ["I love croissants! / 私はクロワッサンが大好きです!", "I love the Eiffel Tower! / 私はエッフェル塔が大好きです!"],
+  china: [
+    "I love pandas! / 私はパンダが大好きです!",
+    "I love dumplings! / 私は餃子が大好きです!",
+    "I love the Great Wall! / 私は万里の長城が大好きです!",
+    "I love Peking duck! / 私は北京ダックが大好きです!",
+  ],
+  korea: ["I love K-pop! / 私はK-POPが大好きです!", "I love kimchi! / 私はキムチが大好きです!"],
 };
 
-// 地理・観光DB(2026-08-11追加、`aruaru-llm`の`POST /v1/geo/lookup`)から
-// 実際の国名で検索し、ランドマーク・名物料理・お土産を使った一言を作る。
-// DB未接続・該当なしの場合は、従来の固定マップ(`countryFunFacts`)へ
-// フォールバックする(サービスを止めない既存方針を踏襲)。
+function pickRandomFrom(array) {
+  return array[Math.floor(Math.random() * array.length)];
+}
+
+// 地理・観光DB(2026-08-11追加、`aruaru-llm`の`POST /v1/geo/lookup`)の
+// ランドマーク・名物料理と、上記`countryExtraFunFacts`(該当国のみ)を
+// 1つの候補プールへ合算し、その中からランダムに1つ選んで返す
+// (2026-08-12、固定の組み合わせではなく「正しければどれでもよい」
+// 候補群からランダムに選ぶ方式へ変更)。DB未接続・該当候補が無い場合は
+// 汎用の一言へフォールバックする(サービスを止めない既存方針を踏襲)。
 async function findCountryFunFact(text) {
   const lower = text.toLowerCase();
-  for (const [key, fact] of Object.entries(countryFunFacts)) {
-    if (lower.includes(key)) return fact;
+  let factPool = [];
+  for (const [key, facts] of Object.entries(countryExtraFunFacts)) {
+    if (lower.includes(key)) {
+      factPool = factPool.concat(facts);
+      break;
+    }
   }
+  let dbCapital = null;
   try {
     const base = apiBaseEl.value.trim();
     const res = await fetch(`${base}/v1/geo/lookup`, {
@@ -388,10 +411,19 @@ async function findCountryFunFact(text) {
     });
     const data = await res.json();
     if (data.found && data.capital) {
-      const c = data.capital;
-      let reply =
-        `I love ${c.landmark_en} and ${c.food_en}! / 私は${c.landmark_ja}と${c.food_ja}が大好きです!\n` +
-        `A popular souvenir there is ${c.souvenir_en}. / そこの人気のお土産は${c.souvenir_ja}です。`;
+      dbCapital = data.capital;
+      factPool.push(`I love ${dbCapital.landmark_en}! / 私は${dbCapital.landmark_ja}が大好きです!`);
+      factPool.push(`I love ${dbCapital.food_en}! / 私は${dbCapital.food_ja}が大好きです!`);
+    }
+  } catch (err) {
+    // DB未接続時は静かにフォールバックする(既存の可用性優先方針)。
+  }
+
+  if (factPool.length > 0) {
+    let reply = pickRandomFrom(factPool);
+    if (dbCapital) {
+      const c = dbCapital;
+      reply += `\nA popular souvenir there is ${c.souvenir_en}. / そこの人気のお土産は${c.souvenir_ja}です。`;
       // 富士山の話題が出た場合は、安全上の注意+登山バス/タクシー予約先+
       // 山小屋一覧+登山用品店を必ず日英併記で案内する(ユーザー指示
       // 「富士山が好きとか富士山の紹介をするなら…富士山の話題が出たら
@@ -406,10 +438,8 @@ async function findCountryFunFact(text) {
       // 予約をその都度検索して、Google検索結果とYoutube検索結果を
       // 日本語と英語で表示して」)。
       reply += `\n\n${await tourSearchText(c.country_en)}`;
-      return reply;
     }
-  } catch (err) {
-    // DB未接続時は静かにフォールバックする(既存の可用性優先方針)。
+    return reply;
   }
   return "That's wonderful! I'd love to learn more about your country someday! / それは素晴らしいですね!いつかあなたの国についてもっと知りたいです!";
 }
@@ -1242,13 +1272,37 @@ function shuffledCopy(array) {
 // 配列を参照する——採点時にシャッフル結果がずれて誤採点にならないため。
 let currentExamPrepQuiz = [];
 
-function renderExamPrepQuiz() {
+// 各カテゴリの追加問題プール(`exam-prep-questions.json`、サーバーから
+// 配信される静的ファイル)。ユーザー指示「問題もJSONやDATABASEなどから
+// ランダムに要素を追加してランダムに組み合わせて出題して」への対応——
+// app.js内蔵の固定10問だけでなく、このJSONの追加問題も合算したプールから
+// 毎回ランダムに一部を抽出して出題する。取得できない場合(オフライン・
+// 配信元にファイルが無い等)は内蔵の固定問題のみへ安全にフォールバックする
+// (既存の「サービスを止めない」方針を踏襲)。
+let examPrepExtraQuestionsPromise = null;
+function loadExtraExamPrepQuestions() {
+  if (!examPrepExtraQuestionsPromise) {
+    examPrepExtraQuestionsPromise = fetch("/exam-prep-questions.json")
+      .then((res) => (res.ok ? res.json() : {}))
+      .catch(() => ({}));
+  }
+  return examPrepExtraQuestionsPromise;
+}
+
+// 一回の出題で提示する問題数の上限(プールがこれより多い場合はランダムに
+// この件数だけ抽出する、少ない場合はプール全件を出題する)。
+const EXAM_PREP_QUESTIONS_PER_ATTEMPT = 10;
+
+async function renderExamPrepQuiz() {
   const exam = examPrepExamEl.value;
-  const pool = EXAM_PREP_QUESTIONS[exam] || [];
-  // 出題順も毎回シャッフルし、各問の選択肢の並び(正解の位置)も
-  // 毎回シャッフルする——正解が常に同じ位置に来る/常に同じ順番で
-  // 出題される、という予測可能性を排除する。
-  currentExamPrepQuiz = shuffledCopy(pool).map((item) => {
+  const extra = await loadExtraExamPrepQuestions();
+  const pool = (EXAM_PREP_QUESTIONS[exam] || []).concat(extra[exam] || []);
+  // プール全体からランダムに抽出した上で出題順もシャッフルし、各問の
+  // 選択肢の並び(正解の位置)も毎回シャッフルする——正解が常に同じ
+  // 位置に来る/常に同じ問題の組み合わせで出題される、という予測可能性を
+  // 排除する。
+  const picked = shuffledCopy(pool).slice(0, Math.min(EXAM_PREP_QUESTIONS_PER_ATTEMPT, pool.length));
+  currentExamPrepQuiz = picked.map((item) => {
     const order = shuffledCopy(item.choices.map((_, ci) => ci));
     return {
       q: item.q,

@@ -358,33 +358,50 @@ function speak(text) {
 // では指定された自己紹介の順序・内容(名前→年齢ジョーク→出身国→
 // 国別の共通話題→アニメ→食べ物→文化)を確実に守らせることはできない
 // ため、確実性を優先してこのモードのみ決定的なスクリプトとした。
-const countryFunFacts = {
-  australia: "I love kangaroos and koalas! / 私はカンガルーとコアラが大好きです!",
-  usa: "I love baseball and Hollywood movies! / 私は野球とハリウッド映画が大好きです!",
-  america: "I love baseball and Hollywood movies! / 私は野球とハリウッド映画が大好きです!",
-  uk: "I love tea time and football! / 私はお茶の時間とサッカーが大好きです!",
-  england: "I love tea time and football! / 私はお茶の時間とサッカーが大好きです!",
-  canada: "I love maple syrup and hockey! / 私はメープルシロップとホッケーが大好きです!",
-  france: "I love croissants and the Eiffel Tower! / 私はクロワッサンとエッフェル塔が大好きです!",
-  china: "I love pandas and dumplings! / 私はパンダと餃子が大好きです!",
-  korea: "I love K-pop and kimchi! / 私はK-POPとキムチが大好きです!",
+// 各国について「合っていればどれを答えてもよい」個別の話題候補
+// (ユーザー指示「アイフロムチャイナなら、アイラブ北京ダッグや餃子、
+// アイラブパンダや万里の長城なども回答としてあっていればランダムで
+// 答えて」——固定の1文ではなく、正しい候補の中からランダムに選ぶ)。
+// 下記`findCountryFunFact`が、これらとDB(`/v1/geo/lookup`)由来の
+// ランドマーク・名物料理を1つの候補プールへ合算し、その中から
+// ランダムに1つ選んで返す。
+const countryExtraFunFacts = {
+  australia: ["I love kangaroos! / 私はカンガルーが大好きです!", "I love koalas! / 私はコアラが大好きです!"],
+  usa: ["I love baseball! / 私は野球が大好きです!", "I love Hollywood movies! / 私はハリウッド映画が大好きです!"],
+  america: ["I love baseball! / 私は野球が大好きです!", "I love Hollywood movies! / 私はハリウッド映画が大好きです!"],
+  uk: ["I love tea time! / 私はお茶の時間が大好きです!", "I love football! / 私はサッカーが大好きです!"],
+  england: ["I love tea time! / 私はお茶の時間が大好きです!", "I love football! / 私はサッカーが大好きです!"],
+  canada: ["I love maple syrup! / 私はメープルシロップが大好きです!", "I love hockey! / 私はホッケーが大好きです!"],
+  france: ["I love croissants! / 私はクロワッサンが大好きです!", "I love the Eiffel Tower! / 私はエッフェル塔が大好きです!"],
+  china: [
+    "I love pandas! / 私はパンダが大好きです!",
+    "I love dumplings! / 私は餃子が大好きです!",
+    "I love the Great Wall! / 私は万里の長城が大好きです!",
+    "I love Peking duck! / 私は北京ダックが大好きです!",
+  ],
+  korea: ["I love K-pop! / 私はK-POPが大好きです!", "I love kimchi! / 私はキムチが大好きです!"],
 };
 
-// 地理・観光DB(2026-08-11追加、`aruaru-llm`の`POST /v1/geo/lookup`)から
-// 実際の国名で検索し、ランドマーク・名物料理・お土産を使った一言を作る。
-// DB未接続・該当なしの場合は、従来の固定マップ(`countryFunFacts`)へ
-// フォールバックする(サービスを止めない既存方針を踏襲)。
+function pickRandomFrom(array) {
+  return array[Math.floor(Math.random() * array.length)];
+}
+
+// 地理・観光DB(2026-08-11追加、`aruaru-llm`の`POST /v1/geo/lookup`)の
+// ランドマーク・名物料理と、上記`countryExtraFunFacts`(該当国のみ)を
+// 1つの候補プールへ合算し、その中からランダムに1つ選んで返す
+// (2026-08-12、固定の組み合わせではなく「正しければどれでもよい」
+// 候補群からランダムに選ぶ方式へ変更)。DB未接続・該当候補が無い場合は
+// 汎用の一言へフォールバックする(サービスを止めない既存方針を踏襲)。
 async function findCountryFunFact(text) {
   const lower = text.toLowerCase();
-  // 実バグ修正(2026-08-12、ユーザー報告「アイフロムチャイナなら...
-  // JSONかDATABASEにストックしていたものを回答時に活かして」への対応):
-  // 以前はここで固定マップ(countryFunFacts)を先にチェックしていたため、
-  // 8ヶ国(australia/usa/america/uk/england/canada/france/china/korea)は
-  // 常に短い固定の一言だけが返り、下記の`/v1/geo/lookup`(起動時に収集・
-  // ストックした実際のランドマーク・名物料理・お土産のDB)には一度も
-  // 到達しなかった——コメントが説明する「DB優先・固定マップはフォール
-  // バック」という設計意図と実装が矛盾していた。DBを先に試し、DB未接続・
-  // 該当なしの場合のみ固定マップへフォールバックするよう順序を反転した。
+  let factPool = [];
+  for (const [key, facts] of Object.entries(countryExtraFunFacts)) {
+    if (lower.includes(key)) {
+      factPool = factPool.concat(facts);
+      break;
+    }
+  }
+  let dbCapital = null;
   try {
     const base = apiBaseEl.value.trim();
     const res = await fetch(`${base}/v1/geo/lookup`, {
@@ -394,10 +411,19 @@ async function findCountryFunFact(text) {
     });
     const data = await res.json();
     if (data.found && data.capital) {
-      const c = data.capital;
-      let reply =
-        `I love ${c.landmark_en} and ${c.food_en}! / 私は${c.landmark_ja}と${c.food_ja}が大好きです!\n` +
-        `A popular souvenir there is ${c.souvenir_en}. / そこの人気のお土産は${c.souvenir_ja}です。`;
+      dbCapital = data.capital;
+      factPool.push(`I love ${dbCapital.landmark_en}! / 私は${dbCapital.landmark_ja}が大好きです!`);
+      factPool.push(`I love ${dbCapital.food_en}! / 私は${dbCapital.food_ja}が大好きです!`);
+    }
+  } catch (err) {
+    // DB未接続時は静かにフォールバックする(既存の可用性優先方針)。
+  }
+
+  if (factPool.length > 0) {
+    let reply = pickRandomFrom(factPool);
+    if (dbCapital) {
+      const c = dbCapital;
+      reply += `\nA popular souvenir there is ${c.souvenir_en}. / そこの人気のお土産は${c.souvenir_ja}です。`;
       // 富士山の話題が出た場合は、安全上の注意+登山バス/タクシー予約先+
       // 山小屋一覧+登山用品店を必ず日英併記で案内する(ユーザー指示
       // 「富士山が好きとか富士山の紹介をするなら…富士山の話題が出たら
@@ -412,13 +438,8 @@ async function findCountryFunFact(text) {
       // 予約をその都度検索して、Google検索結果とYoutube検索結果を
       // 日本語と英語で表示して」)。
       reply += `\n\n${await tourSearchText(c.country_en)}`;
-      return reply;
     }
-  } catch (err) {
-    // DB未接続時は静かにフォールバックする(既存の可用性優先方針)。
-  }
-  for (const [key, fact] of Object.entries(countryFunFacts)) {
-    if (lower.includes(key)) return fact;
+    return reply;
   }
   return "That's wonderful! I'd love to learn more about your country someday! / それは素晴らしいですね!いつかあなたの国についてもっと知りたいです!";
 }
