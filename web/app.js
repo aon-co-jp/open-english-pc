@@ -1150,13 +1150,15 @@ function soundsTroubledOrFrustrated(userText) {
 function troubledEncouragementText() {
   const ja =
     "もし仮に、と仮説的に考えてみましょう。建設的な問いかけとして——" +
-    "この問題についての問題点はここが明白で明確ですが、皆様、解決策を" +
-    "ご提案下さい。もしくは、ご意見をお述べ下さい。大胆かつ繊細が" +
-    "成功しやすく、小心者はおどおどして失敗しやすいものです。";
+    "この問題についての問題点はここが明白で明確で、私はこの様に思うの" +
+    "ですが、皆様、解決策をご提案下さい。もしくは、ご意見をお述べ" +
+    "下さい。大胆かつ繊細が成功しやすく、小心者はおどおどして失敗" +
+    "しやすいものです。";
   const en =
     "Let's try thinking hypothetically — \"suppose that...\" — and ask a " +
-    "constructive question. The core issue here seems clear: everyone, " +
-    "please suggest a solution, or share your thoughts. Being bold yet " +
+    "constructive question. The core issue here seems clear, and here is " +
+    "what I think: everyone, please suggest a solution, or share your " +
+    "thoughts. Being bold yet " +
     "careful tends to lead to success, while being overly timid tends to " +
     "lead to failure.";
   return `\n\n💡 ${en}\n\n${ja}`;
