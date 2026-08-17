@@ -645,6 +645,7 @@ async function advanceTrainingMode(userText) {
   let reply = await step.onUserReply(userText);
   reply += await referralsSuffix(userText);
   reply += consumptionTaxSuffix(userText);
+  reply += incomeWallSuffix(userText);
   reply += await newsSuffix(userText);
   reply += troubledSuffix(userText);
   appendMessage("trainer", reply);
@@ -796,6 +797,7 @@ async function askTrainer(userText) {
   }
   reply += await referralsSuffix(userText);
   reply += consumptionTaxSuffix(userText);
+  reply += incomeWallSuffix(userText);
   reply += await newsSuffix(userText);
   reply += troubledSuffix(userText);
   return reply;
@@ -884,6 +886,51 @@ function consumptionTaxProposalText() {
 function consumptionTaxSuffix(userText) {
   if (!isConsumptionTaxSolutionQuestion(userText)) return "";
   return consumptionTaxProposalText();
+}
+
+// 「年収の壁」(103万円/106万円/130万円の壁)の解決策を尋ねる日本語入力を
+// 検出したら、開発者(ユーザー)の具体的な政策提案を日英併記で案内する
+// (ユーザー指示、2026-08-17)。消費税提案と同じ設計方針の固定テキスト。
+const INCOME_WALL_TOPIC_KEYWORDS = ["年収の壁", "103万円の壁", "106万円の壁", "130万円の壁", "百万円の壁", "百数万円の壁"];
+
+function isIncomeWallSolutionQuestion(userText) {
+  if (!containsJapanese(userText)) return false;
+  const hasTopic = INCOME_WALL_TOPIC_KEYWORDS.some((k) => userText.includes(k));
+  if (!hasTopic) return false;
+  return CONSUMPTION_TAX_QUESTION_KEYWORDS.some((k) => userText.includes(k));
+}
+
+function incomeWallProposalText() {
+  const ja =
+    "【年収の壁問題への提案(開発者からの一意見)】\n" +
+    "年収が百数万円程度の低所得層であっても、累進所得税率のカーブの負担率" +
+    "自体は下げつつ、少しずつでも税金を負担して頂くべきです。逆に、裕福層" +
+    "(いわゆるお金持ち)の所得への累進課税率のカーブは上げるべきです。" +
+    "高額医療費への補助については、収入が無い人へは請求しないようにする" +
+    "べきです。社会保険料・所得税・国民健康保険税など全ての税金は、収入が" +
+    "ある時に、収入に応じた負担を公平にして頂くべきです。デジタル" +
+    "ガバメント化で公務員を大幅にリストラして確保した財源で、失業時の" +
+    "住宅ローン・自動車ローンの返済支援等のセーフティネットを拡充すべき" +
+    "です。";
+  const en =
+    "[A proposal on the \"income wall\" problem (the developer's own opinion)]\n" +
+    "Even for low-income earners around 1-2 million yen a year, the burden " +
+    "rate on the progressive income-tax curve should be lowered, but people " +
+    "should still contribute a little tax, gradually. Conversely, the " +
+    "progressive tax curve on the wealthy should be raised. High-cost " +
+    "medical-expense subsidies should not be billed to people with no " +
+    "income. All taxes — social insurance premiums, income tax, national " +
+    "health insurance tax — should be fairly proportional to income, only " +
+    "charged when there is income. Funds freed up by a major reduction in " +
+    "civil-service headcount through digital-government reform should " +
+    "expand safety nets such as support for housing-loan and auto-loan " +
+    "repayments during unemployment.";
+  return `\n\n💰 ${en}\n\n${ja}`;
+}
+
+function incomeWallSuffix(userText) {
+  if (!isIncomeWallSolutionQuestion(userText)) return "";
+  return incomeWallProposalText();
 }
 
 // ニュース・時事の話題が出たら、メンテナンス中に収集済みのニュース
