@@ -1757,3 +1757,112 @@ if (examPrepBtn && examPrepModal) {
   examPrepSubmitBtn.addEventListener("click", scoreExamPrepQuiz);
   examPrepPracticeBtn.addEventListener("click", practiceExamPrepWithTrainer);
 }
+
+// おすすめLLM機能(ユーザー指示、2026-08-17「メンテナンス時に…VRAMなどの
+// 性能やCPUの性能やシステムメモリーの大きさやNPUがあるかないかなどの
+// 最新の情報を元に、AIがオススメのLLMをインストールする時に、似たような
+// LLMがあれば、それぞれの特徴をお知らせして…どちらのオープンソースの
+// ローカルLLMになさいますか?と質問してくる機能と…もう一つ大きなサイズの
+// LLMやもう一つ小さなLLMも御座いますとそれぞれのLLMの特徴もお知らせして
+// LLMの選択機能」への対応)。ハードウェア検出(`GET /v1/recommend`)+
+// モデルカタログ(`GET /v1/models/catalog`)は既にaruaru-llm側に実装
+// 済み(2026-07-27、CLAUDE.md参照)——本機能はそれをopen-english側の
+// UIとして初めて可視化し、推奨モデル・ワンサイズ上・ワンサイズ下の
+// 3択を特徴つきで提示し、ボタン1つでインストール・切り替えできるように
+// する。
+const llmRecommendBtn = document.getElementById("llm-recommend-btn");
+const llmRecommendModal = document.getElementById("llm-recommend-modal");
+const llmRecommendClose = document.getElementById("llm-recommend-close");
+const llmRecommendDetectBtn = document.getElementById("llm-recommend-detect");
+const llmRecommendBody = document.getElementById("llm-recommend-body");
+
+function catalogEntryLabel(entry) {
+  return `${entry.display_name_en} / ${entry.display_name_ja} (~${entry.approx_size_mb}MB)`;
+}
+
+async function installAndSwitchModel(base, id, statusEl) {
+  statusEl.textContent = `Installing & switching to ${id}… / ${id}へインストール・切替中…`;
+  try {
+    const installRes = await fetch(`${base}/v1/models/install`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ id }),
+    });
+    if (!installRes.ok) throw new Error(`install HTTP ${installRes.status}`);
+    const selectRes = await fetch(`${base}/v1/models/select`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ id }),
+    });
+    if (!selectRes.ok) throw new Error(`select HTTP ${selectRes.status}`);
+    statusEl.textContent = `✅ Switched to ${id} / ${id}へ切り替えました`;
+  } catch (err) {
+    statusEl.textContent = `⚠ Failed / 失敗しました: ${err.message}`;
+  }
+}
+
+async function detectAndCompareLlm() {
+  const base = apiBaseEl.value.trim();
+  llmRecommendBody.innerHTML = "<p class=\"setup-note\">Detecting… / 検出中…</p>";
+  try {
+    const [recRes, catalogRes] = await Promise.all([fetch(`${base}/v1/recommend`), fetch(`${base}/v1/models/catalog`)]);
+    if (!recRes.ok || !catalogRes.ok) throw new Error(`HTTP ${recRes.status}/${catalogRes.status}`);
+    const rec = await recRes.json();
+    const catalog = await catalogRes.json();
+    const models = catalog.models.slice().sort((a, b) => a.approx_size_mb - b.approx_size_mb);
+    const recIndex = models.findIndex((m) => m.id === rec.recommended_model_id);
+
+    const choices = [];
+    if (recIndex >= 0) choices.push({ role: "Recommended / おすすめ", entry: models[recIndex] });
+    if (recIndex + 1 < models.length) choices.push({ role: "One size larger / もう一つ大きいサイズ", entry: models[recIndex + 1] });
+    if (recIndex - 1 >= 0) choices.push({ role: "One size smaller / もう一つ小さいサイズ", entry: models[recIndex - 1] });
+
+    const hwLine =
+      `GPU: ${rec.hardware.gpu_name || "not detected / 未検出"} ` +
+      `(VRAM: ${rec.hardware.vram_bytes ? Math.round(rec.hardware.vram_bytes / 1024 / 1024) + "MB" : "?"}, ` +
+      `detection: ${rec.hardware.detection_path}) / ` +
+      `GPU: ${rec.hardware.gpu_name || "未検出"} (VRAM: ${rec.hardware.vram_bytes ? Math.round(rec.hardware.vram_bytes / 1024 / 1024) + "MB" : "不明"}, 検出経路: ${rec.hardware.detection_path})`;
+
+    llmRecommendBody.innerHTML = "";
+    const hwP = document.createElement("p");
+    hwP.className = "setup-note";
+    hwP.textContent = hwLine;
+    llmRecommendBody.appendChild(hwP);
+
+    const questionP = document.createElement("p");
+    questionP.className = "setup-note";
+    questionP.textContent =
+      "Similar open-source local LLMs are available — which would you like? / " +
+      "似たようなオープンソースのローカルLLMがあります。どちらになさいますか?";
+    llmRecommendBody.appendChild(questionP);
+
+    choices.forEach((choice) => {
+      const row = document.createElement("div");
+      row.className = "settings-field";
+      const label = document.createElement("div");
+      label.textContent = `${choice.role}: ${catalogEntryLabel(choice.entry)}`;
+      row.appendChild(label);
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "setup-btn";
+      btn.textContent = `Use this / これにする (${choice.entry.id})`;
+      const statusEl = document.createElement("p");
+      statusEl.className = "setup-note";
+      btn.addEventListener("click", () => installAndSwitchModel(base, choice.entry.id, statusEl));
+      row.appendChild(btn);
+      row.appendChild(statusEl);
+      llmRecommendBody.appendChild(row);
+    });
+  } catch (err) {
+    llmRecommendBody.innerHTML = `<p class="setup-note">⚠ Could not detect/compare / 検出・比較できませんでした: ${err.message}</p>`;
+  }
+}
+
+if (llmRecommendBtn && llmRecommendModal) {
+  llmRecommendBtn.addEventListener("click", () => llmRecommendModal.classList.remove("hidden"));
+  llmRecommendClose.addEventListener("click", () => llmRecommendModal.classList.add("hidden"));
+  llmRecommendModal.addEventListener("click", (e) => {
+    if (e.target === llmRecommendModal) llmRecommendModal.classList.add("hidden");
+  });
+  llmRecommendDetectBtn.addEventListener("click", detectAndCompareLlm);
+}

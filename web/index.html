@@ -71,6 +71,7 @@
     <button type="button" id="setup-btn" class="setup-btn">⚙ Setup aruaru-llm</button>
     <button type="button" id="exam-prep-btn" class="setup-btn">📝 Exam Prep / 資格対策</button>
     <button type="button" id="aruaru-db-setup-btn" class="setup-btn">🗄 Setup aruaru-db</button>
+    <button type="button" id="llm-recommend-btn" class="setup-btn">🧠 Recommend LLM / おすすめLLM</button>
   </header>
 
   <div id="setup-modal" class="setup-modal hidden">
@@ -187,6 +188,32 @@ cargo run --release</pre>
         <button type="button" id="google-search-clear" class="setup-btn">Clear / 消去</button>
       </div>
       <p id="google-search-status" class="setup-note"></p>
+    </div>
+  </div>
+
+  <div id="llm-recommend-modal" class="setup-modal hidden">
+    <div class="setup-panel">
+      <button type="button" id="llm-recommend-close" class="setup-close">✕</button>
+      <h2>Recommend an LLM / おすすめLLM</h2>
+      <p class="setup-honest">
+        <strong>Honest disclosure:</strong> This reads your GPU VRAM/CPU/system-memory/NPU
+        detection results from <code>aruaru-llm</code> (<code>GET /v1/recommend</code>) and
+        picks a size heuristically (VRAM &lt; 2GB → 124M, 2-4GB → 355M, 4-8GB → 774M,
+        8GB+ → 1.5B). It is a rough parameter-count-vs-VRAM estimate, not a precise
+        benchmark.<br /><br />
+        <strong>正直な開示:</strong> <code>aruaru-llm</code>の
+        <code>GET /v1/recommend</code>が返すGPU VRAM/CPU/システムメモリ/NPU検出結果を元に、
+        簡易ヒューリスティック(VRAM 2GB未満→124M、2-4GB→355M、4-8GB→774M、8GB以上→1.5B)で
+        サイズを選びます。パラメータ数とVRAM容量の大まかな見積もりであり、精密な
+        ベンチマークではありません。
+      </p>
+      <div id="llm-recommend-body">
+        <p class="setup-note">Click below to detect your hardware and compare LLM options. /
+          下のボタンでハードウェアを検出し、LLMの選択肢を比較します。</p>
+      </div>
+      <button type="button" id="llm-recommend-detect" class="setup-btn">
+        Detect & Compare / 検出して比較する
+      </button>
     </div>
   </div>
 
