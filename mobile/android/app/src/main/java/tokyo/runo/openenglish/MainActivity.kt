@@ -219,24 +219,97 @@ class MainActivity : AppCompatActivity() {
      * 現在のversionNameを比較し、新しいバージョンがあればリンク付きで
      * 通知するのみに留める。
      */
+    /**
+     * 2026-08-17拡張(ユーザー指示「Android自動アップデートを進めて」):
+     * 従来はGitHub Releasesページへのリンク表示のみだったが、リリース
+     * アセットの中からAndroid APK(ファイル名に"android"を含み".apk"で
+     * 終わるもの、`open-english-android-vX.Y.Z-debug.apk`のような命名)を
+     * 見つけた場合は、タップでそのAPKを自動ダウンロードし、Androidの
+     * パッケージインストーラー画面を自動的に起動するところまで行う。
+     * **正直な開示**: Play Store配布ではないため、OS上の制約により
+     * 完全にサイレントな(ユーザー操作ゼロの)自動インストールは不可能
+     * ——「不明なアプリのインストール」許可とインストーラー画面での
+     * 最終確認は、Android自身のセキュリティ機構としてユーザーが行う
+     * 必要がある。APKアセットが見つからない場合は、従来通りGitHub
+     * Releasesページを開くだけのフォールバックに留める。
+     */
     private fun checkForAppUpdate() {
         CoroutineScope(Dispatchers.Main).launch {
-            val latestTag = withContext(Dispatchers.IO) { fetchLatestReleaseTag() } ?: return@launch
+            val release = withContext(Dispatchers.IO) { fetchLatestRelease() } ?: return@launch
             val installed = packageManager.getPackageInfo(packageName, 0).versionName ?: return@launch
-            val latestVersion = latestTag.removePrefix("v")
-            if (latestVersion != installed) {
+            val latestVersion = release.tag.removePrefix("v")
+            if (latestVersion == installed) return@launch
+
+            val apkUrl = release.apkAssetUrl
+            if (apkUrl == null) {
                 updateNotice.text =
-                    "新しいバージョン $latestTag があります(現在: $installed)。タップして開く / " +
-                        "A newer version $latestTag is available (current: $installed). Tap to open."
+                    "新しいバージョン ${release.tag} があります(現在: $installed)。タップして開く / " +
+                        "A newer version ${release.tag} is available (current: $installed). Tap to open."
                 updateNotice.visibility = View.VISIBLE
                 updateNotice.setOnClickListener {
                     startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(GITHUB_RELEASES_PAGE)))
                 }
+                return@launch
+            }
+
+            updateNotice.text =
+                "新しいバージョン ${release.tag} があります(現在: $installed)。タップして" +
+                    "ダウンロード・インストール / A newer version ${release.tag} is available " +
+                    "(current: $installed). Tap to download & install."
+            updateNotice.visibility = View.VISIBLE
+            updateNotice.setOnClickListener {
+                downloadAndInstallApk(apkUrl, release.tag)
             }
         }
     }
 
-    private fun fetchLatestReleaseTag(): String? {
+    private fun downloadAndInstallApk(apkUrl: String, tag: String) {
+        updateNotice.text = "ダウンロード中… / Downloading…"
+        updateNotice.setOnClickListener(null)
+        CoroutineScope(Dispatchers.Main).launch {
+            val apkFile = withContext(Dispatchers.IO) { downloadApk(apkUrl, tag) }
+            if (apkFile == null) {
+                updateNotice.text =
+                    "ダウンロードに失敗しました。タップしてリリースページを開く / " +
+                        "Download failed. Tap to open the releases page."
+                updateNotice.setOnClickListener {
+                    startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(GITHUB_RELEASES_PAGE)))
+                }
+                return@launch
+            }
+            val apkUri = androidx.core.content.FileProvider.getUriForFile(
+                this@MainActivity, "$packageName.fileprovider", apkFile,
+            )
+            val installIntent = Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(apkUri, "application/vnd.android.package-archive")
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            startActivity(installIntent)
+            updateNotice.visibility = View.GONE
+        }
+    }
+
+    private fun downloadApk(apkUrl: String, tag: String): File? {
+        return try {
+            val conn = URL(apkUrl).openConnection() as HttpURLConnection
+            conn.connectTimeout = 10000
+            conn.readTimeout = 30000
+            conn.instanceFollowRedirects = true
+            if (conn.responseCode != 200) return null
+            val dest = File(getExternalFilesDir(null), "open-english-$tag.apk")
+            conn.inputStream.use { input ->
+                FileOutputStream(dest).use { output -> input.copyTo(output) }
+            }
+            dest
+        } catch (err: Exception) {
+            null
+        }
+    }
+
+    private data class LatestRelease(val tag: String, val apkAssetUrl: String?)
+
+    private fun fetchLatestRelease(): LatestRelease? {
         return try {
             val conn = URL(GITHUB_LATEST_RELEASE_API).openConnection() as HttpURLConnection
             conn.connectTimeout = 5000
@@ -244,7 +317,21 @@ class MainActivity : AppCompatActivity() {
             conn.requestMethod = "GET"
             if (conn.responseCode != 200) return null
             val body = conn.inputStream.bufferedReader().readText()
-            JSONObject(body).optString("tag_name").takeIf { it.isNotEmpty() }
+            val json = JSONObject(body)
+            val tag = json.optString("tag_name").takeIf { it.isNotEmpty() } ?: return null
+            val assets = json.optJSONArray("assets")
+            var apkUrl: String? = null
+            if (assets != null) {
+                for (i in 0 until assets.length()) {
+                    val asset = assets.getJSONObject(i)
+                    val name = asset.optString("name").lowercase()
+                    if (name.contains("android") && name.endsWith(".apk")) {
+                        apkUrl = asset.optString("browser_download_url").takeIf { it.isNotEmpty() }
+                        break
+                    }
+                }
+            }
+            LatestRelease(tag, apkUrl)
         } catch (err: Exception) {
             null
         }
