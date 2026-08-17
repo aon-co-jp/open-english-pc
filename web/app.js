@@ -909,9 +909,10 @@ function incomeWallProposalText() {
     "高額医療費への補助については、収入が無い人へは請求しないようにする" +
     "べきです。社会保険料・所得税・国民健康保険税など全ての税金は、収入が" +
     "ある時に、収入に応じた負担を公平にして頂くべきです。デジタル" +
-    "ガバメント化で公務員を大幅にリストラして確保した財源で、失業時の" +
-    "住宅ローン・自動車ローンの返済支援等のセーフティネットを拡充すべき" +
-    "です。";
+    "ガバメント化で公務員を大幅にリストラして確保した財源で、失業時には" +
+    "住宅ローン・自動車ローン・その他のローンの返済を国が肩代わりして" +
+    "代行して支払うべきです。あわせて、半公務員のような雇用の受け皿や、" +
+    "ベーシックインカムの導入も検討すべきです。";
   const en =
     "[A proposal on the \"income wall\" problem (the developer's own opinion)]\n" +
     "Even for low-income earners around 1-2 million yen a year, the burden " +
@@ -921,10 +922,12 @@ function incomeWallProposalText() {
     "medical-expense subsidies should not be billed to people with no " +
     "income. All taxes — social insurance premiums, income tax, national " +
     "health insurance tax — should be fairly proportional to income, only " +
-    "charged when there is income. Funds freed up by a major reduction in " +
-    "civil-service headcount through digital-government reform should " +
-    "expand safety nets such as support for housing-loan and auto-loan " +
-    "repayments during unemployment.";
+    "charged when there is income. With funds freed up by a major reduction " +
+    "in civil-service headcount through digital-government reform, the " +
+    "government should take over and pay housing-loan, auto-loan, and other " +
+    "loan repayments on behalf of people during unemployment. It should " +
+    "also consider a \"semi-civil-servant\" employment safety net and " +
+    "introducing a basic income.";
   return `\n\n💰 ${en}\n\n${ja}`;
 }
 
