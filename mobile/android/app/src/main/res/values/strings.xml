@@ -3,4 +3,5 @@
     <string name="setup_help">サーバーを起動しています… / Starting the embedded server…</string>
     <string name="starting_server">サーバーを起動しています… / Starting the embedded server…</string>
     <string name="server_start_failed">サーバーの起動に失敗しました。アプリを再起動してください。 / Failed to start the embedded server. Please restart the app.</string>
+    <string name="download_model_button">📥 AIモデルをダウンロード(約900MB、Wi-Fi推奨) / Download AI model (~900MB, Wi-Fi recommended)</string>
 </resources>

@@ -7,6 +7,7 @@ import android.os.Bundle
 import android.view.View
 import android.webkit.WebSettings
 import android.webkit.WebView
+import android.widget.Button
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import kotlinx.coroutines.CoroutineScope
@@ -59,6 +60,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var setupPanel: View
     private lateinit var setupHelp: TextView
     private lateinit var updateNotice: TextView
+    private lateinit var downloadModelBtn: Button
+    private lateinit var downloadModelStatus: TextView
 
     private var serverProcess: Process? = null
     private var aruaruLlmProcess: Process? = null
@@ -74,6 +77,18 @@ class MainActivity : AppCompatActivity() {
         private const val NATIVE_BINARY_NAME = "libopenenglishserver.so"
         private const val ARUARU_LLM_BINARY_NAME = "libaruarullm.so"
         private const val WEBROOT_ASSET_DIR = "webroot"
+
+        // 2026-08-17追加: モデル重みのダウンロード元(aruaru-llm本体が
+        // 期待するのと同じ3ファイル構成〈distilgpt2〉・6ファイル構成
+        // 〈multilingual-e5-small〉、既存のModelCatalog/セットアップ手順
+        // で使われているのと同じHugging Faceリポジトリ)。
+        private const val DISTILGPT2_BASE = "https://huggingface.co/distilbert/distilgpt2/resolve/main"
+        private val DISTILGPT2_FILES = listOf("config.json", "model.safetensors", "tokenizer.json")
+        private const val EMBED_MODEL_BASE = "https://huggingface.co/intfloat/multilingual-e5-small/resolve/main"
+        private val EMBED_MODEL_FILES = listOf(
+            "config.json", "model.safetensors", "sentencepiece.bpe.model",
+            "special_tokens_map.json", "tokenizer.json", "tokenizer_config.json",
+        )
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -85,13 +100,96 @@ class MainActivity : AppCompatActivity() {
         setupPanel = findViewById(R.id.setup_panel)
         setupHelp = findViewById(R.id.setup_help)
         updateNotice = findViewById(R.id.update_notice)
+        downloadModelBtn = findViewById(R.id.download_model_btn)
+        downloadModelStatus = findViewById(R.id.download_model_status)
 
         webView.settings.javaScriptEnabled = true
         webView.settings.cacheMode = WebSettings.LOAD_NO_CACHE
         webView.settings.domStorageEnabled = true
 
+        downloadModelBtn.setOnClickListener { downloadModelsAndRestartAruaruLlm() }
+        refreshDownloadModelButtonVisibility()
+
         checkForAppUpdate()
         startEmbeddedServerAndLoad()
+    }
+
+    /**
+     * 2026-08-17追加(ユーザー指示「AIモデルの重みは別途端末内ストレージへ
+     * 配置する必要がある…改善して使いやすくして」への対応)。モデルが
+     * 既にダウンロード済み(前回起動時にこのボタンで取得済み、または
+     * ユーザーが手動配置済み)ならボタン自体を隠し、未ダウンロードの
+     * 場合のみ表示する——「サーバーは端末内で起動するが実用的な応答には
+     * 別途手動でのモデル配置が必要」という残っていたギャップを、
+     * 手動操作(PCでダウンロードしてadb push等)ではなくアプリ内の
+     * ワンタップ操作だけで解消できるようにする。
+     */
+    private fun refreshDownloadModelButtonVisibility() {
+        val modelsRoot = File(filesDir, "aruaru-llm-models")
+        val distilgpt2Ready = DISTILGPT2_FILES.all { File(modelsRoot, "distilgpt2/$it").exists() }
+        val embedReady = EMBED_MODEL_FILES.all { File(modelsRoot, "multilingual-e5-small/$it").exists() }
+        downloadModelBtn.visibility = if (distilgpt2Ready && embedReady) View.GONE else View.VISIBLE
+    }
+
+    private fun downloadModelsAndRestartAruaruLlm() {
+        downloadModelBtn.isEnabled = false
+        downloadModelStatus.visibility = View.VISIBLE
+        CoroutineScope(Dispatchers.Main).launch {
+            val modelsRoot = File(filesDir, "aruaru-llm-models")
+            val ok = withContext(Dispatchers.IO) {
+                try {
+                    downloadModelFiles(DISTILGPT2_BASE, DISTILGPT2_FILES, File(modelsRoot, "distilgpt2")) { msg ->
+                        runOnUiThread { downloadModelStatus.text = msg }
+                    }
+                    downloadModelFiles(EMBED_MODEL_BASE, EMBED_MODEL_FILES, File(modelsRoot, "multilingual-e5-small")) { msg ->
+                        runOnUiThread { downloadModelStatus.text = msg }
+                    }
+                    true
+                } catch (e: Exception) {
+                    runOnUiThread {
+                        downloadModelStatus.text = "ダウンロード失敗: ${e.message} / Download failed: ${e.message}"
+                    }
+                    false
+                }
+            }
+            if (ok) {
+                downloadModelStatus.text =
+                    "ダウンロード完了。aruaru-llmを再起動しています… / Download complete. Restarting aruaru-llm…"
+                // 端末内蔵のserverは変更しないため再起動不要——aruaru-llmだけを
+                // 再起動し、今ダウンロードしたモデルで再ロードさせる。
+                aruaruLlmProcess?.destroy()
+                aruaruLlmProcess = null
+                withContext(Dispatchers.IO) { launchAruaruLlmProcess() }
+                downloadModelStatus.text =
+                    "モデルのダウンロードとaruaru-llmの再起動が完了しました。チャットをお試しください。 / " +
+                    "Model download and aruaru-llm restart complete. Try chatting now."
+                refreshDownloadModelButtonVisibility()
+            } else {
+                downloadModelBtn.isEnabled = true
+            }
+        }
+    }
+
+    /** 指定ファイル一式を`baseUrl/<file>`から`destDir/<file>`へダウンロードする(既存ファイルはスキップ、冪等)。 */
+    private fun downloadModelFiles(baseUrl: String, files: List<String>, destDir: File, onProgress: (String) -> Unit) {
+        destDir.mkdirs()
+        for ((index, name) in files.withIndex()) {
+            val dest = File(destDir, name)
+            if (dest.exists() && dest.length() > 0) continue
+            onProgress("${destDir.name}: ${index + 1}/${files.size} ($name)…")
+            val conn = URL("$baseUrl/$name").openConnection() as HttpURLConnection
+            conn.connectTimeout = 15000
+            conn.readTimeout = 30000
+            conn.instanceFollowRedirects = true
+            if (conn.responseCode != 200) {
+                conn.disconnect()
+                throw java.io.IOException("HTTP ${conn.responseCode} for $name")
+            }
+            val tmp = File(destDir, "$name.part")
+            conn.inputStream.use { input -> FileOutputStream(tmp).use { output -> input.copyTo(output) } }
+            conn.disconnect()
+            tmp.renameTo(dest)
+        }
     }
 
     /**

@@ -32,6 +32,30 @@
             android:textColor="#D6336C"
             android:layout_marginTop="8dp"
             android:visibility="gone" />
+
+        <!--
+          2026-08-17追加(ユーザー指示「AIモデルの重みは別途端末内
+          ストレージへ配置する必要がある…改善して使いやすくして」への
+          対応): モデル重み(distilgpt2+multilingual-e5-small、合計
+          約900MB)をHugging Faceから端末内へ直接ダウンロードするボタン。
+          これで「サーバーは端末内で起動するが実用的な応答にはモデル
+          配置が別途必要」という残っていたギャップを、手動配置ではなく
+          アプリ内操作だけで解消できるようにする。
+        -->
+        <Button
+            android:id="@+id/download_model_btn"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="@string/download_model_button" />
+
+        <TextView
+            android:id="@+id/download_model_status"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="13sp"
+            android:layout_marginTop="6dp"
+            android:visibility="gone" />
     </LinearLayout>
 
     <WebView
