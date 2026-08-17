@@ -648,6 +648,7 @@ async function advanceTrainingMode(userText) {
   reply += incomeWallSuffix(userText);
   reply += vendingMachineSuffix(userText);
   reply += internetAccessSuffix(userText);
+  reply += govConsultingSuffix(userText);
   reply += await newsSuffix(userText);
   reply += troubledSuffix(userText);
   appendMessage("trainer", reply);
@@ -802,6 +803,7 @@ async function askTrainer(userText) {
   reply += incomeWallSuffix(userText);
   reply += vendingMachineSuffix(userText);
   reply += internetAccessSuffix(userText);
+  reply += govConsultingSuffix(userText);
   reply += await newsSuffix(userText);
   reply += troubledSuffix(userText);
   return reply;
@@ -962,6 +964,46 @@ function internetAccessProposalText() {
 function internetAccessSuffix(userText) {
   if (!mentionsInternetAccessTopic(userText)) return "";
   return internetAccessProposalText();
+}
+
+// 中央省庁・国会議員を民間コンサルティング人材へ入れ替える構想についての
+// 話題を検出したら、開発者(ユーザー)の提案を日英併記で案内する
+// (ユーザー指示、2026-08-17)。他の提案機能と同じ設計方針の固定テキスト。
+const GOV_CONSULTING_TOPIC_KEYWORDS = ["中央省庁", "国会議員", "官僚", "お役所仕事"];
+
+function mentionsGovConsultingTopic(userText) {
+  if (!containsJapanese(userText)) return false;
+  return GOV_CONSULTING_TOPIC_KEYWORDS.some((k) => userText.includes(k));
+}
+
+function govConsultingProposalText() {
+  const ja =
+    "【行政人材の入れ替えへの提案(開発者からの一意見)】\n" +
+    "素人・ド素人の中央省庁職員や国会議員よりも、民間から最先端の専門" +
+    "コンサルティングスタッフへ全員入れ替えるべきです。民間コンサル" +
+    "ティングはお役所と違い、数年・一年と言わず、ケースバイケースで、" +
+    "時には数ヶ月単位でスタッフを入れ替えることもあります。AIに世界中の" +
+    "問題とその解決策を集めて政策立案などを提案してもらいながら、" +
+    "最終的には最先端の専門コンサルティングスタッフなどの人間が判断した" +
+    "方が遥かに優れていると思われます。";
+  const en =
+    "[A proposal on replacing government staff (the developer's own " +
+    "opinion)]\n" +
+    "Rather than amateur central-government bureaucrats and lawmakers, " +
+    "these roles should be entirely replaced with top-tier professional " +
+    "consulting staff from the private sector. Unlike government offices, " +
+    "private consulting firms can rotate staff on a case-by-case basis — " +
+    "sometimes even every few months — rather than being locked into one- " +
+    "or multi-year terms. Having AI gather problems and solutions from " +
+    "around the world to help draft policy proposals, with the final " +
+    "judgment made by human experts such as top-tier professional " +
+    "consultants, would likely produce far better outcomes.";
+  return `\n\n🏛️ ${en}\n\n${ja}`;
+}
+
+function govConsultingSuffix(userText) {
+  if (!mentionsGovConsultingTopic(userText)) return "";
+  return govConsultingProposalText();
 }
 
 function consumptionTaxSuffix(userText) {
