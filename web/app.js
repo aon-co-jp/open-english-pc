@@ -78,6 +78,20 @@ const learnTargetEl = document.getElementById("learn-target");
   const countdownEl = document.getElementById("maintenance-countdown");
   if (!banner || !countdownEl) return;
   banner.classList.remove("hidden");
+  // メンテナンス中の待ち時間を使い、サーバー接続国のニュースを収集
+  // しておく(ユーザー指示、2026-08-17「メンテナンス時にその人のIPアドレス
+  // からその国のインターネットニュースを読んで情報収集、分析してDATABASE化
+  // して、話題についていけるように努力して」への対応、`aruaru-llm`側
+  // `POST /v1/news/refresh`、詳細はnews_geo.rs参照)。失敗しても
+  // メンテナンスバナー自体やチャット機能には影響しない(既存の
+  // referralsSuffix等と同じ「サービスを止めない」設計)。
+  // `apiBaseEl`はこのIIFEより後の行で定義されるため(スクリプト先頭付近に
+  // 移すとファイル全体の構成が崩れる)、`setTimeout`で次のマクロタスクへ
+  // 遅らせて初期化完了後に呼び出す(実ブラウザで発覚した`ReferenceError:
+  // Cannot access 'apiBaseEl' before initialization`の修正)。
+  setTimeout(() => {
+    fetch(`${apiBaseEl.value.trim()}/v1/news/refresh`, { method: "POST" }).catch(() => {});
+  }, 0);
   let remaining = 60;
   const timer = setInterval(() => {
     remaining -= 1;
@@ -630,6 +644,9 @@ async function advanceTrainingMode(userText) {
   const wasLastStep = trainingStepIndex === trainingSteps.length - 1;
   let reply = await step.onUserReply(userText);
   reply += await referralsSuffix(userText);
+  reply += consumptionTaxSuffix(userText);
+  reply += await newsSuffix(userText);
+  reply += troubledSuffix(userText);
   appendMessage("trainer", reply);
   speakBilingual(reply);
   trainingStepIndex = Math.min(trainingStepIndex + 1, trainingSteps.length - 1);
@@ -778,6 +795,9 @@ async function askTrainer(userText) {
     }
   }
   reply += await referralsSuffix(userText);
+  reply += consumptionTaxSuffix(userText);
+  reply += await newsSuffix(userText);
+  reply += troubledSuffix(userText);
   return reply;
 }
 
@@ -806,6 +826,127 @@ async function referralsSuffix(userText) {
   } catch (err) {
     return "";
   }
+}
+
+// 消費税問題の解決策を尋ねる日本語入力を検出したら、開発者(ユーザー)の
+// 具体的な政策提案を日英併記で案内する(ユーザー指示、2026-08-17)。
+// `referralsSuffix`と同じ「話題検出→定型文を末尾に追記」の設計だが、
+// こちらはサーバー往復不要のクライアント側キーワード判定のみで完結する
+// (この提案文自体はopen-englishが生成するAI応答ではなく、開発者が
+// 用意した固定テキストであることを明示する——GPT-2の生成物ではない)。
+const CONSUMPTION_TAX_TOPIC_KEYWORDS = ["消費税"];
+const CONSUMPTION_TAX_QUESTION_KEYWORDS = [
+  "解決策", "解決", "どうすれば", "どうしたら", "どうすればいい",
+  "なくす", "無くす", "撤廃", "下げる", "上げる", "廃止", "改革",
+  "どう思う", "教えて",
+];
+
+function isConsumptionTaxSolutionQuestion(userText) {
+  if (!containsJapanese(userText)) return false;
+  const hasTopic = CONSUMPTION_TAX_TOPIC_KEYWORDS.some((k) => userText.includes(k));
+  if (!hasTopic) return false;
+  return CONSUMPTION_TAX_QUESTION_KEYWORDS.some((k) => userText.includes(k));
+}
+
+function consumptionTaxProposalText() {
+  const ja =
+    "【消費税問題への提案(開発者からの一意見)】\n" +
+    "消費税は、法人税が約40%だった頃に、将来的に約20%へ引き下げる前提で" +
+    "導入された経緯があります(2026年8月時点の法人税は約20%)。その前提に" +
+    "立てば、消費税を撤廃する、あるいは法人税を元の40%程度へ引き上げ、" +
+    "それでも足りなければ45〜50%程度まで引き上げるという選択肢が現実的です。" +
+    "それでも財源が不足する場合は、行政のWEBサイト・LINEアプリ化を進める" +
+    "eガバメント・デジタルガバメント化により、市区町村・都道府県庁の統廃合、" +
+    "中央省庁・国会のオンライン化(在宅勤務・オンライン国会)を進めて公務員を" +
+    "大幅にリストラし、財源を確保します。その財源で、少子高齢化対策予算、" +
+    "基礎年金+厚生年金の皆保険化(全員加入型)による年金受給額の増額、" +
+    "後期高齢者医療制度における低所得層・中間所得層の無償化が実現可能です。";
+  const en =
+    "[A proposal on the consumption-tax problem (the developer's own opinion)]\n" +
+    "Japan's consumption tax was originally introduced on the premise that the " +
+    "corporate tax rate, then around 40%, would eventually be lowered to around " +
+    "20% (as of August 2026 it is indeed around 20%). Given that history, a " +
+    "realistic option is to abolish the consumption tax — or raise the " +
+    "corporate tax rate back toward 40%, and to 45-50% if still not enough. " +
+    "If revenue is still short, advancing e-government/digital-government " +
+    "(moving administrative websites and services onto LINE-style apps), " +
+    "consolidating/abolishing municipal and prefectural government offices, " +
+    "and moving central-government ministries and the Diet online (remote work, " +
+    "online parliamentary sessions) would allow a major reduction in the civil " +
+    "service headcount, freeing up funds. Those funds could then go toward the " +
+    "declining-birthrate/aging-society budget, raising pension payouts by making " +
+    "the basic pension plus employees' pension universal (mandatory enrollment " +
+    "for all), and making the late-stage elderly medical system free for " +
+    "low-income and middle-income households.";
+  return `\n\n💰 ${en}\n\n${ja}`;
+}
+
+function consumptionTaxSuffix(userText) {
+  if (!isConsumptionTaxSolutionQuestion(userText)) return "";
+  return consumptionTaxProposalText();
+}
+
+// ニュース・時事の話題が出たら、メンテナンス中に収集済みのニュース
+// (`aruaru-llm`の`GET /v1/news/latest`、`news_geo.rs`参照)を日英併記で
+// 会話に織り込み、「話題についていけるように」する(ユーザー指示、
+// 2026-08-17)。`referralsSuffix`と同じ「話題検出→サーバーへ問い合わせ→
+// 末尾に追記」の設計。
+const NEWS_TOPIC_KEYWORDS_JA = ["ニュース", "時事", "最近の出来事", "今日の話題"];
+const NEWS_TOPIC_KEYWORDS_EN = ["news", "current events", "what's happening", "headlines"];
+
+function mentionsNewsTopic(userText) {
+  const lower = userText.toLowerCase();
+  return NEWS_TOPIC_KEYWORDS_JA.some((k) => userText.includes(k)) || NEWS_TOPIC_KEYWORDS_EN.some((k) => lower.includes(k));
+}
+
+async function newsSuffix(userText) {
+  if (!mentionsNewsTopic(userText)) return "";
+  try {
+    const base = apiBaseEl.value.trim();
+    const res = await fetch(`${base}/v1/news/latest`);
+    const data = await res.json();
+    if (!data.items || data.items.length === 0) {
+      const reason = data.last_error ? ` (${data.last_error})` : "";
+      return `\n\n📰 No news collected yet${reason} / まだニュースが収集されていません${reason ? "(" + data.last_error + ")" : ""}。`;
+    }
+    const country = data.country ? data.country.country : "your area / お住まいの地域";
+    const headlines = data.items.slice(0, 3).map((i) => `・${i.title}`).join("\n");
+    return `\n\n📰 Recent news from ${country} / ${country}の最近のニュース:\n${headlines}`;
+  } catch (err) {
+    return "";
+  }
+}
+
+// 質問者が悩んでいたり悔しがっている様子を検出したら、仮説的・建設的な
+// 問いかけの型で解決策提案を促す一言を日英併記で添える(ユーザー指示、
+// 2026-08-17)。この提案文自体はopen-englishが用意した固定テキストで
+// あり、GPT-2の生成物ではない(消費税提案と同じ設計方針)。
+const TROUBLED_KEYWORDS_JA = ["困って", "悔しい", "悩んで", "どうしよう", "分からない", "わからない", "辛い", "しんどい", "うまくいかない"];
+const TROUBLED_KEYWORDS_EN = ["i'm stuck", "i am stuck", "frustrated", "i don't know what to do", "it's not working", "i'm struggling", "i am struggling"];
+
+function soundsTroubledOrFrustrated(userText) {
+  const lower = userText.toLowerCase();
+  return TROUBLED_KEYWORDS_JA.some((k) => userText.includes(k)) || TROUBLED_KEYWORDS_EN.some((k) => lower.includes(k));
+}
+
+function troubledEncouragementText() {
+  const ja =
+    "もし仮に、と仮説的に考えてみましょう。建設的な問いかけとして——" +
+    "この問題についての問題点はここが明白で明確ですが、皆様、解決策を" +
+    "ご提案下さい。もしくは、ご意見をお述べ下さい。大胆かつ繊細が" +
+    "成功しやすく、小心者はおどおどして失敗しやすいものです。";
+  const en =
+    "Let's try thinking hypothetically — \"suppose that...\" — and ask a " +
+    "constructive question. The core issue here seems clear: everyone, " +
+    "please suggest a solution, or share your thoughts. Being bold yet " +
+    "careful tends to lead to success, while being overly timid tends to " +
+    "lead to failure.";
+  return `\n\n💡 ${en}\n\n${ja}`;
+}
+
+function troubledSuffix(userText) {
+  if (!soundsTroubledOrFrustrated(userText)) return "";
+  return troubledEncouragementText();
 }
 
 // 正直な開示: 対話ファインチューニングを受けていない素のGPT-2(貪欲
