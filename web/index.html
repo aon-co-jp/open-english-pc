@@ -79,29 +79,58 @@
       <button type="button" id="setup-close" class="setup-close">✕</button>
       <h2>Easy setup for aruaru-llm / aruaru-llmの簡単セットアップ</h2>
       <p class="setup-honest">
-        <strong>Honest disclosure:</strong> There is no one-click installer yet —
-        this Phase 0 script still requires Git and the Rust toolchain
+        <strong>Honest disclosure (updated 2026-08-17):</strong> A prebuilt
+        binary download is now available below (no Git/Rust/terminal script
+        required — see "Recommended" section) — this replaces the previous
+        "no one-click download yet" state. The build-from-source path further
+        below is now the advanced/developer option; that path still requires
+        Git and the Rust toolchain
         (<a href="https://rustup.rs" target="_blank" rel="noopener">rustup.rs</a>)
-        to be installed first, and it builds from source. A prebuilt-binary
-        download (via <code>open-easy-web</code>) is planned for later.
-        Also: <code>aruaru-llm</code> has real, non-optional cross-repo path
-        dependencies deeper than expected — it needs <code>open-cuda</code>,
-        <code>RPoem</code>, <code>open-web-server</code>, and
-        <code>RS-SmartTCP</code> cloned as sibling folders, not just itself.
-        This "easy setup" clones all five; it's not actually a lightweight
-        single-repo build.<br />
-        正直な開示: まだワンクリック・インストーラーはありません。このPhase 0
-        スクリプトはGitとRustツールチェーン(<a href="https://rustup.rs" target="_blank" rel="noopener">rustup.rs</a>)
-        が事前に必要で、ソースからビルドします。実行ファイル配布(<code>open-easy-web</code>経由)は今後の予定です。
-        また、<code>aruaru-llm</code>は想定以上に深いクロスリポジトリの
-        必須依存(オプションではない)を持っており、<code>open-cuda</code>・
-        <code>RPoem</code>・<code>open-web-server</code>・
-        <code>RS-SmartTCP</code>を同じ階層にクローンする必要があります。
-        この「簡単セットアップ」は5リポジトリすべてをクローンします——
-        実際には単一リポジトリの軽量ビルドではありません。
+        and real, non-optional cross-repo path dependencies (<code>open-cuda</code>,
+        <code>RPoem</code>, <code>open-web-server</code>, <code>RS-SmartTCP</code>
+        cloned as siblings) — none of which are needed for the prebuilt
+        download.<br />
+        正直な開示(2026-08-17更新): 以下に実行ファイル配布(Git/Rust/
+        ターミナルスクリプト不要)を追加しました——「以前はワンクリック
+        配布が無かった」状態は解消済みです。さらに下のソースビルド手順は
+        上級者・開発者向けの選択肢として残しています(GitとRust
+        ツールチェーン、<code>open-cuda</code>・<code>RPoem</code>・
+        <code>open-web-server</code>・<code>RS-SmartTCP</code>を同階層に
+        クローンする必要があります)——実行ファイル配布ではこれらは
+        一切不要です。
       </p>
 
-      <h3>Windows (PowerShell)</h3>
+      <h3>✅ Recommended: prebuilt download (no build, no terminal script to type) /
+        推奨: ビルド不要の実行ファイル配布(ターミナルへコマンドを打つ必要なし)</h3>
+      <p class="setup-note">
+        This is the same download used by the Windows installer's "install
+        aruaru-llm too" option (2026-08-10, see CLAUDE.md) — a ready-to-run
+        binary from GitHub Releases. The path dependencies on open-cuda/RPoem/
+        open-web-server/RS-SmartTCP mentioned below are only needed to
+        <strong>build from source</strong>; they are already compiled into
+        this prebuilt binary and do not need to be cloned separately.
+        Download, unzip, and run — no <code>git</code>/<code>cargo</code>
+        needed on this path.<br />
+        Windowsインストーラーの「aruaru-llmも同時インストール」オプション
+        (2026-08-10、CLAUDE.md参照)と同じダウンロード元です——GitHub
+        Releasesのビルド済み実行ファイルです。下記の
+        open-cuda/RPoem/open-web-server/RS-SmartTCPへの依存はソースから
+        ビルドする場合のみ必要で、この実行ファイルには既に組み込み済み
+        のため別途クローンする必要はありません。ダウンロード→展開→
+        実行するだけで、<code>git</code>・<code>cargo</code>は不要です。
+      </p>
+      <div class="settings-buttons">
+        <a class="setup-btn" href="https://github.com/aon-co-jp/aruaru-llm/releases/latest/download/aruaru-llm-windows-x86_64.zip">⬇ Windows (.zip)</a>
+        <a class="setup-btn" href="https://github.com/aon-co-jp/aruaru-llm/releases/latest/download/aruaru-llm-linux-x86_64.tar.gz">⬇ Linux (.tar.gz)</a>
+      </div>
+      <p class="setup-note">
+        macOS: no prebuilt binary is published yet (honest disclosure) — use
+        the build-from-source instructions below.<br />
+        macOS: ビルド済み配布は未公開です(正直な開示)——下記のソース
+        ビルド手順をご利用ください。
+      </p>
+
+      <h3>Advanced: build from source (developers) / 上級者向け: ソースからビルド</h3>
       <p class="setup-note">
         Run this in a normal PowerShell window (not as Administrator, not in
         <code>C:\Windows\System32</code> — that folder is protected and will
@@ -120,7 +149,7 @@ cd aruaru-llm
 cargo run --release</pre>
       <button type="button" class="copy-btn" data-target="win">Copy</button>
 
-      <h3>Linux / macOS (bash)</h3>
+      <p class="setup-note">Linux / macOS (bash):</p>
       <pre class="setup-script" data-script="unix">cd ~
 git clone https://github.com/aon-co-jp/open-cuda
 git clone https://github.com/aon-co-jp/RS-SmartTCP
@@ -247,10 +276,19 @@ cargo run --release</pre>
           postgresql.org/download</a> から、お使いのOS向けのインストーラーをダウンロード・実行
         してください(Windows/Linux/macOSいずれも公式インストーラーあり)。
       </p>
-      <h3>2. aruaru-db(既存のインストーラースクリプトを使用)</h3>
+      <h3>2. aruaru-db</h3>
       <p class="setup-note">
-        <code>aruaru-db</code>には既に簡単セットアップスクリプトが用意されています——
-        新規にスクリプトを書く必要はありません。
+        ✅ Recommended / 推奨: git不要のビルド済みダウンロード。展開したフォルダで
+        <code>install.ps1</code>(Windows)/<code>install.sh</code>(Linux/macOS、
+        既にダウンロード済みなので中の<code>git clone</code>行は不要です)を実行
+        するだけです。
+      </p>
+      <div class="settings-buttons">
+        <a class="setup-btn" href="https://github.com/aon-co-jp/aruaru-db/releases/latest/download/aruaru-db-windows-x86_64.zip">⬇ Windows (.zip)</a>
+        <a class="setup-btn" href="https://github.com/aon-co-jp/aruaru-db/releases/latest/download/aruaru-db-linux-x86_64.tar.gz">⬇ Linux (.tar.gz)</a>
+      </div>
+      <p class="setup-note">
+        Advanced / 上級者向け(ソースから):
       </p>
       <h3>Windows (PowerShell)</h3>
       <pre class="setup-script" data-script="aruaru-db-win">cd $env:USERPROFILE
