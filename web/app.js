@@ -646,6 +646,7 @@ async function advanceTrainingMode(userText) {
   reply += await referralsSuffix(userText);
   reply += consumptionTaxSuffix(userText);
   reply += incomeWallSuffix(userText);
+  reply += vendingMachineSuffix(userText);
   reply += await newsSuffix(userText);
   reply += troubledSuffix(userText);
   appendMessage("trainer", reply);
@@ -798,6 +799,7 @@ async function askTrainer(userText) {
   reply += await referralsSuffix(userText);
   reply += consumptionTaxSuffix(userText);
   reply += incomeWallSuffix(userText);
+  reply += vendingMachineSuffix(userText);
   reply += await newsSuffix(userText);
   reply += troubledSuffix(userText);
   return reply;
@@ -881,6 +883,46 @@ function consumptionTaxProposalText() {
     "for all), and making the late-stage elderly medical system free for " +
     "low-income and middle-income households.";
   return `\n\n💰 ${en}\n\n${ja}`;
+}
+
+// 高級家電(スマホ・タブレット・PC・グラフィックボード・プリンター等)の
+// 自動販売機・e-SIM/MNP対応についての話題を検出したら、開発者(ユーザー)の
+// 提案を日英併記で案内する(ユーザー指示、2026-08-17)。消費税提案と同じ
+// 設計方針の固定テキスト。
+const VENDING_MACHINE_TOPIC_KEYWORDS = ["自動販売機", "自販機"];
+
+function mentionsVendingMachineTopic(userText) {
+  if (!containsJapanese(userText)) return false;
+  return VENDING_MACHINE_TOPIC_KEYWORDS.some((k) => userText.includes(k));
+}
+
+function vendingMachineProposalText() {
+  const ja =
+    "【電子機器自動販売機・e-SIM/MNPへの提案(開発者からの一意見)】\n" +
+    "1円からでも購入できる高級スマホ・タブレット・PC・グラフィック" +
+    "ボード・プリンターなどの自動販売機を、特にコンビニ・病院・大きな" +
+    "会社に設置するべきです。e-SIMの普及も進めるべきです。スマホの" +
+    "自動販売機では、フィルム(保護フィルム)を自動で貼ってくれる機能も" +
+    "搭載し、ドコモ・au・SoftBank・楽天モバイルなどの新規契約や、" +
+    "MNP(以前の電話番号の引き継ぎ)もその場で行えるようにするべきです。";
+  const en =
+    "[A proposal on electronics vending machines and e-SIM/MNP (the " +
+    "developer's own opinion)]\n" +
+    "Vending machines selling premium smartphones, tablets, PCs, graphics " +
+    "cards, printers, and similar items — purchasable for as little as 1 " +
+    "yen — should be installed especially in convenience stores, " +
+    "hospitals, and large companies. The spread of e-SIM should also be " +
+    "promoted. Smartphone vending machines should also automatically apply " +
+    "a screen-protector film, and let people sign up for new contracts " +
+    "with carriers such as NTT Docomo, au, SoftBank, and Rakuten Mobile, " +
+    "and also complete MNP (porting their existing phone number) on the " +
+    "spot.";
+  return `\n\n📱 ${en}\n\n${ja}`;
+}
+
+function vendingMachineSuffix(userText) {
+  if (!mentionsVendingMachineTopic(userText)) return "";
+  return vendingMachineProposalText();
 }
 
 function consumptionTaxSuffix(userText) {
