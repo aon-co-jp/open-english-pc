@@ -269,6 +269,15 @@ class MainActivity : AppCompatActivity() {
         val binaryPath = File(applicationInfo.nativeLibraryDir, ARUARU_LLM_BINARY_NAME)
         if (!binaryPath.exists()) return // 同梱されていないビルドでも本体サーバーは動かす。
         val pb = ProcessBuilder(binaryPath.absolutePath)
+        // 2026-08-17変更: libaruarullm.soを`--features real-vulkan`で
+        // クロスコンパイルし直した(ユーザー指摘「スマホのGPUはPCの
+        // 安くて古いGPUより高速な可能性がある」への対応——open-cuda側
+        // 2026-08-15実測で、実機Adreno 619がデスクトップGT730より512×512
+        // GEMMで5.99倍高速という結果が既に出ていたため)。デバイス選択
+        // ロジック(aruaru-llm側main.rs)はVulkanDevice構築に失敗すれば
+        // 自動でCPUへフォールバックするため、Vulkan非対応/低性能な端末
+        // でも安全に動作する。環境変数での追加設定は不要(コンパイル時
+        // featureのため)。
         pb.environment()["ARUARU_LLM_BIND"] = "127.0.0.1:$aruaruLlmPort"
         // モデル重み(GPT-2系・埋め込みモデル)はAPKに同梱していないため
         // (冒頭のクラスdoc参照)、実際にダウンロード済みのモデルを配置
