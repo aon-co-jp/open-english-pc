@@ -14,8 +14,8 @@ android {
         // versionCode/versionNameは`../../version.json`の`version`と
         // 手動で同期させること(自動ビルドパイプラインは無い、
         // `CLAUDE.md`のバージョン管理節参照)。
-        versionCode = 8
-        versionName = "0.6.5"
+        versionCode = 9
+        versionName = "0.6.6"
         // 2026-08-11追加: 単体動作版(PC/Linux WEBサーバー不要)への対応。
         // 実機のスマホ/タブレットはarm64-v8aが主流、x86_64はエミュレータ
         // 検証用(open-web-server/dream-osの既存パターンと同じ)。
