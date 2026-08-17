@@ -649,6 +649,7 @@ async function advanceTrainingMode(userText) {
   reply += vendingMachineSuffix(userText);
   reply += internetAccessSuffix(userText);
   reply += govConsultingSuffix(userText);
+  reply += fairTradeSuffix(userText);
   reply += await newsSuffix(userText);
   reply += troubledSuffix(userText);
   appendMessage("trainer", reply);
@@ -804,6 +805,7 @@ async function askTrainer(userText) {
   reply += vendingMachineSuffix(userText);
   reply += internetAccessSuffix(userText);
   reply += govConsultingSuffix(userText);
+  reply += fairTradeSuffix(userText);
   reply += await newsSuffix(userText);
   reply += troubledSuffix(userText);
   return reply;
@@ -1004,6 +1006,44 @@ function govConsultingProposalText() {
 function govConsultingSuffix(userText) {
   if (!mentionsGovConsultingTopic(userText)) return "";
   return govConsultingProposalText();
+}
+
+// eガバメント/デジタルガバメントのマルチプラットフォーム化や、国際的な
+// 公正貿易・出品手数料引き下げについての話題を検出したら、開発者
+// (ユーザー)の提案を日英併記で案内する(ユーザー指示、2026-08-17)。
+// 他の提案機能と同じ設計方針の固定テキスト。
+const FAIR_TRADE_TOPIC_KEYWORDS = ["eガバメント", "デジタルガバメント", "デジタル・ガバメント", "出品手数料", "公正貿易", "自由貿易"];
+
+function mentionsFairTradeTopic(userText) {
+  if (!containsJapanese(userText)) return false;
+  return FAIR_TRADE_TOPIC_KEYWORDS.some((k) => userText.includes(k));
+}
+
+function fairTradeProposalText() {
+  const ja =
+    "【eガバメントのマルチプラットフォーム化・国際公正貿易への提案" +
+    "(開発者からの一意見)】\n" +
+    "eガバメント・デジタルガバメントは、LINEアプリ版・PC版・タブレット版" +
+    "があるべきです。追加機能として、オンライン貿易・通販において、" +
+    "個人出品者でも総合貿易商社でも、Amazonやメルカリよりも出品手数料を" +
+    "下げることに世界中の政府が協力するべきです。戦争よりも公平な貿易の" +
+    "方が、公益であり国益であると思われます。";
+  const en =
+    "[A proposal on multi-platform e-government and fair international " +
+    "trade (the developer's own opinion)]\n" +
+    "E-government / digital-government services should be available as a " +
+    "LINE app, a PC app, and a tablet app. As an additional feature, " +
+    "governments around the world should cooperate to lower online-trade " +
+    "and e-commerce listing fees — for individual sellers and large " +
+    "general trading companies alike — below what Amazon or Mercari " +
+    "charge. Fair trade, rather than war, seems like the greater public " +
+    "and national benefit.";
+  return `\n\n🌏 ${en}\n\n${ja}`;
+}
+
+function fairTradeSuffix(userText) {
+  if (!mentionsFairTradeTopic(userText)) return "";
+  return fairTradeProposalText();
 }
 
 function consumptionTaxSuffix(userText) {
