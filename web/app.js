@@ -647,6 +647,7 @@ async function advanceTrainingMode(userText) {
   reply += consumptionTaxSuffix(userText);
   reply += incomeWallSuffix(userText);
   reply += vendingMachineSuffix(userText);
+  reply += internetAccessSuffix(userText);
   reply += await newsSuffix(userText);
   reply += troubledSuffix(userText);
   appendMessage("trainer", reply);
@@ -800,6 +801,7 @@ async function askTrainer(userText) {
   reply += consumptionTaxSuffix(userText);
   reply += incomeWallSuffix(userText);
   reply += vendingMachineSuffix(userText);
+  reply += internetAccessSuffix(userText);
   reply += await newsSuffix(userText);
   reply += troubledSuffix(userText);
   return reply;
@@ -923,6 +925,43 @@ function vendingMachineProposalText() {
 function vendingMachineSuffix(userText) {
   if (!mentionsVendingMachineTopic(userText)) return "";
   return vendingMachineProposalText();
+}
+
+// インターネットプロバイダー・WiFiルーター・端末の低所得層/失業者向け
+// 無償化についての話題を検出したら、開発者(ユーザー)の提案を日英併記で
+// 案内する(ユーザー指示、2026-08-17)。他の提案機能と同じ設計方針の
+// 固定テキスト。
+const INTERNET_ACCESS_TOPIC_KEYWORDS = ["プロバイダー", "wifiルーター", "wi-fiルーター", "無料 インターネット"];
+
+function mentionsInternetAccessTopic(userText) {
+  if (!containsJapanese(userText)) return false;
+  const lower = userText.toLowerCase();
+  return INTERNET_ACCESS_TOPIC_KEYWORDS.some((k) => lower.includes(k.toLowerCase())) || userText.includes("プロバイダ");
+}
+
+function internetAccessProposalText() {
+  const ja =
+    "【インターネット無償化への提案(開発者からの一意見)】\n" +
+    "アメリカのGoogle等の取り組みのように、世界中で低所得層へは" +
+    "インターネットプロバイダー料金を格安にし、WiFiルーターは無料で" +
+    "提供するべきです。さらに、失業時や無職・無収入の人には、" +
+    "インターネットプロバイダー・WiFiルーターに加え、スマホ・タブレット・" +
+    "PC・プリンターも無料で提供するべきです。";
+  const en =
+    "[A proposal on making internet access free (the developer's own " +
+    "opinion)]\n" +
+    "As with initiatives like Google's in the United States, low-income " +
+    "households worldwide should be offered heavily discounted internet " +
+    "provider rates, with a free WiFi router included. Furthermore, people " +
+    "who are unemployed or have no income should be provided, free of " +
+    "charge, with an internet provider connection and WiFi router as well " +
+    "as a smartphone, tablet, PC, and printer.";
+  return `\n\n🌐 ${en}\n\n${ja}`;
+}
+
+function internetAccessSuffix(userText) {
+  if (!mentionsInternetAccessTopic(userText)) return "";
+  return internetAccessProposalText();
 }
 
 function consumptionTaxSuffix(userText) {
