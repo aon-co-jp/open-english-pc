@@ -57,4 +57,16 @@ dependencies {
     implementation("androidx.core:core-ktx:1.13.1")
     implementation("androidx.appcompat:appcompat:1.7.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
+    // 2026-08-19追加(ユーザー指示「NNAPI経由でNPU/GPUへ軽量な数値計算を
+    // オフロードする最小実装を試みる」への対応、`PhoneAccelWorker.kt`
+    // 参照)。TensorFlow Lite + NNAPI Delegateのみを追加(フルの
+    // TensorFlow本体は含まない、モデルは同梱していない——ベクトル内積/
+    // コサイン類似度程度の軽量計算をNNAPI経由で試すための最小依存)。
+    // ビルドが通らない・実機でNNAPIが使えない場合は、コード側が
+    // 自動的にCPU(Kotlin標準FloatArray計算)へフォールバックする設計
+    // (`PhoneAccelWorker.kt`のコメント参照、NPU活用を偽らない)。
+    implementation("org.tensorflow:tensorflow-lite:2.16.1")
+    // NnApiDelegateクラス自体は`tensorflow-lite`本体に含まれるため
+    // `tensorflow-lite-support`は不要(重複namespace警告を避けるため
+    // 追加しなかった)。
 }

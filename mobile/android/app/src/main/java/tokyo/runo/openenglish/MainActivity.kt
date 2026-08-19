@@ -66,6 +66,10 @@ class MainActivity : AppCompatActivity() {
     private lateinit var backupModelsBtn: Button
     private lateinit var restoreModelsBtn: Button
     private lateinit var backupModelsStatus: TextView
+    private lateinit var phoneAccelPcUrl: android.widget.EditText
+    private lateinit var phoneAccelToggleBtn: Button
+    private lateinit var phoneAccelStatus: TextView
+    private var phoneAccelWorker: PhoneAccelWorker? = null
 
     private var serverProcess: Process? = null
     private var aruaruLlmProcess: Process? = null
@@ -110,6 +114,9 @@ class MainActivity : AppCompatActivity() {
         backupModelsBtn = findViewById(R.id.backup_models_btn)
         restoreModelsBtn = findViewById(R.id.restore_models_btn)
         backupModelsStatus = findViewById(R.id.backup_models_status)
+        phoneAccelPcUrl = findViewById(R.id.phone_accel_pc_url)
+        phoneAccelToggleBtn = findViewById(R.id.phone_accel_toggle_btn)
+        phoneAccelStatus = findViewById(R.id.phone_accel_status)
 
         webView.settings.javaScriptEnabled = true
         webView.settings.cacheMode = WebSettings.LOAD_NO_CACHE
@@ -120,6 +127,7 @@ class MainActivity : AppCompatActivity() {
         refreshModelStoragePathDisplay()
         backupModelsBtn.setOnClickListener { backupModelsToExternalStorage() }
         restoreModelsBtn.setOnClickListener { restoreModelsFromExternalStorage() }
+        phoneAccelToggleBtn.setOnClickListener { togglePhoneAccelWorker() }
 
         checkForAppUpdate()
         startEmbeddedServerAndLoad()
@@ -429,6 +437,36 @@ class MainActivity : AppCompatActivity() {
         super.onDestroy()
         serverProcess?.destroy()
         aruaruLlmProcess?.destroy()
+        phoneAccelWorker?.stop()
+    }
+
+    /**
+     * PC側`aruaru-llm`のタスク配布API(`/v1/background-fold/task`・
+     * `/v1/background-fold/task-result`)へのポーリングを開始/停止する
+     * (2026-08-19新設、`PhoneAccelWorker.kt`参照)。
+     */
+    private fun togglePhoneAccelWorker() {
+        val running = phoneAccelWorker != null
+        if (running) {
+            phoneAccelWorker?.stop()
+            phoneAccelWorker = null
+            phoneAccelToggleBtn.text = getString(R.string.phone_accel_start_button)
+            phoneAccelStatus.text = "Stopped. / 停止しました。"
+            return
+        }
+        val baseUrl = phoneAccelPcUrl.text.toString().trim().trimEnd('/')
+        if (baseUrl.isEmpty()) {
+            phoneAccelStatus.visibility = View.VISIBLE
+            phoneAccelStatus.text = "Please enter the PC aruaru-llm URL first. / まずPC側aruaru-llmのURLを入力してください。"
+            return
+        }
+        phoneAccelStatus.visibility = View.VISIBLE
+        val worker = PhoneAccelWorker(baseUrl) { message ->
+            runOnUiThread { phoneAccelStatus.text = message }
+        }
+        worker.start()
+        phoneAccelWorker = worker
+        phoneAccelToggleBtn.text = getString(R.string.phone_accel_stop_button)
     }
 
     override fun onBackPressed() {

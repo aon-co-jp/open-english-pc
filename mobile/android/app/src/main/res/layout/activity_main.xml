@@ -92,6 +92,43 @@
             android:textSize="13sp"
             android:layout_marginTop="6dp"
             android:visibility="gone" />
+
+        <!--
+          2026-08-19追加(ユーザー指示「使わなくなったスマホもフル動員
+          しましょう」バナーの実装、`PhoneAccelWorker.kt`参照): PC側
+          aruaru-llmのタスク配布APIへポーリング接続するためのURL入力+
+          開始/停止ボタン。
+        -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="12sp"
+            android:layout_marginTop="10dp"
+            android:text="@string/phone_accel_help" />
+
+        <EditText
+            android:id="@+id/phone_accel_pc_url"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:hint="@string/phone_accel_url_hint"
+            android:text="http://127.0.0.1:4600"
+            android:inputType="textUri" />
+
+        <Button
+            android:id="@+id/phone_accel_toggle_btn"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="@string/phone_accel_start_button" />
+
+        <TextView
+            android:id="@+id/phone_accel_status"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="12sp"
+            android:layout_marginTop="6dp"
+            android:visibility="gone" />
     </LinearLayout>
 
     <WebView
