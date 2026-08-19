@@ -348,6 +348,61 @@ body {
   display: none;
 }
 
+.free-tier-banner {
+  background: var(--panel);
+  color: var(--text);
+  border-bottom: 2px solid var(--accent);
+  padding: 6px 16px;
+  font-size: 0.85rem;
+}
+
+.free-tier-banner.hidden {
+  display: none;
+}
+
+.free-tier-toggle {
+  width: 100%;
+  background: none;
+  border: none;
+  color: var(--text);
+  font-size: 0.85rem;
+  font-weight: bold;
+  text-align: left;
+  cursor: pointer;
+  padding: 4px 0;
+}
+
+.free-tier-body {
+  padding: 6px 0 8px;
+}
+
+.free-tier-body.hidden {
+  display: none;
+}
+
+.free-tier-list,
+#free-tier-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+#free-tier-list li {
+  padding: 4px 0;
+  border-top: 1px solid rgba(245, 238, 247, 0.15);
+}
+
+#free-tier-list li strong {
+  color: var(--accent);
+}
+
+.free-tier-note,
+.free-tier-updated {
+  font-size: 0.75rem;
+  opacity: 0.8;
+  margin: 6px 0 0;
+}
+
 .setup-modal {
   position: fixed;
   inset: 0;

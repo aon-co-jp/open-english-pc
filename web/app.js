@@ -103,6 +103,51 @@ const learnTargetEl = document.getElementById("learn-target");
   }, 1000);
 })();
 
+// AI/検索プロバイダの無料枠情報バナー(ユーザー指示「それらの無料枠に
+// ついては、メンテナンス時に情報を得て、open-englishの上の方に表示して」
+// への対応)。各社の無料枠は変更されやすく、機械可読なAPIで正確な残り
+// 回数を常時取得する仕組みは一般に存在しないため、ここでは「開発者が
+// 定期メンテナンス時に手動で確認・更新する」`provider-free-tiers.json`を
+// 読み込んで表示するのみに留める(正直な開示、誇張しない)。
+(async function showProviderFreeTiers() {
+  const banner = document.getElementById("free-tier-banner");
+  const toggle = document.getElementById("free-tier-toggle");
+  const body = document.getElementById("free-tier-body");
+  const list = document.getElementById("free-tier-list");
+  const updatedEl = document.getElementById("free-tier-last-updated");
+  if (!banner || !toggle || !body || !list || !updatedEl) return;
+  try {
+    const res = await fetch("provider-free-tiers.json", { cache: "no-store" });
+    if (!res.ok) return;
+    const data = await res.json();
+    const providers = Array.isArray(data.providers) ? data.providers : [];
+    if (providers.length === 0) return;
+    list.innerHTML = "";
+    for (const p of providers) {
+      const li = document.createElement("li");
+      const nameEn = p.name_en || p.id || "";
+      const nameJa = p.name_ja || "";
+      const tierEn = p.free_tier_en || "(no data / 情報なし)";
+      const tierJa = p.free_tier_ja || "(情報なし)";
+      // 外部/JSON由来のテキストのためtextContentのみで組み立てる(XSS回避)。
+      const strong = document.createElement("strong");
+      strong.textContent = `${nameEn} / ${nameJa}: `;
+      li.appendChild(strong);
+      const span = document.createElement("span");
+      span.textContent = `${tierEn} / ${tierJa}`;
+      li.appendChild(span);
+      list.appendChild(li);
+    }
+    updatedEl.textContent = data.last_updated || "?";
+    banner.classList.remove("hidden");
+    toggle.addEventListener("click", () => {
+      body.classList.toggle("hidden");
+    });
+  } catch (err) {
+    // 読み込めなくても他の機能には影響させない(既存の可用性優先方針)。
+  }
+})();
+
 // 日本語文字(ひらがな・カタカナ・漢字)を含むかどうかの簡易判定。
 // 正規表現の\p{Script=...}(Unicodeプロパティエスケープ)はモダンブラウザ
 // (Chrome/Firefox/Safari最新版)で対応済みのため追加ライブラリ不要。
