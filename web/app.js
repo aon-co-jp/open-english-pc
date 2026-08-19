@@ -148,6 +148,105 @@ const learnTargetEl = document.getElementById("learn-target");
   }
 })();
 
+// 1日の利用回数制限(ユーザー指示「検索や質問などで1日の利用回数制限を
+// 超えた場合に、有料版切替の案内+他プロバイダの無料枠案内を日英併記で
+// 表示して」への対応)。既存コード内を調査したが、サーバー側
+// (`server/src/main.rs`・`db.rs`)にもクライアント側にも自前の「1日
+// 100回まで」カウンタは実装されていなかった(index.html内の「1日100件
+// まで無料」という記述はGoogle Custom Search JSON API自体の無料枠に
+// ついての説明であり、open-english自身の利用回数制限ではない)。その
+// ため、ここで`localStorage`ベースの簡易日次カウンタを新規実装する。
+// 正直な開示: これはクライアント側(ブラウザ)のみのカウンタであり、
+// `localStorage`を消去する・別ブラウザ/別端末を使う等で回避できてしまう
+// (サーバー側での強制ではない)。あくまで「無料枠を使い切ったことを
+// 利用者へ知らせる」目的の簡易的な仕組みであり、悪用防止機構ではない。
+const DAILY_USAGE_LIMIT_KEY = "openEnglish.dailyUsage";
+const DAILY_USAGE_LIMIT = 100;
+
+function todayDateString() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function readDailyUsage() {
+  try {
+    const raw = localStorage.getItem(DAILY_USAGE_LIMIT_KEY);
+    if (!raw) return { date: todayDateString(), count: 0 };
+    const parsed = JSON.parse(raw);
+    if (!parsed || parsed.date !== todayDateString()) {
+      return { date: todayDateString(), count: 0 };
+    }
+    return { date: parsed.date, count: Number(parsed.count) || 0 };
+  } catch (err) {
+    return { date: todayDateString(), count: 0 };
+  }
+}
+
+function writeDailyUsage(usage) {
+  try {
+    localStorage.setItem(DAILY_USAGE_LIMIT_KEY, JSON.stringify(usage));
+  } catch (err) {
+    // localStorageが使えない環境でも他機能には影響させない(既存の
+    // 可用性優先方針)。
+  }
+}
+
+// テスト用に上限を一時的に下げられるようにする(ユーザー指示の実機検証
+// 手順に対応、通常運用では`DAILY_USAGE_LIMIT`をそのまま使う)。
+window.OPEN_ENGLISH_DAILY_LIMIT_OVERRIDE = null;
+
+function effectiveDailyLimit() {
+  const override = window.OPEN_ENGLISH_DAILY_LIMIT_OVERRIDE;
+  return typeof override === "number" && override > 0 ? override : DAILY_USAGE_LIMIT;
+}
+
+function isDailyLimitExceeded() {
+  return readDailyUsage().count >= effectiveDailyLimit();
+}
+
+function recordDailyUsage() {
+  const usage = readDailyUsage();
+  usage.count += 1;
+  writeDailyUsage(usage);
+  return usage.count;
+}
+
+// 上限到達時のメッセージ(日英併記)。要望1(有料版切替の案内)+
+// 要望2(他プロバイダの無料枠案内、`provider-free-tiers.json`を動的に
+// 参照——ハードコードしない、既存の無料枠バナーとの一貫性を保つ)。
+async function dailyLimitExceededMessage() {
+  let text =
+    "🚫 本日の無料利用枠を超えました。有料版に切り替えますか？\n" +
+    "You've exceeded today's free usage limit. Would you like to switch to a paid plan?\n" +
+    "(この案内は表示のみです。実際の決済・アップグレード処理はこの" +
+    "アプリには実装されていません。 / This is a notice only — no " +
+    "payment or upgrade flow is implemented in this app.)";
+
+  try {
+    const res = await fetch("provider-free-tiers.json", { cache: "no-store" });
+    if (res.ok) {
+      const data = await res.json();
+      const providers = Array.isArray(data.providers) ? data.providers : [];
+      if (providers.length > 0) {
+        text +=
+          "\n\n💡 他のAIサービスの無料枠も、一日の制限内で毎日ご利用いただけます。\n" +
+          "Other AI services' free tiers are also available for you to use daily, within their own daily limits.";
+        for (const p of providers) {
+          const nameEn = p.name_en || p.id || "";
+          const nameJa = p.name_ja || "";
+          const tierEn = p.free_tier_en || "(no data)";
+          const tierJa = p.free_tier_ja || "(情報なし)";
+          text += `\n・${nameEn} / ${nameJa}: ${tierEn} / ${tierJa}`;
+        }
+      }
+    }
+  } catch (err) {
+    // 読み込めなくても上限到達メッセージ本体は表示する(既存の
+    // 可用性優先方針)。
+  }
+  return text;
+}
+
 // 日本語文字(ひらがな・カタカナ・漢字)を含むかどうかの簡易判定。
 // 正規表現の\p{Script=...}(Unicodeプロパティエスケープ)はモダンブラウザ
 // (Chrome/Firefox/Safari最新版)で対応済みのため追加ライブラリ不要。
@@ -1240,12 +1339,19 @@ formEl.addEventListener("submit", async (e) => {
   inputEl.value = "";
   appendMessage("user", text);
 
+  if (isDailyLimitExceeded()) {
+    appendMessage("system", await dailyLimitExceededMessage());
+    return;
+  }
+
   if (levelEl.value === "maid-cafe-training") {
+    recordDailyUsage();
     await advanceTrainingMode(text);
     return;
   }
 
   try {
+    recordDailyUsage();
     const reply = await askTrainer(text);
     appendMessage("trainer", reply);
     speak(reply);
