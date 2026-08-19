@@ -463,6 +463,7 @@ body {
   border-radius: 8px;
   padding: 10px 12px;
   line-height: 1.5;
+  white-space: pre-line;
 }
 
 .setup-script {

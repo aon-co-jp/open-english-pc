@@ -374,6 +374,22 @@ cd aruaru-db
       <button type="button" id="data-storage-backup-btn" class="setup-btn">💾 Backup now / 今すぐバックアップ</button>
       <button type="button" id="data-storage-install-rsync-btn" class="setup-btn hidden">⬇ Install RSync / RSyncをインストール</button>
       <p class="setup-note" id="data-storage-backup-status"></p>
+
+      <h3>Backup conversation DB + aruaru-db/PostgreSQL together / 会話履歴DBとaruaru-db/PostgreSQLを同時にバックアップ</h3>
+      <p class="setup-note">
+        Enter <strong>one</strong> destination and both the local conversation DB and (if
+        <code>OPEN_ENGLISH_DATABASE_URL</code> is configured) the <code>aruaru-db</code>/PostgreSQL
+        mirror are backed up in a single click. The <code>aruaru-db</code> side is exported with
+        <code>pg_dump</code> (a consistent snapshot dump) rather than copying its live data files
+        directly, to avoid corrupting a database engine that may still be writing.<br />
+        宛先を<strong>1つ</strong>入力するだけで、会話履歴のローカルDBと(<code>OPEN_ENGLISH_DATABASE_URL</code>が
+        設定されていれば)<code>aruaru-db</code>/PostgreSQLミラーの両方を1回でバックアップします。
+        <code>aruaru-db</code>側は稼働中のデータファイルを直接コピーすると破損リスクがあるため、
+        <code>pg_dump</code>(一貫性のあるスナップショットダンプ)経由で書き出します。
+      </p>
+      <input type="text" id="data-storage-rsync-dest-all" class="setup-input" placeholder="e.g. /mnt/usb-backup/ or user@host:/backups/" />
+      <button type="button" id="data-storage-backup-all-btn" class="setup-btn">🔄 Backup both now / 両方を今すぐバックアップ</button>
+      <p class="setup-note" id="data-storage-backup-all-status"></p>
     </div>
   </div>
 

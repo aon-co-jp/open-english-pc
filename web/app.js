@@ -1593,6 +1593,58 @@ if (dataStorageInstallRsyncBtn) {
   });
 }
 
+// 会話履歴DB + aruaru-db/PostgreSQLの同時rsyncバックアップ(ユーザー
+// 指示「RSyncで、open-englishのaruaru-dbとpostgresqlを他のデバイスに
+// バックアップ同時を可能に、その設定方法も簡単にして」への対応、
+// 2026-08-19新設)。宛先を1箇所入力するだけで両方バックアップされる
+// (`/v1/db/rsync-backup-all`、既存の`/v1/db/rsync-backup`とは別
+// エンドポイント)。
+const dataStorageRsyncDestAllEl = document.getElementById("data-storage-rsync-dest-all");
+const dataStorageBackupAllBtn = document.getElementById("data-storage-backup-all-btn");
+const dataStorageBackupAllStatusEl = document.getElementById("data-storage-backup-all-status");
+
+if (dataStorageBackupAllBtn) {
+  dataStorageBackupAllBtn.addEventListener("click", async () => {
+    const destination = (dataStorageRsyncDestAllEl?.value || "").trim();
+    if (!destination) {
+      dataStorageBackupAllStatusEl.textContent = "Please enter a backup destination. / バックアップ先を入力してください。";
+      return;
+    }
+    dataStorageBackupAllStatusEl.textContent = "Backing up both… / 両方バックアップ中…";
+    try {
+      const res = await fetch("/v1/db/rsync-backup-all", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ destination }),
+      });
+      const body = await res.json();
+      const sqlite = body.sqlite_backup || {};
+      const pg = body.postgres_backup;
+      let sqliteMsg;
+      if (sqlite.ok) {
+        sqliteMsg = `Conversation DB: OK (${sqlite.detail}) / 会話DB: 成功(${sqlite.detail})`;
+      } else if (sqlite.rsync_missing) {
+        sqliteMsg = `Conversation DB: ${sqlite.message_en} / 会話DB: ${sqlite.message_ja}`;
+      } else {
+        sqliteMsg = `Conversation DB: failed (${sqlite.error || "unknown"}) / 会話DB: 失敗(${sqlite.error || "不明"})`;
+      }
+      let pgMsg;
+      if (pg === null || pg === undefined) {
+        pgMsg = "aruaru-db/PostgreSQL: not configured (OPEN_ENGLISH_DATABASE_URL not set), skipped / aruaru-db/PostgreSQL: 未設定のためスキップしました";
+      } else if (pg.ok) {
+        pgMsg = `aruaru-db/PostgreSQL: OK (${pg.detail}) / aruaru-db/PostgreSQL: 成功(${pg.detail})`;
+      } else if (pg.rsync_or_pg_dump_missing) {
+        pgMsg = `aruaru-db/PostgreSQL: ${pg.message_en} / aruaru-db/PostgreSQL: ${pg.message_ja}`;
+      } else {
+        pgMsg = `aruaru-db/PostgreSQL: failed (${pg.error || "unknown"}) / aruaru-db/PostgreSQL: 失敗(${pg.error || "不明"})`;
+      }
+      dataStorageBackupAllStatusEl.textContent = `${sqliteMsg}\n${pgMsg}`;
+    } catch (e) {
+      dataStorageBackupAllStatusEl.textContent = `Failed: ${e.message} / 失敗しました: ${e.message}`;
+    }
+  });
+}
+
 // Google Search設定パネル(ユーザー指示「利用者がAPIキーの取得とCOPY
 // ペーストが簡単な機能を搭載して」への対応)。値はaruaru-llmの
 // `POST /v1/settings/google-search`(メモリ上保持のみ、ディスクへ保存
