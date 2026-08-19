@@ -452,6 +452,37 @@ body {
   color: #888;
 }
 
+/* facebook.html(Facebook経由の入口ページ)専用、2026-08-19新設。
+   .setup-panelは通常モーダル内(position: fixedの親)で使われるが、
+   このページでは通常の静的セクションとして縦に並べるだけなので
+   max-heightは適用しない。 */
+.fb-entry {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 16px;
+}
+
+.fb-entry .setup-panel {
+  max-height: none;
+  overflow-y: visible;
+}
+
+.download-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.download-table th,
+.download-table td {
+  border: 1px solid var(--pink);
+  padding: 8px;
+  text-align: left;
+}
+
 .web-search-toggle {
   display: inline-flex;
   align-items: center;
