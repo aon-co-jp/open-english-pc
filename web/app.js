@@ -1445,6 +1445,154 @@ if (aruaruDbSetupBtn && aruaruDbSetupModal) {
   });
 }
 
+// データ・モデル保存先パネル(ユーザー指示「モデル重みの保存先と同期
+// バックアップ機能を実装、日英併記UIで」への対応、2026-08-19新設)。
+// バックエンドの`/v1/db/info`・`/v1/db/storage-path`・`/v1/db/rsync-backup`・
+// `/v1/db/install-rsync`(2026-08-18に実装済み)へ初めて接続するUI。
+// 正直な開示: ここでバックアップ・移動できるのは会話履歴・設定の
+// SQLite DBのみ——`aruaru-llm`本体のモデル重み(GPT-2系・埋め込み
+// モデル)は別リポジトリ`aruaru-llm`自身の`/v1/models/*`APIで管理されて
+// おり、このパネルの対象外(パネル内の`.setup-honest`にも明記)。
+const dataStorageBtn = document.getElementById("data-storage-btn");
+const dataStorageModal = document.getElementById("data-storage-modal");
+const dataStorageClose = document.getElementById("data-storage-close");
+const dataStorageInfoEl = document.getElementById("data-storage-info");
+const dataStorageRefreshBtn = document.getElementById("data-storage-refresh");
+const dataStorageNewPathEl = document.getElementById("data-storage-new-path");
+const dataStorageRelocateBtn = document.getElementById("data-storage-relocate-btn");
+const dataStorageRelocateStatusEl = document.getElementById("data-storage-relocate-status");
+const dataStorageRsyncDestEl = document.getElementById("data-storage-rsync-dest");
+const dataStorageBackupBtn = document.getElementById("data-storage-backup-btn");
+const dataStorageInstallRsyncBtn = document.getElementById("data-storage-install-rsync-btn");
+const dataStorageBackupStatusEl = document.getElementById("data-storage-backup-status");
+
+function formatBytes(n) {
+  if (typeof n !== "number") return "? / 不明";
+  const units = ["B", "KB", "MB", "GB"];
+  let v = n;
+  let i = 0;
+  while (v >= 1024 && i < units.length - 1) {
+    v /= 1024;
+    i += 1;
+  }
+  return `${v.toFixed(1)} ${units[i]}`;
+}
+
+async function refreshDataStorageInfo() {
+  if (!dataStorageInfoEl) return;
+  dataStorageInfoEl.textContent = "Loading… / 読み込み中…";
+  try {
+    const res = await fetch("/v1/db/info");
+    const info = await res.json();
+    dataStorageInfoEl.textContent =
+      `Conversation/settings DB path: ${info.db_path} (${formatBytes(info.db_file_size_bytes)}) ` +
+      `| Cloud DB mirror (aruaru-db): ${info.postgres_mirror_configured ? "enabled" : "disabled"} ` +
+      `/ 会話・設定DBの保存先: ${info.db_path}(${formatBytes(info.db_file_size_bytes)}) ` +
+      `| クラウドDBミラー(aruaru-db): ${info.postgres_mirror_configured ? "有効" : "無効"}`;
+  } catch (e) {
+    dataStorageInfoEl.textContent = `Failed to load storage info: ${e.message} / 保存先情報の取得に失敗しました: ${e.message}`;
+  }
+}
+
+if (dataStorageBtn && dataStorageModal) {
+  dataStorageBtn.addEventListener("click", () => {
+    dataStorageModal.classList.remove("hidden");
+    refreshDataStorageInfo();
+  });
+  dataStorageClose.addEventListener("click", () => dataStorageModal.classList.add("hidden"));
+  dataStorageModal.addEventListener("click", (e) => {
+    if (e.target === dataStorageModal) dataStorageModal.classList.add("hidden");
+  });
+}
+if (dataStorageRefreshBtn) dataStorageRefreshBtn.addEventListener("click", refreshDataStorageInfo);
+
+if (dataStorageRelocateBtn) {
+  dataStorageRelocateBtn.addEventListener("click", async () => {
+    const newPath = (dataStorageNewPathEl?.value || "").trim();
+    if (!newPath) {
+      dataStorageRelocateStatusEl.textContent = "Please enter a destination path. / 移動先のパスを入力してください。";
+      return;
+    }
+    dataStorageRelocateStatusEl.textContent = "Moving… / 移動中…";
+    try {
+      const res = await fetch("/v1/db/storage-path", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ new_path: newPath }),
+      });
+      const body = await res.json();
+      if (res.ok && body.ok) {
+        dataStorageRelocateStatusEl.textContent = `Moved. New path: ${body.new_path} / 移動しました。新しい保存先: ${body.new_path}`;
+        refreshDataStorageInfo();
+      } else {
+        dataStorageRelocateStatusEl.textContent = `Failed: ${body.error || "unknown error"} / 失敗しました: ${body.error || "不明なエラー"}`;
+      }
+    } catch (e) {
+      dataStorageRelocateStatusEl.textContent = `Failed: ${e.message} / 失敗しました: ${e.message}`;
+    }
+  });
+}
+
+async function runRsyncBackup() {
+  const destination = (dataStorageRsyncDestEl?.value || "").trim();
+  if (!destination) {
+    dataStorageBackupStatusEl.textContent = "Please enter a backup destination. / バックアップ先を入力してください。";
+    return null;
+  }
+  const res = await fetch("/v1/db/rsync-backup", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ destination }),
+  });
+  return res.json();
+}
+
+if (dataStorageBackupBtn) {
+  dataStorageBackupBtn.addEventListener("click", async () => {
+    dataStorageBackupStatusEl.textContent = "Backing up… / バックアップ中…";
+    dataStorageInstallRsyncBtn.classList.add("hidden");
+    try {
+      const body = await runRsyncBackup();
+      if (!body) return;
+      if (body.ok) {
+        dataStorageBackupStatusEl.textContent = `Backup complete: ${body.detail} / バックアップ完了: ${body.detail}`;
+      } else if (body.rsync_missing) {
+        dataStorageBackupStatusEl.textContent = `${body.message_en} / ${body.message_ja}`;
+        dataStorageInstallRsyncBtn.classList.remove("hidden");
+      } else {
+        dataStorageBackupStatusEl.textContent = `Failed: ${body.error || "unknown error"} / 失敗しました: ${body.error || "不明なエラー"}`;
+      }
+    } catch (e) {
+      dataStorageBackupStatusEl.textContent = `Failed: ${e.message} / 失敗しました: ${e.message}`;
+    }
+  });
+}
+
+if (dataStorageInstallRsyncBtn) {
+  dataStorageInstallRsyncBtn.addEventListener("click", async () => {
+    dataStorageBackupStatusEl.textContent = "Installing RSync… / RSyncをインストール中…";
+    const destination = (dataStorageRsyncDestEl?.value || "").trim();
+    try {
+      const res = await fetch("/v1/db/install-rsync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(destination ? { retry_destination: destination } : {}),
+      });
+      const body = await res.json();
+      if (body.ok) {
+        let msg = `${body.detail}`;
+        if (body.backup_ran) msg += ` | Backup also ran: ${body.backup_detail} / バックアップも実行しました: ${body.backup_detail}`;
+        dataStorageBackupStatusEl.textContent = msg;
+        dataStorageInstallRsyncBtn.classList.add("hidden");
+      } else {
+        dataStorageBackupStatusEl.textContent = `${body.message_en || body.error} / ${body.message_ja || ""}`;
+      }
+    } catch (e) {
+      dataStorageBackupStatusEl.textContent = `Failed: ${e.message} / 失敗しました: ${e.message}`;
+    }
+  });
+}
+
 // Google Search設定パネル(ユーザー指示「利用者がAPIキーの取得とCOPY
 // ペーストが簡単な機能を搭載して」への対応)。値はaruaru-llmの
 // `POST /v1/settings/google-search`(メモリ上保持のみ、ディスクへ保存

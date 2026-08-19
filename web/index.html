@@ -85,6 +85,7 @@
     <button type="button" id="exam-prep-btn" class="setup-btn">📝 Exam Prep / 資格対策</button>
     <button type="button" id="aruaru-db-setup-btn" class="setup-btn">🗄 Setup aruaru-db</button>
     <button type="button" id="llm-recommend-btn" class="setup-btn">🧠 Recommend LLM / おすすめLLM</button>
+    <button type="button" id="data-storage-btn" class="setup-btn">💾 Data & Model Storage / データ・モデルの保存先</button>
   </header>
 
   <div id="setup-modal" class="setup-modal hidden">
@@ -322,6 +323,50 @@ cd aruaru-db
         同じPostgreSQL/aruaru-dbインスタンスをそのまま共有できます(詳細は
         <a href="https://github.com/aon-co-jp/open-easy-web" target="_blank" rel="noopener noreferrer">open-easy-web</a>参照)。
       </p>
+    </div>
+  </div>
+
+  <div id="data-storage-modal" class="setup-modal hidden">
+    <div class="setup-panel">
+      <button type="button" id="data-storage-close" class="setup-close">✕</button>
+      <h2>Data & Model Storage / データ・モデルの保存先</h2>
+      <p class="setup-honest">
+        <strong>Honest disclosure:</strong> GPT-2-family model weights and the embedding model are
+        <strong>not bundled</strong> with this app (size/licensing) — you download them once via
+        "🧠 Recommend LLM" (PC/browser) or the in-app "Download model" button (Android), and they are
+        stored locally on this device. This panel lets you see/back up your local <em>conversation
+        history &amp; settings</em> database (<code>aruaru-llm</code>'s own model files are managed by
+        <code>aruaru-llm</code> itself, not by this panel).<br /><br />
+        <strong>正直な開示：</strong>GPT-2系モデル重み・埋め込みモデルはアプリに同梱されて
+        <strong>いません</strong>(サイズ・ライセンスの都合)——「🧠 おすすめLLM」(PC/ブラウザ版)、
+        またはアプリ内「モデルをダウンロード」ボタン(Android版)で一度取得すると、この端末上に
+        ローカル保存されます。この画面で見る/バックアップできるのは<em>会話履歴・設定</em>の
+        データベースです(<code>aruaru-llm</code>本体のモデルファイル自体は
+        <code>aruaru-llm</code>側が管理しており、この画面の対象外です)。
+      </p>
+
+      <h3>Current storage / 現在の保存先</h3>
+      <p class="setup-note" id="data-storage-info">Loading… / 読み込み中…</p>
+      <button type="button" id="data-storage-refresh" class="setup-btn">🔄 Refresh / 再読み込み</button>
+
+      <h3>Change storage location / 保存先を変更</h3>
+      <p class="setup-note">
+        Move the local database file to another folder (e.g. a microSD card or external drive).<br />
+        データベースファイルを別のフォルダ(microSDや外部ドライブなど)へ移動します。
+      </p>
+      <input type="text" id="data-storage-new-path" class="setup-input" placeholder="e.g. D:\open-english-data\open-english.sqlite3" />
+      <button type="button" id="data-storage-relocate-btn" class="setup-btn">📁 Move here / ここへ移動</button>
+      <p class="setup-note" id="data-storage-relocate-status"></p>
+
+      <h3>Backup via RSync / RSyncで同期バックアップ</h3>
+      <p class="setup-note">
+        Local path or <code>user@host:/path</code>.<br />
+        ローカルパス、または<code>user@host:/path</code>を指定してください。
+      </p>
+      <input type="text" id="data-storage-rsync-dest" class="setup-input" placeholder="e.g. /mnt/usb-backup/ or user@host:/backups/" />
+      <button type="button" id="data-storage-backup-btn" class="setup-btn">💾 Backup now / 今すぐバックアップ</button>
+      <button type="button" id="data-storage-install-rsync-btn" class="setup-btn hidden">⬇ Install RSync / RSyncをインストール</button>
+      <p class="setup-note" id="data-storage-backup-status"></p>
     </div>
   </div>
 

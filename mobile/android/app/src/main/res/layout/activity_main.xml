@@ -56,6 +56,42 @@
             android:textSize="13sp"
             android:layout_marginTop="6dp"
             android:visibility="gone" />
+
+        <!--
+          2026-08-19追加(ユーザー指示「モデル重みの保存先と同期バックアップ
+          機能をUI上に日英併記で表示して」への対応): モデル重みの内部
+          ストレージ保存先を常時表示し、外部ストレージへの手動バックアップ/
+          復元操作を提供する。
+        -->
+        <TextView
+            android:id="@+id/model_storage_path"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="12sp"
+            android:layout_marginTop="10dp"
+            android:textIsSelectable="true" />
+
+        <Button
+            android:id="@+id/backup_models_btn"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="@string/backup_models_button" />
+
+        <Button
+            android:id="@+id/restore_models_btn"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="@string/restore_models_button" />
+
+        <TextView
+            android:id="@+id/backup_models_status"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="13sp"
+            android:layout_marginTop="6dp"
+            android:visibility="gone" />
     </LinearLayout>
 
     <WebView

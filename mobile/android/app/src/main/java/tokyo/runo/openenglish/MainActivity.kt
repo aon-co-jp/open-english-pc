@@ -62,6 +62,10 @@ class MainActivity : AppCompatActivity() {
     private lateinit var updateNotice: TextView
     private lateinit var downloadModelBtn: Button
     private lateinit var downloadModelStatus: TextView
+    private lateinit var modelStoragePathView: TextView
+    private lateinit var backupModelsBtn: Button
+    private lateinit var restoreModelsBtn: Button
+    private lateinit var backupModelsStatus: TextView
 
     private var serverProcess: Process? = null
     private var aruaruLlmProcess: Process? = null
@@ -102,6 +106,10 @@ class MainActivity : AppCompatActivity() {
         updateNotice = findViewById(R.id.update_notice)
         downloadModelBtn = findViewById(R.id.download_model_btn)
         downloadModelStatus = findViewById(R.id.download_model_status)
+        modelStoragePathView = findViewById(R.id.model_storage_path)
+        backupModelsBtn = findViewById(R.id.backup_models_btn)
+        restoreModelsBtn = findViewById(R.id.restore_models_btn)
+        backupModelsStatus = findViewById(R.id.backup_models_status)
 
         webView.settings.javaScriptEnabled = true
         webView.settings.cacheMode = WebSettings.LOAD_NO_CACHE
@@ -109,6 +117,9 @@ class MainActivity : AppCompatActivity() {
 
         downloadModelBtn.setOnClickListener { downloadModelsAndRestartAruaruLlm() }
         refreshDownloadModelButtonVisibility()
+        refreshModelStoragePathDisplay()
+        backupModelsBtn.setOnClickListener { backupModelsToExternalStorage() }
+        restoreModelsBtn.setOnClickListener { restoreModelsFromExternalStorage() }
 
         checkForAppUpdate()
         startEmbeddedServerAndLoad()
@@ -167,6 +178,114 @@ class MainActivity : AppCompatActivity() {
             } else {
                 downloadModelBtn.isEnabled = true
             }
+        }
+    }
+
+    /**
+     * 2026-08-19追加(ユーザー指示「モデル重みの保存先と同期バックアップ
+     * 機能を、日英併記UIで実装して」への対応)。モデル重みの内部ストレージ
+     * 保存先パス(`filesDir/aruaru-llm-models`)を常時画面へ表示する
+     * ——これまでダウンロード中のステータス表示にしか現れなかった
+     * パスを、常設のバイリンガル表示にする。
+     */
+    private fun refreshModelStoragePathDisplay() {
+        val modelsRoot = File(filesDir, "aruaru-llm-models")
+        modelStoragePathView.text =
+            "モデル保存先(内部ストレージ): ${modelsRoot.absolutePath} / " +
+            "Model storage location (internal storage): ${modelsRoot.absolutePath}"
+    }
+
+    /**
+     * 2026-08-19追加。「同期バックアップ」の解釈: このアプリ自体は
+     * クラウドAPIキー等を持たないため、クラウドへ直接アップロードする
+     * 機能は実装しない(正直な開示)。代わりに、アプリ専用の外部ストレージ
+     * 領域(`getExternalFilesDir`、権限不要でファイルマネージャからも
+     * 参照可能)へモデル一式をコピーする——利用者はそこから任意の
+     * クラウドストレージアプリ(Google Drive等)・USB経由で別途バックアップ
+     * できる。PC版の`/v1/db/rsync-backup`(2026-08-18実装)とは異なる
+     * 簡易版だが、Android単体でOS標準API(権限プロンプト無し)のみで
+     * 完結する設計を優先した。
+     */
+    private fun backupModelsToExternalStorage() {
+        val modelsRoot = File(filesDir, "aruaru-llm-models")
+        if (!modelsRoot.exists()) {
+            backupModelsStatus.visibility = View.VISIBLE
+            backupModelsStatus.text =
+                "バックアップ対象のモデルがまだありません。先にモデルをダウンロードしてください。 / " +
+                "No model to back up yet. Please download the model first."
+            return
+        }
+        val destRoot = File(getExternalFilesDir(null), "aruaru-llm-models-backup")
+        backupModelsBtn.isEnabled = false
+        backupModelsStatus.visibility = View.VISIBLE
+        backupModelsStatus.text = "バックアップ中… / Backing up…"
+        CoroutineScope(Dispatchers.Main).launch {
+            val ok = withContext(Dispatchers.IO) {
+                try {
+                    copyDirRecursive(modelsRoot, destRoot)
+                    true
+                } catch (e: Exception) {
+                    backupModelsStatus.text = "バックアップ失敗: ${e.message} / Backup failed: ${e.message}"
+                    false
+                }
+            }
+            if (ok) {
+                backupModelsStatus.text =
+                    "バックアップ完了: ${destRoot.absolutePath} (ファイルマネージャや他のアプリからコピー可能な" +
+                    "アプリ専用領域です。クラウド保存はご自身でGoogleドライブ等のアプリからこのフォルダを" +
+                    "アップロードしてください) / Backup complete: ${destRoot.absolutePath} " +
+                    "(app-private external storage, visible to file managers; to save to the cloud, " +
+                    "upload this folder yourself via Google Drive or a similar app)."
+            }
+            backupModelsBtn.isEnabled = true
+        }
+    }
+
+    /** バックアップ先(上記)から`aruaru-llm-models`へ復元する(既存ファイルは上書き)。 */
+    private fun restoreModelsFromExternalStorage() {
+        val srcRoot = File(getExternalFilesDir(null), "aruaru-llm-models-backup")
+        if (!srcRoot.exists()) {
+            backupModelsStatus.visibility = View.VISIBLE
+            backupModelsStatus.text =
+                "復元元のバックアップが見つかりません(先に「バックアップ」を実行してください)。 / " +
+                "No backup found to restore from (please run \"Back up\" first)."
+            return
+        }
+        val modelsRoot = File(filesDir, "aruaru-llm-models")
+        restoreModelsBtn.isEnabled = false
+        backupModelsStatus.visibility = View.VISIBLE
+        backupModelsStatus.text = "復元中… / Restoring…"
+        CoroutineScope(Dispatchers.Main).launch {
+            val ok = withContext(Dispatchers.IO) {
+                try {
+                    copyDirRecursive(srcRoot, modelsRoot)
+                    true
+                } catch (e: Exception) {
+                    backupModelsStatus.text = "復元失敗: ${e.message} / Restore failed: ${e.message}"
+                    false
+                }
+            }
+            if (ok) {
+                backupModelsStatus.text =
+                    "復元完了。aruaru-llmを再起動しています… / Restore complete. Restarting aruaru-llm…"
+                aruaruLlmProcess?.destroy()
+                aruaruLlmProcess = null
+                withContext(Dispatchers.IO) { launchAruaruLlmProcess() }
+                refreshDownloadModelButtonVisibility()
+                backupModelsStatus.text =
+                    "復元とaruaru-llmの再起動が完了しました。 / Restore and aruaru-llm restart complete."
+            }
+            restoreModelsBtn.isEnabled = true
+        }
+    }
+
+    /** ディレクトリを再帰的にコピーする(既存ファイルは上書き)。 */
+    private fun copyDirRecursive(src: File, dest: File) {
+        if (src.isDirectory) {
+            dest.mkdirs()
+            src.listFiles()?.forEach { child -> copyDirRecursive(child, File(dest, child.name)) }
+        } else {
+            src.inputStream().use { input -> FileOutputStream(dest).use { output -> input.copyTo(output) } }
         }
     }
 

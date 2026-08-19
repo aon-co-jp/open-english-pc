@@ -562,3 +562,13 @@ body {
 .hidden {
   display: none !important;
 }
+
+/* データ・モデル保存先パネル用の入力欄(2026-08-19新設)。 */
+.setup-input {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  margin: 6px 0;
+  padding: 6px 8px;
+  font-size: 0.95rem;
+}
