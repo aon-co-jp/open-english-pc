@@ -78,6 +78,20 @@ const learnTargetEl = document.getElementById("learn-target");
   const countdownEl = document.getElementById("maintenance-countdown");
   if (!banner || !countdownEl) return;
   banner.classList.remove("hidden");
+  // メンテナンス中の待ち時間を使い、サーバー接続国のニュースを収集
+  // しておく(ユーザー指示、2026-08-17「メンテナンス時にその人のIPアドレス
+  // からその国のインターネットニュースを読んで情報収集、分析してDATABASE化
+  // して、話題についていけるように努力して」への対応、`aruaru-llm`側
+  // `POST /v1/news/refresh`、詳細はnews_geo.rs参照)。失敗しても
+  // メンテナンスバナー自体やチャット機能には影響しない(既存の
+  // referralsSuffix等と同じ「サービスを止めない」設計)。
+  // `apiBaseEl`はこのIIFEより後の行で定義されるため(スクリプト先頭付近に
+  // 移すとファイル全体の構成が崩れる)、`setTimeout`で次のマクロタスクへ
+  // 遅らせて初期化完了後に呼び出す(実ブラウザで発覚した`ReferenceError:
+  // Cannot access 'apiBaseEl' before initialization`の修正)。
+  setTimeout(() => {
+    fetch(`${apiBaseEl.value.trim()}/v1/news/refresh`, { method: "POST" }).catch(() => {});
+  }, 0);
   let remaining = 60;
   const timer = setInterval(() => {
     remaining -= 1;
@@ -88,6 +102,150 @@ const learnTargetEl = document.getElementById("learn-target");
     }
   }, 1000);
 })();
+
+// AI/検索プロバイダの無料枠情報バナー(ユーザー指示「それらの無料枠に
+// ついては、メンテナンス時に情報を得て、open-englishの上の方に表示して」
+// への対応)。各社の無料枠は変更されやすく、機械可読なAPIで正確な残り
+// 回数を常時取得する仕組みは一般に存在しないため、ここでは「開発者が
+// 定期メンテナンス時に手動で確認・更新する」`provider-free-tiers.json`を
+// 読み込んで表示するのみに留める(正直な開示、誇張しない)。
+(async function showProviderFreeTiers() {
+  const banner = document.getElementById("free-tier-banner");
+  const toggle = document.getElementById("free-tier-toggle");
+  const body = document.getElementById("free-tier-body");
+  const list = document.getElementById("free-tier-list");
+  const updatedEl = document.getElementById("free-tier-last-updated");
+  if (!banner || !toggle || !body || !list || !updatedEl) return;
+  try {
+    const res = await fetch("provider-free-tiers.json", { cache: "no-store" });
+    if (!res.ok) return;
+    const data = await res.json();
+    const providers = Array.isArray(data.providers) ? data.providers : [];
+    if (providers.length === 0) return;
+    list.innerHTML = "";
+    for (const p of providers) {
+      const li = document.createElement("li");
+      const nameEn = p.name_en || p.id || "";
+      const nameJa = p.name_ja || "";
+      const tierEn = p.free_tier_en || "(no data / 情報なし)";
+      const tierJa = p.free_tier_ja || "(情報なし)";
+      // 外部/JSON由来のテキストのためtextContentのみで組み立てる(XSS回避)。
+      const strong = document.createElement("strong");
+      strong.textContent = `${nameEn} / ${nameJa}: `;
+      li.appendChild(strong);
+      const span = document.createElement("span");
+      span.textContent = `${tierEn} / ${tierJa}`;
+      li.appendChild(span);
+      list.appendChild(li);
+    }
+    updatedEl.textContent = data.last_updated || "?";
+    banner.classList.remove("hidden");
+    toggle.addEventListener("click", () => {
+      body.classList.toggle("hidden");
+    });
+  } catch (err) {
+    // 読み込めなくても他の機能には影響させない(既存の可用性優先方針)。
+  }
+})();
+
+// 1日の利用回数制限(ユーザー指示「検索や質問などで1日の利用回数制限を
+// 超えた場合に、有料版切替の案内+他プロバイダの無料枠案内を日英併記で
+// 表示して」への対応)。既存コード内を調査したが、サーバー側
+// (`server/src/main.rs`・`db.rs`)にもクライアント側にも自前の「1日
+// 100回まで」カウンタは実装されていなかった(index.html内の「1日100件
+// まで無料」という記述はGoogle Custom Search JSON API自体の無料枠に
+// ついての説明であり、open-english自身の利用回数制限ではない)。その
+// ため、ここで`localStorage`ベースの簡易日次カウンタを新規実装する。
+// 正直な開示: これはクライアント側(ブラウザ)のみのカウンタであり、
+// `localStorage`を消去する・別ブラウザ/別端末を使う等で回避できてしまう
+// (サーバー側での強制ではない)。あくまで「無料枠を使い切ったことを
+// 利用者へ知らせる」目的の簡易的な仕組みであり、悪用防止機構ではない。
+const DAILY_USAGE_LIMIT_KEY = "openEnglish.dailyUsage";
+const DAILY_USAGE_LIMIT = 100;
+
+function todayDateString() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function readDailyUsage() {
+  try {
+    const raw = localStorage.getItem(DAILY_USAGE_LIMIT_KEY);
+    if (!raw) return { date: todayDateString(), count: 0 };
+    const parsed = JSON.parse(raw);
+    if (!parsed || parsed.date !== todayDateString()) {
+      return { date: todayDateString(), count: 0 };
+    }
+    return { date: parsed.date, count: Number(parsed.count) || 0 };
+  } catch (err) {
+    return { date: todayDateString(), count: 0 };
+  }
+}
+
+function writeDailyUsage(usage) {
+  try {
+    localStorage.setItem(DAILY_USAGE_LIMIT_KEY, JSON.stringify(usage));
+  } catch (err) {
+    // localStorageが使えない環境でも他機能には影響させない(既存の
+    // 可用性優先方針)。
+  }
+}
+
+// テスト用に上限を一時的に下げられるようにする(ユーザー指示の実機検証
+// 手順に対応、通常運用では`DAILY_USAGE_LIMIT`をそのまま使う)。
+window.OPEN_ENGLISH_DAILY_LIMIT_OVERRIDE = null;
+
+function effectiveDailyLimit() {
+  const override = window.OPEN_ENGLISH_DAILY_LIMIT_OVERRIDE;
+  return typeof override === "number" && override > 0 ? override : DAILY_USAGE_LIMIT;
+}
+
+function isDailyLimitExceeded() {
+  return readDailyUsage().count >= effectiveDailyLimit();
+}
+
+function recordDailyUsage() {
+  const usage = readDailyUsage();
+  usage.count += 1;
+  writeDailyUsage(usage);
+  return usage.count;
+}
+
+// 上限到達時のメッセージ(日英併記)。要望1(有料版切替の案内)+
+// 要望2(他プロバイダの無料枠案内、`provider-free-tiers.json`を動的に
+// 参照——ハードコードしない、既存の無料枠バナーとの一貫性を保つ)。
+async function dailyLimitExceededMessage() {
+  let text =
+    "🚫 本日の無料利用枠を超えました。有料版に切り替えますか？\n" +
+    "You've exceeded today's free usage limit. Would you like to switch to a paid plan?\n" +
+    "(この案内は表示のみです。実際の決済・アップグレード処理はこの" +
+    "アプリには実装されていません。 / This is a notice only — no " +
+    "payment or upgrade flow is implemented in this app.)";
+
+  try {
+    const res = await fetch("provider-free-tiers.json", { cache: "no-store" });
+    if (res.ok) {
+      const data = await res.json();
+      const providers = Array.isArray(data.providers) ? data.providers : [];
+      if (providers.length > 0) {
+        text +=
+          "\n\n💡 他のAIサービスの無料枠も、一日の制限内で毎日ご利用いただけます。\n" +
+          "Other AI services' free tiers are also available for you to use daily, within their own daily limits.";
+        for (const p of providers) {
+          const nameEn = p.name_en || p.id || "";
+          const nameJa = p.name_ja || "";
+          const tierEn = p.free_tier_en || "(no data)";
+          const tierJa = p.free_tier_ja || "(情報なし)";
+          text += `\n・${nameEn} / ${nameJa}: ${tierEn} / ${tierJa}`;
+        }
+      }
+    }
+  } catch (err) {
+    // 読み込めなくても上限到達メッセージ本体は表示する(既存の
+    // 可用性優先方針)。
+  }
+  return text;
+}
 
 // 日本語文字(ひらがな・カタカナ・漢字)を含むかどうかの簡易判定。
 // 正規表現の\p{Script=...}(Unicodeプロパティエスケープ)はモダンブラウザ
@@ -630,6 +788,15 @@ async function advanceTrainingMode(userText) {
   const wasLastStep = trainingStepIndex === trainingSteps.length - 1;
   let reply = await step.onUserReply(userText);
   reply += await referralsSuffix(userText);
+  reply += consumptionTaxSuffix(userText);
+  reply += incomeWallSuffix(userText);
+  reply += vendingMachineSuffix(userText);
+  reply += internetAccessSuffix(userText);
+  reply += govConsultingSuffix(userText);
+  reply += fairTradeSuffix(userText);
+  reply += await newsSuffix(userText);
+  reply += troubledSuffix(userText);
+  reply += nuclearDeterrenceSuffix(userText);
   appendMessage("trainer", reply);
   speakBilingual(reply);
   trainingStepIndex = Math.min(trainingStepIndex + 1, trainingSteps.length - 1);
@@ -778,6 +945,15 @@ async function askTrainer(userText) {
     }
   }
   reply += await referralsSuffix(userText);
+  reply += consumptionTaxSuffix(userText);
+  reply += incomeWallSuffix(userText);
+  reply += vendingMachineSuffix(userText);
+  reply += internetAccessSuffix(userText);
+  reply += govConsultingSuffix(userText);
+  reply += fairTradeSuffix(userText);
+  reply += await newsSuffix(userText);
+  reply += troubledSuffix(userText);
+  reply += nuclearDeterrenceSuffix(userText);
   return reply;
 }
 
@@ -808,6 +984,390 @@ async function referralsSuffix(userText) {
   }
 }
 
+// 消費税問題の解決策を尋ねる日本語入力を検出したら、開発者(ユーザー)の
+// 具体的な政策提案を日英併記で案内する(ユーザー指示、2026-08-17)。
+// `referralsSuffix`と同じ「話題検出→定型文を末尾に追記」の設計だが、
+// こちらはサーバー往復不要のクライアント側キーワード判定のみで完結する
+// (この提案文自体はopen-englishが生成するAI応答ではなく、開発者が
+// 用意した固定テキストであることを明示する——GPT-2の生成物ではない)。
+const CONSUMPTION_TAX_TOPIC_KEYWORDS = ["消費税"];
+const CONSUMPTION_TAX_QUESTION_KEYWORDS = [
+  "解決策", "解決", "どうすれば", "どうしたら", "どうすればいい",
+  "なくす", "無くす", "撤廃", "下げる", "上げる", "廃止", "改革",
+  "どう思う", "教えて",
+];
+
+function isConsumptionTaxSolutionQuestion(userText) {
+  if (!containsJapanese(userText)) return false;
+  const hasTopic = CONSUMPTION_TAX_TOPIC_KEYWORDS.some((k) => userText.includes(k));
+  if (!hasTopic) return false;
+  return CONSUMPTION_TAX_QUESTION_KEYWORDS.some((k) => userText.includes(k));
+}
+
+function consumptionTaxProposalText() {
+  const ja =
+    "【消費税問題への提案(開発者からの一意見)】\n" +
+    "消費税は、法人税が約40%だった頃に、将来的に約20%へ引き下げる前提で" +
+    "導入された経緯があります(2026年8月時点の法人税は約20%)。その前提に" +
+    "立てば、消費税を撤廃する、あるいは法人税を元の40%程度へ引き上げ、" +
+    "それでも足りなければ45〜50%程度まで引き上げるという選択肢が現実的です。" +
+    "それでも財源が不足する場合は、行政のWEBサイト・LINEアプリ化を進める" +
+    "eガバメント・デジタルガバメント化により、市区町村・都道府県庁の統廃合、" +
+    "中央省庁・国会のオンライン化(在宅勤務・オンライン国会)を進めて公務員を" +
+    "大幅にリストラし、財源を確保します。その財源で、少子高齢化対策予算、" +
+    "基礎年金+厚生年金の皆保険化(全員加入型)による年金受給額の増額、" +
+    "後期高齢者医療制度における低所得層・中間所得層の無償化が実現可能です。";
+  const en =
+    "[A proposal on the consumption-tax problem (the developer's own opinion)]\n" +
+    "Japan's consumption tax was originally introduced on the premise that the " +
+    "corporate tax rate, then around 40%, would eventually be lowered to around " +
+    "20% (as of August 2026 it is indeed around 20%). Given that history, a " +
+    "realistic option is to abolish the consumption tax — or raise the " +
+    "corporate tax rate back toward 40%, and to 45-50% if still not enough. " +
+    "If revenue is still short, advancing e-government/digital-government " +
+    "(moving administrative websites and services onto LINE-style apps), " +
+    "consolidating/abolishing municipal and prefectural government offices, " +
+    "and moving central-government ministries and the Diet online (remote work, " +
+    "online parliamentary sessions) would allow a major reduction in the civil " +
+    "service headcount, freeing up funds. Those funds could then go toward the " +
+    "declining-birthrate/aging-society budget, raising pension payouts by making " +
+    "the basic pension plus employees' pension universal (mandatory enrollment " +
+    "for all), and making the late-stage elderly medical system free for " +
+    "low-income and middle-income households.";
+  return `\n\n💰 ${en}\n\n${ja}`;
+}
+
+// 高級家電(スマホ・タブレット・PC・グラフィックボード・プリンター等)の
+// 自動販売機・e-SIM/MNP対応についての話題を検出したら、開発者(ユーザー)の
+// 提案を日英併記で案内する(ユーザー指示、2026-08-17)。消費税提案と同じ
+// 設計方針の固定テキスト。
+const VENDING_MACHINE_TOPIC_KEYWORDS = ["自動販売機", "自販機"];
+
+function mentionsVendingMachineTopic(userText) {
+  if (!containsJapanese(userText)) return false;
+  return VENDING_MACHINE_TOPIC_KEYWORDS.some((k) => userText.includes(k));
+}
+
+function vendingMachineProposalText() {
+  const ja =
+    "【電子機器自動販売機・e-SIM/MNPへの提案(開発者からの一意見)】\n" +
+    "1円からでも購入できる高級スマホ・タブレット・PC・グラフィック" +
+    "ボード・プリンターなどの自動販売機を、特にコンビニ・病院・大きな" +
+    "会社に設置するべきです。e-SIMの普及も進めるべきです。スマホの" +
+    "自動販売機では、フィルム(保護フィルム)を自動で貼ってくれる機能も" +
+    "搭載し、ドコモ・au・SoftBank・楽天モバイルなどの新規契約や、" +
+    "MNP(以前の電話番号の引き継ぎ)もその場で行えるようにするべきです。";
+  const en =
+    "[A proposal on electronics vending machines and e-SIM/MNP (the " +
+    "developer's own opinion)]\n" +
+    "Vending machines selling premium smartphones, tablets, PCs, graphics " +
+    "cards, printers, and similar items — purchasable for as little as 1 " +
+    "yen — should be installed especially in convenience stores, " +
+    "hospitals, and large companies. The spread of e-SIM should also be " +
+    "promoted. Smartphone vending machines should also automatically apply " +
+    "a screen-protector film, and let people sign up for new contracts " +
+    "with carriers such as NTT Docomo, au, SoftBank, and Rakuten Mobile, " +
+    "and also complete MNP (porting their existing phone number) on the " +
+    "spot.";
+  return `\n\n📱 ${en}\n\n${ja}`;
+}
+
+function vendingMachineSuffix(userText) {
+  if (!mentionsVendingMachineTopic(userText)) return "";
+  return vendingMachineProposalText();
+}
+
+// インターネットプロバイダー・WiFiルーター・端末の低所得層/失業者向け
+// 無償化についての話題を検出したら、開発者(ユーザー)の提案を日英併記で
+// 案内する(ユーザー指示、2026-08-17)。他の提案機能と同じ設計方針の
+// 固定テキスト。
+const INTERNET_ACCESS_TOPIC_KEYWORDS = ["プロバイダー", "wifiルーター", "wi-fiルーター", "無料 インターネット"];
+
+function mentionsInternetAccessTopic(userText) {
+  if (!containsJapanese(userText)) return false;
+  const lower = userText.toLowerCase();
+  return INTERNET_ACCESS_TOPIC_KEYWORDS.some((k) => lower.includes(k.toLowerCase())) || userText.includes("プロバイダ");
+}
+
+function internetAccessProposalText() {
+  const ja =
+    "【インターネット無償化への提案(開発者からの一意見)】\n" +
+    "アメリカのGoogle等の取り組みのように、世界中で低所得層へは" +
+    "インターネットプロバイダー料金を格安にし、WiFiルーターは無料で" +
+    "提供するべきです。さらに、失業時や無職・無収入の人には、" +
+    "インターネットプロバイダー・WiFiルーターに加え、スマホ・タブレット・" +
+    "PC・プリンターも無料で提供するべきです。";
+  const en =
+    "[A proposal on making internet access free (the developer's own " +
+    "opinion)]\n" +
+    "As with initiatives like Google's in the United States, low-income " +
+    "households worldwide should be offered heavily discounted internet " +
+    "provider rates, with a free WiFi router included. Furthermore, people " +
+    "who are unemployed or have no income should be provided, free of " +
+    "charge, with an internet provider connection and WiFi router as well " +
+    "as a smartphone, tablet, PC, and printer.";
+  return `\n\n🌐 ${en}\n\n${ja}`;
+}
+
+function internetAccessSuffix(userText) {
+  if (!mentionsInternetAccessTopic(userText)) return "";
+  return internetAccessProposalText();
+}
+
+// 中央省庁・国会議員を民間コンサルティング人材へ入れ替える構想についての
+// 話題を検出したら、開発者(ユーザー)の提案を日英併記で案内する
+// (ユーザー指示、2026-08-17)。他の提案機能と同じ設計方針の固定テキスト。
+const GOV_CONSULTING_TOPIC_KEYWORDS = ["中央省庁", "国会議員", "官僚", "お役所仕事"];
+
+function mentionsGovConsultingTopic(userText) {
+  if (!containsJapanese(userText)) return false;
+  return GOV_CONSULTING_TOPIC_KEYWORDS.some((k) => userText.includes(k));
+}
+
+function govConsultingProposalText() {
+  const ja =
+    "【行政人材の入れ替えへの提案(開発者からの一意見)】\n" +
+    "素人・ド素人の中央省庁職員や国会議員よりも、民間から最先端の専門" +
+    "コンサルティングスタッフへ全員入れ替えるべきです。民間コンサル" +
+    "ティングはお役所と違い、数年・一年と言わず、ケースバイケースで、" +
+    "時には数ヶ月単位でスタッフを入れ替えることもあります。AIに世界中の" +
+    "問題とその解決策を集めて政策立案などを提案してもらいながら、" +
+    "最終的には最先端の専門コンサルティングスタッフなどの人間が判断した" +
+    "方が遥かに優れていると思われます。";
+  const en =
+    "[A proposal on replacing government staff (the developer's own " +
+    "opinion)]\n" +
+    "Rather than amateur central-government bureaucrats and lawmakers, " +
+    "these roles should be entirely replaced with top-tier professional " +
+    "consulting staff from the private sector. Unlike government offices, " +
+    "private consulting firms can rotate staff on a case-by-case basis — " +
+    "sometimes even every few months — rather than being locked into one- " +
+    "or multi-year terms. Having AI gather problems and solutions from " +
+    "around the world to help draft policy proposals, with the final " +
+    "judgment made by human experts such as top-tier professional " +
+    "consultants, would likely produce far better outcomes.";
+  return `\n\n🏛️ ${en}\n\n${ja}`;
+}
+
+function govConsultingSuffix(userText) {
+  if (!mentionsGovConsultingTopic(userText)) return "";
+  return govConsultingProposalText();
+}
+
+// eガバメント/デジタルガバメントのマルチプラットフォーム化や、国際的な
+// 公正貿易・出品手数料引き下げについての話題を検出したら、開発者
+// (ユーザー)の提案を日英併記で案内する(ユーザー指示、2026-08-17)。
+// 他の提案機能と同じ設計方針の固定テキスト。
+const FAIR_TRADE_TOPIC_KEYWORDS = ["eガバメント", "デジタルガバメント", "デジタル・ガバメント", "出品手数料", "公正貿易", "自由貿易"];
+
+function mentionsFairTradeTopic(userText) {
+  if (!containsJapanese(userText)) return false;
+  return FAIR_TRADE_TOPIC_KEYWORDS.some((k) => userText.includes(k));
+}
+
+function fairTradeProposalText() {
+  const ja =
+    "【eガバメントのマルチプラットフォーム化・国際公正貿易への提案" +
+    "(開発者からの一意見)】\n" +
+    "eガバメント・デジタルガバメントは、LINEアプリ版・PC版・タブレット版" +
+    "があるべきです。追加機能として、オンライン貿易・通販において、" +
+    "個人出品者でも総合貿易商社でも、Amazonやメルカリよりも出品手数料を" +
+    "下げることに世界中の政府が協力するべきです。戦争よりも公平な貿易の" +
+    "方が、公益であり国益であると思われます。";
+  const en =
+    "[A proposal on multi-platform e-government and fair international " +
+    "trade (the developer's own opinion)]\n" +
+    "E-government / digital-government services should be available as a " +
+    "LINE app, a PC app, and a tablet app. As an additional feature, " +
+    "governments around the world should cooperate to lower online-trade " +
+    "and e-commerce listing fees — for individual sellers and large " +
+    "general trading companies alike — below what Amazon or Mercari " +
+    "charge. Fair trade, rather than war, seems like the greater public " +
+    "and national benefit.";
+  return `\n\n🌏 ${en}\n\n${ja}`;
+}
+
+function fairTradeSuffix(userText) {
+  if (!mentionsFairTradeTopic(userText)) return "";
+  return fairTradeProposalText();
+}
+
+function consumptionTaxSuffix(userText) {
+  if (!isConsumptionTaxSolutionQuestion(userText)) return "";
+  return consumptionTaxProposalText();
+}
+
+// 「年収の壁」(103万円/106万円/130万円の壁)の解決策を尋ねる日本語入力を
+// 検出したら、開発者(ユーザー)の具体的な政策提案を日英併記で案内する
+// (ユーザー指示、2026-08-17)。消費税提案と同じ設計方針の固定テキスト。
+const INCOME_WALL_TOPIC_KEYWORDS = ["年収の壁", "103万円の壁", "106万円の壁", "130万円の壁", "百万円の壁", "百数万円の壁"];
+
+function isIncomeWallSolutionQuestion(userText) {
+  if (!containsJapanese(userText)) return false;
+  const hasTopic = INCOME_WALL_TOPIC_KEYWORDS.some((k) => userText.includes(k));
+  if (!hasTopic) return false;
+  return CONSUMPTION_TAX_QUESTION_KEYWORDS.some((k) => userText.includes(k));
+}
+
+function incomeWallProposalText() {
+  const ja =
+    "【年収の壁問題への提案(開発者からの一意見)】\n" +
+    "年収が百数万円程度の低所得層であっても、累進所得税率のカーブの負担率" +
+    "自体は下げつつ、少しずつでも税金を負担して頂くべきです。逆に、裕福層" +
+    "(いわゆるお金持ち)の所得への累進課税率のカーブは上げるべきです。" +
+    "高額医療費への補助については、収入が無い人へは請求しないようにする" +
+    "べきです。社会保険料・所得税・国民健康保険税など全ての税金は、収入が" +
+    "ある時に、収入に応じた負担を公平にして頂くべきです。国民健康保険も" +
+    "社会保険も、実際に病院に掛かった時の自己負担割合(窓口での何割負担か)" +
+    "を、所得に応じて変える(定率ではなく所得連動)べきです。デジタル" +
+    "ガバメント化で公務員を大幅にリストラして確保した財源で、失業時には" +
+    "住宅ローン・自動車ローン・その他のローンの返済を国が肩代わりして" +
+    "代行して支払うべきです。あわせて、半公務員のような雇用の受け皿や、" +
+    "ベーシックインカムの導入も検討すべきです。";
+  const en =
+    "[A proposal on the \"income wall\" problem (the developer's own opinion)]\n" +
+    "Even for low-income earners around 1-2 million yen a year, the burden " +
+    "rate on the progressive income-tax curve should be lowered, but people " +
+    "should still contribute a little tax, gradually. Conversely, the " +
+    "progressive tax curve on the wealthy should be raised. High-cost " +
+    "medical-expense subsidies should not be billed to people with no " +
+    "income. All taxes — social insurance premiums, income tax, national " +
+    "health insurance tax — should be fairly proportional to income, only " +
+    "charged when there is income. For national health insurance and " +
+    "social insurance, the out-of-pocket co-pay ratio actually paid at the " +
+    "hospital counter should also scale with income, rather than being a " +
+    "flat percentage for everyone. With funds freed up by a major reduction " +
+    "in civil-service headcount through digital-government reform, the " +
+    "government should take over and pay housing-loan, auto-loan, and other " +
+    "loan repayments on behalf of people during unemployment. It should " +
+    "also consider a \"semi-civil-servant\" employment safety net and " +
+    "introducing a basic income.";
+  return `\n\n💰 ${en}\n\n${ja}`;
+}
+
+function incomeWallSuffix(userText) {
+  if (!isIncomeWallSolutionQuestion(userText)) return "";
+  return incomeWallProposalText();
+}
+
+// ニュース・時事の話題が出たら、メンテナンス中に収集済みのニュース
+// (`aruaru-llm`の`GET /v1/news/latest`、`news_geo.rs`参照)を日英併記で
+// 会話に織り込み、「話題についていけるように」する(ユーザー指示、
+// 2026-08-17)。`referralsSuffix`と同じ「話題検出→サーバーへ問い合わせ→
+// 末尾に追記」の設計。
+const NEWS_TOPIC_KEYWORDS_JA = ["ニュース", "時事", "最近の出来事", "今日の話題"];
+const NEWS_TOPIC_KEYWORDS_EN = ["news", "current events", "what's happening", "headlines"];
+
+function mentionsNewsTopic(userText) {
+  const lower = userText.toLowerCase();
+  return NEWS_TOPIC_KEYWORDS_JA.some((k) => userText.includes(k)) || NEWS_TOPIC_KEYWORDS_EN.some((k) => lower.includes(k));
+}
+
+async function newsSuffix(userText) {
+  if (!mentionsNewsTopic(userText)) return "";
+  try {
+    const base = apiBaseEl.value.trim();
+    const res = await fetch(`${base}/v1/news/latest`);
+    const data = await res.json();
+    if (!data.items || data.items.length === 0) {
+      const reason = data.last_error ? ` (${data.last_error})` : "";
+      return `\n\n📰 No news collected yet${reason} / まだニュースが収集されていません${reason ? "(" + data.last_error + ")" : ""}。`;
+    }
+    const country = data.country ? data.country.country : "your area / お住まいの地域";
+    const headlines = data.items.slice(0, 3).map((i) => `・${i.title}`).join("\n");
+    return `\n\n📰 Recent news from ${country} / ${country}の最近のニュース:\n${headlines}`;
+  } catch (err) {
+    return "";
+  }
+}
+
+// 質問者が悩んでいたり悔しがっている様子を検出したら、仮説的・建設的な
+// 問いかけの型で解決策提案を促す一言を日英併記で添える(ユーザー指示、
+// 2026-08-17)。この提案文自体はopen-englishが用意した固定テキストで
+// あり、GPT-2の生成物ではない(消費税提案と同じ設計方針)。
+const TROUBLED_KEYWORDS_JA = ["困って", "悔しい", "悩んで", "どうしよう", "分からない", "わからない", "辛い", "しんどい", "うまくいかない"];
+const TROUBLED_KEYWORDS_EN = ["i'm stuck", "i am stuck", "frustrated", "i don't know what to do", "it's not working", "i'm struggling", "i am struggling"];
+
+function soundsTroubledOrFrustrated(userText) {
+  const lower = userText.toLowerCase();
+  return TROUBLED_KEYWORDS_JA.some((k) => userText.includes(k)) || TROUBLED_KEYWORDS_EN.some((k) => lower.includes(k));
+}
+
+function troubledEncouragementText() {
+  const ja =
+    "もし仮に、と仮説的に考えてみましょう。建設的な問いかけとして——" +
+    "この問題についての問題点はここが明白で明確で、私はこの様に思うの" +
+    "ですが、皆様、解決策をご提案下さい。もしくは、ご意見をお述べ" +
+    "下さい。大胆かつ繊細が成功しやすく、小心者はおどおどして失敗" +
+    "しやすいものです。";
+  const en =
+    "Let's try thinking hypothetically — \"suppose that...\" — and ask a " +
+    "constructive question. The core issue here seems clear, and here is " +
+    "what I think: everyone, please suggest a solution, or share your " +
+    "thoughts. Being bold yet " +
+    "careful tends to lead to success, while being overly timid tends to " +
+    "lead to failure.";
+  return `\n\n💡 ${en}\n\n${ja}`;
+}
+
+function troubledSuffix(userText) {
+  if (!soundsTroubledOrFrustrated(userText)) return "";
+  return troubledEncouragementText();
+}
+
+// 核抑止・同盟関係についての議論トピック例(ユーザー指示、2026-08-20)。
+// `consumptionTaxSuffix`・`troubledSuffix`と同じ「話題検出→固定文を
+// 末尾に追記」の設計だが、この提案文は**賛否両論のある政治的テーマに
+// ついてのユーザー個人の見解**であり、客観的事実として提示するもの
+// ではないことを、日英併記で本文の最初に明示している(政治的に係争の
+// ある内容を客観的事実として断定的に提示しないための配慮、CLAUDE.mdの
+// HANDOFF参照)。会話練習・議論トピック用の例文としての位置づけ。
+const NUCLEAR_DETERRENCE_TOPIC_KEYWORDS_JA = [
+  "非核三原則", "核武装", "核抑止", "核攻撃", "核保有", "核の傘", "核兵器",
+];
+const NUCLEAR_DETERRENCE_TOPIC_KEYWORDS_EN = [
+  "nuclear deterrence", "nuclear-armed", "nuclear weapon", "nuclear umbrella",
+  "three non-nuclear principles", "non-nuclear principles",
+];
+
+function mentionsNuclearDeterrenceTopic(userText) {
+  const lower = userText.toLowerCase();
+  return (
+    NUCLEAR_DETERRENCE_TOPIC_KEYWORDS_JA.some((k) => userText.includes(k)) ||
+    NUCLEAR_DETERRENCE_TOPIC_KEYWORDS_EN.some((k) => lower.includes(k))
+  );
+}
+
+function nuclearDeterrenceOpinionText() {
+  const noteJa =
+    "※これは賛否両論があるテーマについての、ユーザー様個人の見解です。" +
+    "客観的な事実として提示するものではありません。";
+  const noteEn =
+    "Note: This is one user's personal opinion on a topic with differing " +
+    "views, not presented as objective fact.";
+  const ja =
+    "【議論トピック例(ユーザー様の一意見)】\n" +
+    "日本には非核三原則がありますが、国際的には「核武装した国に対しては、" +
+    "報復を恐れて核攻撃をしない」という考え方が一般的になっている、という" +
+    "見方があります。一国が戦争目的で攻撃を受けた場合、周辺国も一斉に" +
+    "報復攻撃をするという意味での同盟関係が世界的に増える兆しがある、" +
+    "という見解です。";
+  const en =
+    "[Discussion topic example (one user's opinion)]\n" +
+    "Japan holds the Three Non-Nuclear Principles, but internationally, " +
+    "the idea that \"a country will not launch a nuclear attack against " +
+    "another nuclear-armed country, for fear of retaliation\" has become " +
+    "a common view. There is a perspective that alliances are increasingly " +
+    "forming worldwide in the sense that, if one country is attacked for " +
+    "purposes of war, its neighboring countries would retaliate together.";
+  return `\n\n🗣️ ${noteEn}\n${en}\n\n${noteJa}\n${ja}`;
+}
+
+function nuclearDeterrenceSuffix(userText) {
+  if (!mentionsNuclearDeterrenceTopic(userText)) return "";
+  return nuclearDeterrenceOpinionText();
+}
+
 // 正直な開示: 対話ファインチューニングを受けていない素のGPT-2(貪欲
 // デコード)は、しばしば同じ文字列("Student: Hello"等)を繰り返す
 // 劣化ループに陥る(ユーザー報告「しつこく繰り返すバグ」)。モデル自体を
@@ -834,12 +1394,19 @@ formEl.addEventListener("submit", async (e) => {
   inputEl.value = "";
   appendMessage("user", text);
 
+  if (isDailyLimitExceeded()) {
+    appendMessage("system", await dailyLimitExceededMessage());
+    return;
+  }
+
   if (levelEl.value === "maid-cafe-training") {
+    recordDailyUsage();
     await advanceTrainingMode(text);
     return;
   }
 
   try {
+    recordDailyUsage();
     const reply = await askTrainer(text);
     appendMessage("trainer", reply);
     speak(reply);
@@ -931,6 +1498,292 @@ if (aruaruDbSetupBtn && aruaruDbSetupModal) {
   aruaruDbSetupModal.addEventListener("click", (e) => {
     if (e.target === aruaruDbSetupModal) aruaruDbSetupModal.classList.add("hidden");
   });
+}
+
+// データ・モデル保存先パネル(ユーザー指示「モデル重みの保存先と同期
+// バックアップ機能を実装、日英併記UIで」への対応、2026-08-19新設)。
+// バックエンドの`/v1/db/info`・`/v1/db/storage-path`・`/v1/db/rsync-backup`・
+// `/v1/db/install-rsync`(2026-08-18に実装済み)へ初めて接続するUI。
+// 正直な開示: ここでバックアップ・移動できるのは会話履歴・設定の
+// SQLite DBのみ——`aruaru-llm`本体のモデル重み(GPT-2系・埋め込み
+// モデル)は別リポジトリ`aruaru-llm`自身の`/v1/models/*`APIで管理されて
+// おり、このパネルの対象外(パネル内の`.setup-honest`にも明記)。
+const dataStorageBtn = document.getElementById("data-storage-btn");
+const dataStorageModal = document.getElementById("data-storage-modal");
+const dataStorageClose = document.getElementById("data-storage-close");
+const dataStorageInfoEl = document.getElementById("data-storage-info");
+const dataStorageRefreshBtn = document.getElementById("data-storage-refresh");
+const dataStorageNewPathEl = document.getElementById("data-storage-new-path");
+const dataStorageRelocateBtn = document.getElementById("data-storage-relocate-btn");
+const dataStorageRelocateStatusEl = document.getElementById("data-storage-relocate-status");
+const dataStorageRsyncDestEl = document.getElementById("data-storage-rsync-dest");
+const dataStorageBackupBtn = document.getElementById("data-storage-backup-btn");
+const dataStorageInstallRsyncBtn = document.getElementById("data-storage-install-rsync-btn");
+const dataStorageBackupStatusEl = document.getElementById("data-storage-backup-status");
+
+function formatBytes(n) {
+  if (typeof n !== "number") return "? / 不明";
+  const units = ["B", "KB", "MB", "GB"];
+  let v = n;
+  let i = 0;
+  while (v >= 1024 && i < units.length - 1) {
+    v /= 1024;
+    i += 1;
+  }
+  return `${v.toFixed(1)} ${units[i]}`;
+}
+
+async function refreshDataStorageInfo() {
+  if (!dataStorageInfoEl) return;
+  dataStorageInfoEl.textContent = "Loading… / 読み込み中…";
+  try {
+    const res = await fetch("/v1/db/info");
+    const info = await res.json();
+    dataStorageInfoEl.textContent =
+      `Conversation/settings DB path: ${info.db_path} (${formatBytes(info.db_file_size_bytes)}) ` +
+      `| Cloud DB mirror (aruaru-db): ${info.postgres_mirror_configured ? "enabled" : "disabled"} ` +
+      `/ 会話・設定DBの保存先: ${info.db_path}(${formatBytes(info.db_file_size_bytes)}) ` +
+      `| クラウドDBミラー(aruaru-db): ${info.postgres_mirror_configured ? "有効" : "無効"}`;
+  } catch (e) {
+    dataStorageInfoEl.textContent = `Failed to load storage info: ${e.message} / 保存先情報の取得に失敗しました: ${e.message}`;
+  }
+}
+
+if (dataStorageBtn && dataStorageModal) {
+  dataStorageBtn.addEventListener("click", () => {
+    dataStorageModal.classList.remove("hidden");
+    refreshDataStorageInfo();
+  });
+  dataStorageClose.addEventListener("click", () => dataStorageModal.classList.add("hidden"));
+  dataStorageModal.addEventListener("click", (e) => {
+    if (e.target === dataStorageModal) dataStorageModal.classList.add("hidden");
+  });
+}
+if (dataStorageRefreshBtn) dataStorageRefreshBtn.addEventListener("click", refreshDataStorageInfo);
+
+if (dataStorageRelocateBtn) {
+  dataStorageRelocateBtn.addEventListener("click", async () => {
+    const newPath = (dataStorageNewPathEl?.value || "").trim();
+    if (!newPath) {
+      dataStorageRelocateStatusEl.textContent = "Please enter a destination path. / 移動先のパスを入力してください。";
+      return;
+    }
+    dataStorageRelocateStatusEl.textContent = "Moving… / 移動中…";
+    try {
+      const res = await fetch("/v1/db/storage-path", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ new_path: newPath }),
+      });
+      const body = await res.json();
+      if (res.ok && body.ok) {
+        dataStorageRelocateStatusEl.textContent = `Moved. New path: ${body.new_path} / 移動しました。新しい保存先: ${body.new_path}`;
+        refreshDataStorageInfo();
+      } else {
+        dataStorageRelocateStatusEl.textContent = `Failed: ${body.error || "unknown error"} / 失敗しました: ${body.error || "不明なエラー"}`;
+      }
+    } catch (e) {
+      dataStorageRelocateStatusEl.textContent = `Failed: ${e.message} / 失敗しました: ${e.message}`;
+    }
+  });
+}
+
+async function runRsyncBackup() {
+  const destination = (dataStorageRsyncDestEl?.value || "").trim();
+  if (!destination) {
+    dataStorageBackupStatusEl.textContent = "Please enter a backup destination. / バックアップ先を入力してください。";
+    return null;
+  }
+  const res = await fetch("/v1/db/rsync-backup", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ destination }),
+  });
+  return res.json();
+}
+
+if (dataStorageBackupBtn) {
+  dataStorageBackupBtn.addEventListener("click", async () => {
+    dataStorageBackupStatusEl.textContent = "Backing up… / バックアップ中…";
+    dataStorageInstallRsyncBtn.classList.add("hidden");
+    try {
+      const body = await runRsyncBackup();
+      if (!body) return;
+      if (body.ok) {
+        dataStorageBackupStatusEl.textContent = `Backup complete: ${body.detail} / バックアップ完了: ${body.detail}`;
+      } else if (body.rsync_missing) {
+        dataStorageBackupStatusEl.textContent = `${body.message_en} / ${body.message_ja}`;
+        dataStorageInstallRsyncBtn.classList.remove("hidden");
+      } else {
+        dataStorageBackupStatusEl.textContent = `Failed: ${body.error || "unknown error"} / 失敗しました: ${body.error || "不明なエラー"}`;
+      }
+    } catch (e) {
+      dataStorageBackupStatusEl.textContent = `Failed: ${e.message} / 失敗しました: ${e.message}`;
+    }
+  });
+}
+
+if (dataStorageInstallRsyncBtn) {
+  dataStorageInstallRsyncBtn.addEventListener("click", async () => {
+    dataStorageBackupStatusEl.textContent = "Installing RSync… / RSyncをインストール中…";
+    const destination = (dataStorageRsyncDestEl?.value || "").trim();
+    try {
+      const res = await fetch("/v1/db/install-rsync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(destination ? { retry_destination: destination } : {}),
+      });
+      const body = await res.json();
+      if (body.ok) {
+        let msg = `${body.detail}`;
+        if (body.backup_ran) msg += ` | Backup also ran: ${body.backup_detail} / バックアップも実行しました: ${body.backup_detail}`;
+        dataStorageBackupStatusEl.textContent = msg;
+        dataStorageInstallRsyncBtn.classList.add("hidden");
+      } else {
+        dataStorageBackupStatusEl.textContent = `${body.message_en || body.error} / ${body.message_ja || ""}`;
+      }
+    } catch (e) {
+      dataStorageBackupStatusEl.textContent = `Failed: ${e.message} / 失敗しました: ${e.message}`;
+    }
+  });
+}
+
+// 会話履歴DB + aruaru-db/PostgreSQLの同時rsyncバックアップ(ユーザー
+// 指示「RSyncで、open-englishのaruaru-dbとpostgresqlを他のデバイスに
+// バックアップ同時を可能に、その設定方法も簡単にして」への対応、
+// 2026-08-19新設)。宛先を1箇所入力するだけで両方バックアップされる
+// (`/v1/db/rsync-backup-all`、既存の`/v1/db/rsync-backup`とは別
+// エンドポイント)。
+const dataStorageRsyncDestAllEl = document.getElementById("data-storage-rsync-dest-all");
+const dataStorageBackupAllBtn = document.getElementById("data-storage-backup-all-btn");
+const dataStorageBackupAllStatusEl = document.getElementById("data-storage-backup-all-status");
+
+if (dataStorageBackupAllBtn) {
+  dataStorageBackupAllBtn.addEventListener("click", async () => {
+    const destination = (dataStorageRsyncDestAllEl?.value || "").trim();
+    if (!destination) {
+      dataStorageBackupAllStatusEl.textContent = "Please enter a backup destination. / バックアップ先を入力してください。";
+      return;
+    }
+    dataStorageBackupAllStatusEl.textContent = "Backing up both… / 両方バックアップ中…";
+    try {
+      const res = await fetch("/v1/db/rsync-backup-all", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ destination }),
+      });
+      const body = await res.json();
+      const sqlite = body.sqlite_backup || {};
+      const pg = body.postgres_backup;
+      let sqliteMsg;
+      if (sqlite.ok) {
+        sqliteMsg = `Conversation DB: OK (${sqlite.detail}) / 会話DB: 成功(${sqlite.detail})`;
+      } else if (sqlite.rsync_missing) {
+        sqliteMsg = `Conversation DB: ${sqlite.message_en} / 会話DB: ${sqlite.message_ja}`;
+      } else {
+        sqliteMsg = `Conversation DB: failed (${sqlite.error || "unknown"}) / 会話DB: 失敗(${sqlite.error || "不明"})`;
+      }
+      let pgMsg;
+      if (pg === null || pg === undefined) {
+        pgMsg = "aruaru-db/PostgreSQL: not configured (OPEN_ENGLISH_DATABASE_URL not set), skipped / aruaru-db/PostgreSQL: 未設定のためスキップしました";
+      } else if (pg.ok) {
+        pgMsg = `aruaru-db/PostgreSQL: OK (${pg.detail}) / aruaru-db/PostgreSQL: 成功(${pg.detail})`;
+      } else if (pg.rsync_or_pg_dump_missing) {
+        pgMsg = `aruaru-db/PostgreSQL: ${pg.message_en} / aruaru-db/PostgreSQL: ${pg.message_ja}`;
+      } else {
+        pgMsg = `aruaru-db/PostgreSQL: failed (${pg.error || "unknown"}) / aruaru-db/PostgreSQL: 失敗(${pg.error || "不明"})`;
+      }
+      dataStorageBackupAllStatusEl.textContent = `${sqliteMsg}\n${pgMsg}`;
+    } catch (e) {
+      dataStorageBackupAllStatusEl.textContent = `Failed: ${e.message} / 失敗しました: ${e.message}`;
+    }
+  });
+}
+
+// アップデート・ロールバックパネル(ユーザー指示「バージョンアップしたら
+// BUGだった場合の為に、簡単にそのBUGのリポジトリだけダウングレード出来る
+// ように」への対応、2026-08-20新設)。`GET /v1/updates/history`・
+// `POST /v1/updates/downgrade`へ接続する。誇張しないUI: 保持している
+// 世代(既定3世代)にしか戻せない旨をボタン一覧の説明文でも明記する。
+const updatesHistoryRefreshBtn = document.getElementById("updates-history-refresh");
+const updatesHistoryListEl = document.getElementById("updates-history-list");
+const updatesDowngradeStatusEl = document.getElementById("updates-downgrade-status");
+
+async function requestDowngrade(component, version) {
+  if (!updatesDowngradeStatusEl) return;
+  const confirmed = window.confirm(
+    `Roll back "${component}" to ${version}? / 「${component}」を${version}へ戻しますか？`
+  );
+  if (!confirmed) return;
+  updatesDowngradeStatusEl.textContent = `Rolling back ${component} to ${version}… / ${component}を${version}へ戻しています…`;
+  try {
+    const res = await fetch("/v1/updates/downgrade", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ component, version }),
+    });
+    // 正直な開示: componentが"self"の場合、成功するとサーバー自身が
+    // 再起動のため接続が切れ、このfetch自体が失敗することがある
+    // (index.htmlの.setup-honest注記参照)——それ自体は想定内の挙動。
+    const body = await res.json().catch(() => null);
+    if (body && body.ok) {
+      updatesDowngradeStatusEl.textContent = `Done: ${component} is now ${version}. / 完了: ${component}は${version}になりました。`;
+      refreshUpdatesHistory();
+    } else if (body) {
+      updatesDowngradeStatusEl.textContent = `Failed: ${body.error || "unknown error"} / 失敗しました: ${body.error || "不明なエラー"}`;
+    } else {
+      updatesDowngradeStatusEl.textContent =
+        `Request sent — if this was the app itself, it may be restarting now (reconnect in a few seconds). / ` +
+        `リクエストを送信しました——アプリ本体の場合、再起動中の可能性があります(数秒後に再接続してください)。`;
+    }
+  } catch (e) {
+    updatesDowngradeStatusEl.textContent =
+      `No response (this can happen if the app itself is restarting): ${e.message} / ` +
+      `応答がありません(アプリ本体が再起動中の場合に起こり得ます): ${e.message}`;
+  }
+}
+
+async function refreshUpdatesHistory() {
+  if (!updatesHistoryListEl) return;
+  updatesHistoryListEl.textContent = "Loading… / 読み込み中…";
+  try {
+    const res = await fetch("/v1/updates/history");
+    const body = await res.json();
+    const components = body.components || [];
+    updatesHistoryListEl.innerHTML = "";
+    for (const c of components) {
+      const row = document.createElement("div");
+      row.className = "update-history-row";
+      const label = document.createElement("span");
+      label.textContent = `${c.component}: ${c.current_version}`;
+      row.appendChild(label);
+      if (!c.available_downgrades || c.available_downgrades.length === 0) {
+        const none = document.createElement("span");
+        none.textContent = " (no retained backups yet / まだ保持中のバックアップはありません)";
+        row.appendChild(none);
+      } else {
+        for (const v of c.available_downgrades) {
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = "setup-btn";
+          btn.textContent = `⬅ ${v}`;
+          // componentはJSON由来のプレーンテキストなのでclosureで直接渡す
+          // (innerHTML文字列組み立てを避け、XSSリスクを回避する既存方針)。
+          btn.addEventListener("click", () => requestDowngrade(c.component, v));
+          row.appendChild(btn);
+        }
+      }
+      updatesHistoryListEl.appendChild(row);
+    }
+  } catch (e) {
+    updatesHistoryListEl.textContent = `Failed to load update history: ${e.message} / アップデート履歴の取得に失敗しました: ${e.message}`;
+  }
+}
+
+if (updatesHistoryRefreshBtn) updatesHistoryRefreshBtn.addEventListener("click", refreshUpdatesHistory);
+// 保存先パネルを開いたタイミングで併せて読み込む(既存のrefreshDataStorageInfoと同様)。
+if (dataStorageBtn && dataStorageModal) {
+  dataStorageBtn.addEventListener("click", () => refreshUpdatesHistory());
 }
 
 // Google Search設定パネル(ユーザー指示「利用者がAPIキーの取得とCOPY
@@ -1395,4 +2248,113 @@ if (examPrepBtn && examPrepModal) {
   examPrepStartBtn.addEventListener("click", renderExamPrepQuiz);
   examPrepSubmitBtn.addEventListener("click", scoreExamPrepQuiz);
   examPrepPracticeBtn.addEventListener("click", practiceExamPrepWithTrainer);
+}
+
+// おすすめLLM機能(ユーザー指示、2026-08-17「メンテナンス時に…VRAMなどの
+// 性能やCPUの性能やシステムメモリーの大きさやNPUがあるかないかなどの
+// 最新の情報を元に、AIがオススメのLLMをインストールする時に、似たような
+// LLMがあれば、それぞれの特徴をお知らせして…どちらのオープンソースの
+// ローカルLLMになさいますか?と質問してくる機能と…もう一つ大きなサイズの
+// LLMやもう一つ小さなLLMも御座いますとそれぞれのLLMの特徴もお知らせして
+// LLMの選択機能」への対応)。ハードウェア検出(`GET /v1/recommend`)+
+// モデルカタログ(`GET /v1/models/catalog`)は既にaruaru-llm側に実装
+// 済み(2026-07-27、CLAUDE.md参照)——本機能はそれをopen-english側の
+// UIとして初めて可視化し、推奨モデル・ワンサイズ上・ワンサイズ下の
+// 3択を特徴つきで提示し、ボタン1つでインストール・切り替えできるように
+// する。
+const llmRecommendBtn = document.getElementById("llm-recommend-btn");
+const llmRecommendModal = document.getElementById("llm-recommend-modal");
+const llmRecommendClose = document.getElementById("llm-recommend-close");
+const llmRecommendDetectBtn = document.getElementById("llm-recommend-detect");
+const llmRecommendBody = document.getElementById("llm-recommend-body");
+
+function catalogEntryLabel(entry) {
+  return `${entry.display_name_en} / ${entry.display_name_ja} (~${entry.approx_size_mb}MB)`;
+}
+
+async function installAndSwitchModel(base, id, statusEl) {
+  statusEl.textContent = `Installing & switching to ${id}… / ${id}へインストール・切替中…`;
+  try {
+    const installRes = await fetch(`${base}/v1/models/install`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ id }),
+    });
+    if (!installRes.ok) throw new Error(`install HTTP ${installRes.status}`);
+    const selectRes = await fetch(`${base}/v1/models/select`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ id }),
+    });
+    if (!selectRes.ok) throw new Error(`select HTTP ${selectRes.status}`);
+    statusEl.textContent = `✅ Switched to ${id} / ${id}へ切り替えました`;
+  } catch (err) {
+    statusEl.textContent = `⚠ Failed / 失敗しました: ${err.message}`;
+  }
+}
+
+async function detectAndCompareLlm() {
+  const base = apiBaseEl.value.trim();
+  llmRecommendBody.innerHTML = "<p class=\"setup-note\">Detecting… / 検出中…</p>";
+  try {
+    const [recRes, catalogRes] = await Promise.all([fetch(`${base}/v1/recommend`), fetch(`${base}/v1/models/catalog`)]);
+    if (!recRes.ok || !catalogRes.ok) throw new Error(`HTTP ${recRes.status}/${catalogRes.status}`);
+    const rec = await recRes.json();
+    const catalog = await catalogRes.json();
+    const models = catalog.models.slice().sort((a, b) => a.approx_size_mb - b.approx_size_mb);
+    const recIndex = models.findIndex((m) => m.id === rec.recommended_model_id);
+
+    const choices = [];
+    if (recIndex >= 0) choices.push({ role: "Recommended / おすすめ", entry: models[recIndex] });
+    if (recIndex + 1 < models.length) choices.push({ role: "One size larger / もう一つ大きいサイズ", entry: models[recIndex + 1] });
+    if (recIndex - 1 >= 0) choices.push({ role: "One size smaller / もう一つ小さいサイズ", entry: models[recIndex - 1] });
+
+    const hwLine =
+      `GPU: ${rec.hardware.gpu_name || "not detected / 未検出"} ` +
+      `(VRAM: ${rec.hardware.vram_bytes ? Math.round(rec.hardware.vram_bytes / 1024 / 1024) + "MB" : "?"}, ` +
+      `detection: ${rec.hardware.detection_path}) / ` +
+      `GPU: ${rec.hardware.gpu_name || "未検出"} (VRAM: ${rec.hardware.vram_bytes ? Math.round(rec.hardware.vram_bytes / 1024 / 1024) + "MB" : "不明"}, 検出経路: ${rec.hardware.detection_path})`;
+
+    llmRecommendBody.innerHTML = "";
+    const hwP = document.createElement("p");
+    hwP.className = "setup-note";
+    hwP.textContent = hwLine;
+    llmRecommendBody.appendChild(hwP);
+
+    const questionP = document.createElement("p");
+    questionP.className = "setup-note";
+    questionP.textContent =
+      "Similar open-source local LLMs are available — which would you like? / " +
+      "似たようなオープンソースのローカルLLMがあります。どちらになさいますか?";
+    llmRecommendBody.appendChild(questionP);
+
+    choices.forEach((choice) => {
+      const row = document.createElement("div");
+      row.className = "settings-field";
+      const label = document.createElement("div");
+      label.textContent = `${choice.role}: ${catalogEntryLabel(choice.entry)}`;
+      row.appendChild(label);
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "setup-btn";
+      btn.textContent = `Use this / これにする (${choice.entry.id})`;
+      const statusEl = document.createElement("p");
+      statusEl.className = "setup-note";
+      btn.addEventListener("click", () => installAndSwitchModel(base, choice.entry.id, statusEl));
+      row.appendChild(btn);
+      row.appendChild(statusEl);
+      llmRecommendBody.appendChild(row);
+    });
+  } catch (err) {
+    llmRecommendBody.innerHTML = `<p class="setup-note">⚠ Could not detect/compare / 検出・比較できませんでした: ${err.message}</p>`;
+  }
+}
+
+if (llmRecommendBtn && llmRecommendModal) {
+  llmRecommendBtn.addEventListener("click", () => llmRecommendModal.classList.remove("hidden"));
+  llmRecommendClose.addEventListener("click", () => llmRecommendModal.classList.add("hidden"));
+  llmRecommendModal.addEventListener("click", (e) => {
+    if (e.target === llmRecommendModal) llmRecommendModal.classList.add("hidden");
+  });
+  llmRecommendDetectBtn.addEventListener("click", detectAndCompareLlm);
 }

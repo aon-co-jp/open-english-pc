@@ -796,6 +796,7 @@ async function advanceTrainingMode(userText) {
   reply += fairTradeSuffix(userText);
   reply += await newsSuffix(userText);
   reply += troubledSuffix(userText);
+  reply += nuclearDeterrenceSuffix(userText);
   appendMessage("trainer", reply);
   speakBilingual(reply);
   trainingStepIndex = Math.min(trainingStepIndex + 1, trainingSteps.length - 1);
@@ -952,6 +953,7 @@ async function askTrainer(userText) {
   reply += fairTradeSuffix(userText);
   reply += await newsSuffix(userText);
   reply += troubledSuffix(userText);
+  reply += nuclearDeterrenceSuffix(userText);
   return reply;
 }
 
@@ -1311,6 +1313,59 @@ function troubledEncouragementText() {
 function troubledSuffix(userText) {
   if (!soundsTroubledOrFrustrated(userText)) return "";
   return troubledEncouragementText();
+}
+
+// 核抑止・同盟関係についての議論トピック例(ユーザー指示、2026-08-20)。
+// `consumptionTaxSuffix`・`troubledSuffix`と同じ「話題検出→固定文を
+// 末尾に追記」の設計だが、この提案文は**賛否両論のある政治的テーマに
+// ついてのユーザー個人の見解**であり、客観的事実として提示するもの
+// ではないことを、日英併記で本文の最初に明示している(政治的に係争の
+// ある内容を客観的事実として断定的に提示しないための配慮、CLAUDE.mdの
+// HANDOFF参照)。会話練習・議論トピック用の例文としての位置づけ。
+const NUCLEAR_DETERRENCE_TOPIC_KEYWORDS_JA = [
+  "非核三原則", "核武装", "核抑止", "核攻撃", "核保有", "核の傘", "核兵器",
+];
+const NUCLEAR_DETERRENCE_TOPIC_KEYWORDS_EN = [
+  "nuclear deterrence", "nuclear-armed", "nuclear weapon", "nuclear umbrella",
+  "three non-nuclear principles", "non-nuclear principles",
+];
+
+function mentionsNuclearDeterrenceTopic(userText) {
+  const lower = userText.toLowerCase();
+  return (
+    NUCLEAR_DETERRENCE_TOPIC_KEYWORDS_JA.some((k) => userText.includes(k)) ||
+    NUCLEAR_DETERRENCE_TOPIC_KEYWORDS_EN.some((k) => lower.includes(k))
+  );
+}
+
+function nuclearDeterrenceOpinionText() {
+  const noteJa =
+    "※これは賛否両論があるテーマについての、ユーザー様個人の見解です。" +
+    "客観的な事実として提示するものではありません。";
+  const noteEn =
+    "Note: This is one user's personal opinion on a topic with differing " +
+    "views, not presented as objective fact.";
+  const ja =
+    "【議論トピック例(ユーザー様の一意見)】\n" +
+    "日本には非核三原則がありますが、国際的には「核武装した国に対しては、" +
+    "報復を恐れて核攻撃をしない」という考え方が一般的になっている、という" +
+    "見方があります。一国が戦争目的で攻撃を受けた場合、周辺国も一斉に" +
+    "報復攻撃をするという意味での同盟関係が世界的に増える兆しがある、" +
+    "という見解です。";
+  const en =
+    "[Discussion topic example (one user's opinion)]\n" +
+    "Japan holds the Three Non-Nuclear Principles, but internationally, " +
+    "the idea that \"a country will not launch a nuclear attack against " +
+    "another nuclear-armed country, for fear of retaliation\" has become " +
+    "a common view. There is a perspective that alliances are increasingly " +
+    "forming worldwide in the sense that, if one country is attacked for " +
+    "purposes of war, its neighboring countries would retaliate together.";
+  return `\n\n🗣️ ${noteEn}\n${en}\n\n${noteJa}\n${ja}`;
+}
+
+function nuclearDeterrenceSuffix(userText) {
+  if (!mentionsNuclearDeterrenceTopic(userText)) return "";
+  return nuclearDeterrenceOpinionText();
 }
 
 // 正直な開示: 対話ファインチューニングを受けていない素のGPT-2(貪欲
