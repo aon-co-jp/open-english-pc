@@ -11,7 +11,10 @@ import android.widget.Button
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -67,6 +70,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var restoreModelsBtn: Button
     private lateinit var backupModelsStatus: TextView
     private lateinit var phoneAccelPcUrl: android.widget.EditText
+    private lateinit var phoneAccelAutodetectBtn: Button
     private lateinit var phoneAccelToggleBtn: Button
     private lateinit var phoneAccelStatus: TextView
     private var phoneAccelWorker: PhoneAccelWorker? = null
@@ -115,6 +119,7 @@ class MainActivity : AppCompatActivity() {
         restoreModelsBtn = findViewById(R.id.restore_models_btn)
         backupModelsStatus = findViewById(R.id.backup_models_status)
         phoneAccelPcUrl = findViewById(R.id.phone_accel_pc_url)
+        phoneAccelAutodetectBtn = findViewById(R.id.phone_accel_autodetect_btn)
         phoneAccelToggleBtn = findViewById(R.id.phone_accel_toggle_btn)
         phoneAccelStatus = findViewById(R.id.phone_accel_status)
 
@@ -128,6 +133,7 @@ class MainActivity : AppCompatActivity() {
         backupModelsBtn.setOnClickListener { backupModelsToExternalStorage() }
         restoreModelsBtn.setOnClickListener { restoreModelsFromExternalStorage() }
         phoneAccelToggleBtn.setOnClickListener { togglePhoneAccelWorker() }
+        phoneAccelAutodetectBtn.setOnClickListener { autoDetectPcUrl() }
 
         checkForAppUpdate()
         startEmbeddedServerAndLoad()
@@ -438,6 +444,120 @@ class MainActivity : AppCompatActivity() {
         serverProcess?.destroy()
         aruaruLlmProcess?.destroy()
         phoneAccelWorker?.stop()
+    }
+
+    /**
+     * PC側URLの自動検出(2026-08-20新設、ユーザー要望「使わなくなった
+     * スマホもフル動員」欄へのPC URL手入力を不要にする)。
+     *
+     * ## 方式の選択理由(正直な開示)
+     * UDPブロードキャスト方式(PC側`aruaru-llm`にリスナー追加が必要)・
+     * NSD/mDNS方式(PC側にアナウンス実装が必要、実装コストが高い)・
+     * サブネット内スキャン方式(PC側の変更が一切不要、実装が最も単純)
+     * の3案を検討し、**サブネット内スキャン方式**を採用した。理由:
+     * (1) PC側`aruaru-llm`(`src/main.rs`)に変更を加えずに済む——
+     * 既存の`GET /healthz`エンドポイントをそのまま使い回せる、
+     * (2) 実装がAndroid単体で完結し検証もしやすい、(3) 家庭内LAN・
+     * テザリングいずれも通常`/24`サブネットのため現実的な範囲
+     * (254ホスト)で全数探索できる。欠点(正直な開示): 254ホストへの
+     * 順次/並列アクセスのため数秒かかる、ゲストWi-Fi等クライアント
+     * 分離が有効なネットワークでは原理的に到達不能(過去のHANDOFF
+     * `2026-08-10(続き5)`で実際に遭遇した制約と同種)——その場合は
+     * 見つからない旨を正直に表示し、既存の手動URL入力欄を引き続き使える
+     * ようにしている(完全自動が失敗するケースへのフォールバック)。
+     */
+    private fun autoDetectPcUrl() {
+        phoneAccelAutodetectBtn.isEnabled = false
+        phoneAccelStatus.visibility = View.VISIBLE
+        phoneAccelStatus.text = "同一ネットワーク内を検索中… / Scanning local network…"
+        CoroutineScope(Dispatchers.Main).launch {
+            val found = withContext(Dispatchers.IO) { scanSubnetForAruaruLlm() }
+            phoneAccelAutodetectBtn.isEnabled = true
+            if (found != null) {
+                phoneAccelPcUrl.setText(found)
+                phoneAccelStatus.text =
+                    "見つかりました: $found / Found: $found"
+            } else {
+                phoneAccelStatus.text =
+                    "同一ネットワーク内でaruaru-llmを自動検出できませんでした" +
+                    "(ゲストWi-Fi等のクライアント分離が有効な場合や、別ネットワークに" +
+                    "いる場合は原理的に検出できません)。下の欄へ手動で入力してください。 / " +
+                    "Could not auto-detect aruaru-llm on this network (impossible by design on " +
+                    "guest Wi-Fi with client isolation, or if the PC is on a different network). " +
+                    "Please enter the URL manually below."
+            }
+        }
+    }
+
+    /** 自端末のIPv4アドレスから`/24`サブネットを推定し、各候補ホストの
+     * `/healthz`へ短いタイムアウトで並列アクセスして探す。 */
+    private suspend fun scanSubnetForAruaruLlm(): String? = withContext(Dispatchers.IO) {
+        val localIp = getLocalIpv4Address() ?: return@withContext null
+        val parts = localIp.split(".")
+        if (parts.size != 4) return@withContext null
+        val prefix = "${parts[0]}.${parts[1]}.${parts[2]}."
+        val candidatePorts = listOf(4600)
+        coroutineScope {
+            // 254ホスト×1ポートを適度な並列度で総当たり。自端末自身
+            // (127.0.0.1相当)も候補に含めて良い(adb forward等の経路)。
+            val jobs: List<Deferred<String?>> = (1..254).map { host ->
+                async(Dispatchers.IO) {
+                    var result: String? = null
+                    for (port in candidatePorts) {
+                        val candidate = "http://$prefix$host:$port"
+                        if (probeHealthz(candidate)) {
+                            result = candidate
+                            break
+                        }
+                    }
+                    result
+                }
+            }
+            // 自身のループバックも試す(adb forward等でPCと同じ127.0.0.1が
+            // 到達可能なケース)。
+            val loopback = async(Dispatchers.IO) {
+                if (probeHealthz("http://127.0.0.1:4600")) "http://127.0.0.1:4600" else null
+            }
+            val found = (jobs + loopback).firstNotNullOfOrNull { it.await() }
+            // 残りの探索は結果に関わらず全て待ってからスコープを抜ける
+            // (firstNotNullOfOrNullは全awaitを待つため、明示的なcancel
+            // は不要——余分な待ち時間はあるが実装をシンプルに保つ)。
+            found
+        }
+    }
+
+    private fun probeHealthz(baseUrl: String): Boolean {
+        return try {
+            val conn = URL("$baseUrl/healthz").openConnection() as HttpURLConnection
+            conn.requestMethod = "GET"
+            conn.connectTimeout = 400
+            conn.readTimeout = 400
+            val ok = conn.responseCode == 200
+            conn.disconnect()
+            ok
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    /** WifiManagerからIPv4アドレスを取得する(端末がWi-Fi接続中の想定、
+     * 未接続時はnullを返し呼び出し元が正直に「検出不可」を表示する)。 */
+    private fun getLocalIpv4Address(): String? {
+        return try {
+            val wifiManager = applicationContext.getSystemService(android.content.Context.WIFI_SERVICE)
+                as android.net.wifi.WifiManager
+            val ipInt = wifiManager.connectionInfo.ipAddress
+            if (ipInt == 0) return null
+            String.format(
+                "%d.%d.%d.%d",
+                ipInt and 0xff,
+                ipInt shr 8 and 0xff,
+                ipInt shr 16 and 0xff,
+                ipInt shr 24 and 0xff,
+            )
+        } catch (e: Exception) {
+            null
+        }
     }
 
     /**

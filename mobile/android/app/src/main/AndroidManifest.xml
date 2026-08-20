@@ -2,6 +2,10 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- 2026-08-20追加: PC URL自動検出(サブネットスキャン方式)で
+         自端末のWi-Fi IPアドレスを取得するため(WifiManager、通常権限
+         のため実行時プロンプト不要)。 -->
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <!--
       REQUEST_INSTALL_PACKAGES: 2026-08-17追加(ユーザー指示「Android
       自動アップデートを進めて」)。Play Store配布ではないため完全に
