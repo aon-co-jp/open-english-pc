@@ -1645,6 +1645,92 @@ if (dataStorageBackupAllBtn) {
   });
 }
 
+// アップデート・ロールバックパネル(ユーザー指示「バージョンアップしたら
+// BUGだった場合の為に、簡単にそのBUGのリポジトリだけダウングレード出来る
+// ように」への対応、2026-08-20新設)。`GET /v1/updates/history`・
+// `POST /v1/updates/downgrade`へ接続する。誇張しないUI: 保持している
+// 世代(既定3世代)にしか戻せない旨をボタン一覧の説明文でも明記する。
+const updatesHistoryRefreshBtn = document.getElementById("updates-history-refresh");
+const updatesHistoryListEl = document.getElementById("updates-history-list");
+const updatesDowngradeStatusEl = document.getElementById("updates-downgrade-status");
+
+async function requestDowngrade(component, version) {
+  if (!updatesDowngradeStatusEl) return;
+  const confirmed = window.confirm(
+    `Roll back "${component}" to ${version}? / 「${component}」を${version}へ戻しますか？`
+  );
+  if (!confirmed) return;
+  updatesDowngradeStatusEl.textContent = `Rolling back ${component} to ${version}… / ${component}を${version}へ戻しています…`;
+  try {
+    const res = await fetch("/v1/updates/downgrade", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ component, version }),
+    });
+    // 正直な開示: componentが"self"の場合、成功するとサーバー自身が
+    // 再起動のため接続が切れ、このfetch自体が失敗することがある
+    // (index.htmlの.setup-honest注記参照)——それ自体は想定内の挙動。
+    const body = await res.json().catch(() => null);
+    if (body && body.ok) {
+      updatesDowngradeStatusEl.textContent = `Done: ${component} is now ${version}. / 完了: ${component}は${version}になりました。`;
+      refreshUpdatesHistory();
+    } else if (body) {
+      updatesDowngradeStatusEl.textContent = `Failed: ${body.error || "unknown error"} / 失敗しました: ${body.error || "不明なエラー"}`;
+    } else {
+      updatesDowngradeStatusEl.textContent =
+        `Request sent — if this was the app itself, it may be restarting now (reconnect in a few seconds). / ` +
+        `リクエストを送信しました——アプリ本体の場合、再起動中の可能性があります(数秒後に再接続してください)。`;
+    }
+  } catch (e) {
+    updatesDowngradeStatusEl.textContent =
+      `No response (this can happen if the app itself is restarting): ${e.message} / ` +
+      `応答がありません(アプリ本体が再起動中の場合に起こり得ます): ${e.message}`;
+  }
+}
+
+async function refreshUpdatesHistory() {
+  if (!updatesHistoryListEl) return;
+  updatesHistoryListEl.textContent = "Loading… / 読み込み中…";
+  try {
+    const res = await fetch("/v1/updates/history");
+    const body = await res.json();
+    const components = body.components || [];
+    updatesHistoryListEl.innerHTML = "";
+    for (const c of components) {
+      const row = document.createElement("div");
+      row.className = "update-history-row";
+      const label = document.createElement("span");
+      label.textContent = `${c.component}: ${c.current_version}`;
+      row.appendChild(label);
+      if (!c.available_downgrades || c.available_downgrades.length === 0) {
+        const none = document.createElement("span");
+        none.textContent = " (no retained backups yet / まだ保持中のバックアップはありません)";
+        row.appendChild(none);
+      } else {
+        for (const v of c.available_downgrades) {
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = "setup-btn";
+          btn.textContent = `⬅ ${v}`;
+          // componentはJSON由来のプレーンテキストなのでclosureで直接渡す
+          // (innerHTML文字列組み立てを避け、XSSリスクを回避する既存方針)。
+          btn.addEventListener("click", () => requestDowngrade(c.component, v));
+          row.appendChild(btn);
+        }
+      }
+      updatesHistoryListEl.appendChild(row);
+    }
+  } catch (e) {
+    updatesHistoryListEl.textContent = `Failed to load update history: ${e.message} / アップデート履歴の取得に失敗しました: ${e.message}`;
+  }
+}
+
+if (updatesHistoryRefreshBtn) updatesHistoryRefreshBtn.addEventListener("click", refreshUpdatesHistory);
+// 保存先パネルを開いたタイミングで併せて読み込む(既存のrefreshDataStorageInfoと同様)。
+if (dataStorageBtn && dataStorageModal) {
+  dataStorageBtn.addEventListener("click", () => refreshUpdatesHistory());
+}
+
 // Google Search設定パネル(ユーザー指示「利用者がAPIキーの取得とCOPY
 // ペーストが簡単な機能を搭載して」への対応)。値はaruaru-llmの
 // `POST /v1/settings/google-search`(メモリ上保持のみ、ディスクへ保存

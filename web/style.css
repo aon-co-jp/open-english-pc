@@ -466,6 +466,19 @@ body {
   white-space: pre-line;
 }
 
+.update-history-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid #4a3a2a;
+}
+
+.update-history-row:last-child {
+  border-bottom: none;
+}
+
 .setup-script {
   background: #111;
   color: #cfc;

@@ -390,6 +390,22 @@ cd aruaru-db
       <input type="text" id="data-storage-rsync-dest-all" class="setup-input" placeholder="e.g. /mnt/usb-backup/ or user@host:/backups/" />
       <button type="button" id="data-storage-backup-all-btn" class="setup-btn">🔄 Backup both now / 両方を今すぐバックアップ</button>
       <p class="setup-note" id="data-storage-backup-all-status"></p>
+
+      <h3>🔄 Updates &amp; Rollback / アップデート・ロールバック</h3>
+      <p class="setup-honest">
+        <strong>Honest disclosure:</strong> Only the last few versions actually installed on
+        <em>this machine</em> via the automatic updater are kept (3 generations by default, to
+        avoid using unbounded disk space) — you can only roll back to a version that is still
+        listed below, not to an arbitrary older release. Rolling back <code>open-english</code>
+        itself briefly restarts the server (this page will disconnect for a few seconds).<br /><br />
+        <strong>正直な開示：</strong>自動アップデート機能が実際に<em>この端末上で</em>適用した
+        直近の数バージョンのみを保持しています(ディスク容量への配慮から既定3世代)——
+        下の一覧に無い任意の過去バージョンへは戻せません。<code>open-english</code>本体を
+        ダウングレードすると、サーバーが一時的に再起動します(この画面も数秒間切断されます)。
+      </p>
+      <button type="button" id="updates-history-refresh" class="setup-btn">🔄 Refresh / 再読み込み</button>
+      <div id="updates-history-list" class="setup-note">Loading… / 読み込み中…</div>
+      <p class="setup-note" id="updates-downgrade-status"></p>
     </div>
   </div>
 
