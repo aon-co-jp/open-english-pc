@@ -348,6 +348,61 @@ body {
   display: none;
 }
 
+.free-tier-banner {
+  background: var(--panel);
+  color: var(--text);
+  border-bottom: 2px solid var(--accent);
+  padding: 6px 16px;
+  font-size: 0.85rem;
+}
+
+.free-tier-banner.hidden {
+  display: none;
+}
+
+.free-tier-toggle {
+  width: 100%;
+  background: none;
+  border: none;
+  color: var(--text);
+  font-size: 0.85rem;
+  font-weight: bold;
+  text-align: left;
+  cursor: pointer;
+  padding: 4px 0;
+}
+
+.free-tier-body {
+  padding: 6px 0 8px;
+}
+
+.free-tier-body.hidden {
+  display: none;
+}
+
+.free-tier-list,
+#free-tier-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+#free-tier-list li {
+  padding: 4px 0;
+  border-top: 1px solid rgba(245, 238, 247, 0.15);
+}
+
+#free-tier-list li strong {
+  color: var(--accent);
+}
+
+.free-tier-note,
+.free-tier-updated {
+  font-size: 0.75rem;
+  opacity: 0.8;
+  margin: 6px 0 0;
+}
+
 .setup-modal {
   position: fixed;
   inset: 0;
@@ -408,6 +463,20 @@ body {
   border-radius: 8px;
   padding: 10px 12px;
   line-height: 1.5;
+  white-space: pre-line;
+}
+
+.update-history-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid #4a3a2a;
+}
+
+.update-history-row:last-child {
+  border-bottom: none;
 }
 
 .setup-script {
@@ -452,6 +521,37 @@ body {
   color: #888;
 }
 
+/* facebook.html(Facebook経由の入口ページ)専用、2026-08-19新設。
+   .setup-panelは通常モーダル内(position: fixedの親)で使われるが、
+   このページでは通常の静的セクションとして縦に並べるだけなので
+   max-heightは適用しない。 */
+.fb-entry {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 16px;
+}
+
+.fb-entry .setup-panel {
+  max-height: none;
+  overflow-y: visible;
+}
+
+.download-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.download-table th,
+.download-table td {
+  border: 1px solid var(--pink);
+  padding: 8px;
+  text-align: left;
+}
+
 .web-search-toggle {
   display: inline-flex;
   align-items: center;
@@ -475,4 +575,14 @@ body {
 /* 汎用の非表示クラス(exam-prep-submit等、モーダル本体以外の要素にも使う)。 */
 .hidden {
   display: none !important;
+}
+
+/* データ・モデル保存先パネル用の入力欄(2026-08-19新設)。 */
+.setup-input {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  margin: 6px 0;
+  padding: 6px 8px;
+  font-size: 0.95rem;
 }

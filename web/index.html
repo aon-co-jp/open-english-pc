@@ -93,6 +93,7 @@
     <button type="button" id="aruaru-db-setup-btn" class="setup-btn">🗄 Setup aruaru-db</button>
     <button type="button" id="llm-recommend-btn" class="setup-btn">🧠 Recommend LLM / おすすめLLM</button>
     <button type="button" id="data-storage-btn" class="setup-btn">💾 Data & Model Storage / データ・モデルの保存先</button>
+    <button type="button" id="ai-coding-btn" class="setup-btn">🖥️ AI Coding Assistant / AIでプログラミング</button>
   </header>
 
   <div id="setup-modal" class="setup-modal hidden">
@@ -406,6 +407,89 @@ cd aruaru-db
       <button type="button" id="updates-history-refresh" class="setup-btn">🔄 Refresh / 再読み込み</button>
       <div id="updates-history-list" class="setup-note">Loading… / 読み込み中…</div>
       <p class="setup-note" id="updates-downgrade-status"></p>
+    </div>
+  </div>
+
+  <div id="ai-coding-modal" class="setup-modal hidden">
+    <div class="setup-panel">
+      <button type="button" id="ai-coding-close" class="setup-close">✕</button>
+      <h2>AI Coding Assistant / AIでプログラミング</h2>
+      <p class="setup-honest">
+        <strong>Honest disclosure:</strong> This page runs in your normal web browser, which is
+        sandboxed for security. It <strong>cannot</strong> reach an arbitrary local drive on its
+        own, and it <strong>cannot</strong> launch a separate desktop application (such as Claude
+        Code Desktop) for you. What it <em>can</em> do: let you explicitly pick files/folders via
+        your browser's own file/folder picker (upload), let you save files back to your device
+        (download), and show you a shortcut to the AI tool of your choice so you can open/install
+        it yourself. Folder selection uses the File System Access API, which currently only works
+        in Chromium-based browsers (Chrome / Edge / Opera, etc.) — Firefox and Safari are not
+        supported and will show a fallback message below.<br /><br />
+        <strong>正直な開示：</strong>このページは通常のWebブラウザ上で動作しており、
+        セキュリティ上サンドボックス化されています。そのため<strong>任意のローカルドライブへ
+        自由にアクセスすることはできず</strong>、<strong>Claude Code Desktopのような別の
+        デスクトップアプリをこのページから起動することもできません</strong>。実現できるのは、
+        ブラウザ標準のファイル/フォルダ選択ダイアログで<em>あなたが明示的に選んだ</em>
+        ファイル・フォルダへのアクセス(アップロード)、ファイルをこの端末へ保存する機能
+        (ダウンロード)、そして選んだAIツールの案内リンクを表示して自分で開く/インストール
+        してもらうことです。フォルダ選択にはFile System Access APIを使用しており、現時点では
+        Chromium系ブラウザ(Chrome・Edge・Operaなど)のみ対応——Firefox・Safariは非対応で、
+        下に非対応の案内が表示されます。
+      </p>
+
+      <h3>📤 Upload files / ファイルをアップロード</h3>
+      <p class="setup-note">
+        Pick one or more files from your device. They stay in this browser tab's memory only —
+        nothing is uploaded to any server unless a feature explicitly says so.<br />
+        端末からファイルを1つ以上選択してください。選んだファイルはこのブラウザタブの
+        メモリ上に保持されるのみで、明示されない限りどこかのサーバーへ送信されることは
+        ありません。
+      </p>
+      <input type="file" id="ai-coding-upload" multiple class="setup-input" />
+      <p class="setup-note" id="ai-coding-upload-status">No files selected. / ファイル未選択です。</p>
+
+      <h3>📁 Select a local folder / ローカルフォルダを選択</h3>
+      <p class="setup-note">
+        Uses <code>showDirectoryPicker()</code> — a real GUI folder picker where you can browse
+        into any drive/folder you have access to and select it. Chromium-based browsers only.<br />
+        <code>showDirectoryPicker()</code>を使用します——実際のGUIフォルダ選択ダイアログで、
+        アクセス権のある任意のドライブ・フォルダを辿って選択できます。Chromium系ブラウザのみ
+        対応です。
+      </p>
+      <button type="button" id="ai-coding-folder-btn" class="setup-btn">📁 Select folder / フォルダを選択</button>
+      <p class="setup-note" id="ai-coding-folder-status"></p>
+
+      <h3>⬇ Download / ダウンロード</h3>
+      <p class="setup-note">
+        Save the files you uploaded above back to your device (a round-trip demo of the browser's
+        standard download mechanism — not a way to fetch files from elsewhere).<br />
+        上でアップロードしたファイルをこの端末へ保存し直します(ブラウザ標準のダウンロード
+        機構の往復デモです——他の場所からファイルを取得する機能ではありません)。
+      </p>
+      <button type="button" id="ai-coding-download-btn" class="setup-btn">⬇ Download uploaded files / アップロード済みファイルをダウンロード</button>
+      <p class="setup-note" id="ai-coding-download-status"></p>
+
+      <h3>🧠 Choose an AI coding tool / AIツールを選択</h3>
+      <p class="setup-note">
+        Selecting a tool here only shows you a link to its official site/download page — this
+        page cannot launch a desktop app such as Claude Code Desktop for you (browser security).
+        You install/open it yourself.<br />
+        ここでツールを選ぶと、公式サイト・ダウンロードページへの案内リンクが表示されるだけです
+        ——Claude Code Desktopのようなデスクトップアプリをこのページから起動することは
+        できません(ブラウザのセキュリティ制約)。インストール・起動はご自身で行ってください。
+      </p>
+      <label class="settings-field">
+        AI tool / AIツール
+        <select id="ai-coding-tool-select">
+          <option value="claude-code-desktop">Claude Code Desktop</option>
+          <option value="claude-code-cli">Claude Code (CLI)</option>
+          <option value="claude-ai">Claude.ai / Claude API (Anthropic)</option>
+          <option value="chatgpt">ChatGPT / OpenAI</option>
+          <option value="gemini">Google Gemini</option>
+          <option value="deepseek">DeepSeek</option>
+        </select>
+      </label>
+      <button type="button" id="ai-coding-tool-link-btn" class="setup-btn">🔗 Open official site / 公式サイトを開く</button>
+      <p class="setup-note" id="ai-coding-tool-status"></p>
     </div>
   </div>
 

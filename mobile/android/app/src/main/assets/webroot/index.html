@@ -18,6 +18,26 @@
       (<span id="maintenance-countdown">60</span>s)
     </p>
   </div>
+  <div id="free-tier-banner" class="free-tier-banner hidden">
+    <button type="button" id="free-tier-toggle" class="free-tier-toggle">
+      💰 AI/Search free tiers / AI・検索の無料枠情報 <span id="free-tier-caret">▾</span>
+    </button>
+    <div id="free-tier-body" class="free-tier-body hidden">
+      <ul id="free-tier-list"></ul>
+      <p class="free-tier-note">
+        ※ この情報は開発者が定期メンテナンス時に手動で確認・更新しているものです(自動取得ではありません)。最新かつ正確な情報は必ず各社公式サイトでご確認ください。
+        / This information is manually reviewed and updated by the developer during periodic maintenance (not fetched automatically in real time). Please check each provider's official site for the latest, authoritative details.
+      </p>
+      <p class="free-tier-updated">Last updated / 最終更新: <span id="free-tier-last-updated">-</span></p>
+    </div>
+  </div>
+  <div id="phone-accel-banner" class="free-tier-banner">
+    <p class="free-tier-note" style="margin:0;">
+      📱 使わなくなったスマホもフル動員しましょう！(実験的機能) PC側にタスク配布API(<code>GET /v1/background-fold/task</code>・<code>POST /v1/background-fold/task-result</code>)を、Androidアプリ側にポーリング計算ワーカーを実装しました。実機・NPU搭載機での検証は未実施で、実際の計算はNNAPI対応端末でも常にCPUで行われます(NNAPIは利用可否の検出のみ)。使うにはAndroidアプリ内の「使わなくなったスマホもフル動員」欄にPC側のURLを入力して開始してください。
+      <br />
+      Let's put your unused phones to full use! (Experimental) We've implemented a PC-side task distribution API (<code>GET /v1/background-fold/task</code>, <code>POST /v1/background-fold/task-result</code>) and an Android polling worker that computes tasks. Real-device and NPU-equipped hardware verification has not been done, and the actual computation always runs on CPU even on NNAPI-capable devices (NNAPI is only detected, not yet used for the math). To try it, enter the PC's URL in the "put unused phones to full use" section of the Android app and start.
+    </p>
+  </div>
   <header class="topbar">
     <h1>open-english <span class="phase-badge">Phase 0</span></h1>
     <label class="level-select">
@@ -71,6 +91,9 @@
     <button type="button" id="setup-btn" class="setup-btn">⚙ Setup aruaru-llm</button>
     <button type="button" id="exam-prep-btn" class="setup-btn">📝 Exam Prep / 資格対策</button>
     <button type="button" id="aruaru-db-setup-btn" class="setup-btn">🗄 Setup aruaru-db</button>
+    <button type="button" id="llm-recommend-btn" class="setup-btn">🧠 Recommend LLM / おすすめLLM</button>
+    <button type="button" id="data-storage-btn" class="setup-btn">💾 Data & Model Storage / データ・モデルの保存先</button>
+    <button type="button" id="ai-coding-btn" class="setup-btn">🖥️ AI Coding Assistant / AIでプログラミング</button>
   </header>
 
   <div id="setup-modal" class="setup-modal hidden">
@@ -78,29 +101,58 @@
       <button type="button" id="setup-close" class="setup-close">✕</button>
       <h2>Easy setup for aruaru-llm / aruaru-llmの簡単セットアップ</h2>
       <p class="setup-honest">
-        <strong>Honest disclosure:</strong> There is no one-click installer yet —
-        this Phase 0 script still requires Git and the Rust toolchain
+        <strong>Honest disclosure (updated 2026-08-17):</strong> A prebuilt
+        binary download is now available below (no Git/Rust/terminal script
+        required — see "Recommended" section) — this replaces the previous
+        "no one-click download yet" state. The build-from-source path further
+        below is now the advanced/developer option; that path still requires
+        Git and the Rust toolchain
         (<a href="https://rustup.rs" target="_blank" rel="noopener">rustup.rs</a>)
-        to be installed first, and it builds from source. A prebuilt-binary
-        download (via <code>open-easy-web</code>) is planned for later.
-        Also: <code>aruaru-llm</code> has real, non-optional cross-repo path
-        dependencies deeper than expected — it needs <code>open-cuda</code>,
-        <code>RPoem</code>, <code>open-web-server</code>, and
-        <code>RS-SmartTCP</code> cloned as sibling folders, not just itself.
-        This "easy setup" clones all five; it's not actually a lightweight
-        single-repo build.<br />
-        正直な開示: まだワンクリック・インストーラーはありません。このPhase 0
-        スクリプトはGitとRustツールチェーン(<a href="https://rustup.rs" target="_blank" rel="noopener">rustup.rs</a>)
-        が事前に必要で、ソースからビルドします。実行ファイル配布(<code>open-easy-web</code>経由)は今後の予定です。
-        また、<code>aruaru-llm</code>は想定以上に深いクロスリポジトリの
-        必須依存(オプションではない)を持っており、<code>open-cuda</code>・
-        <code>RPoem</code>・<code>open-web-server</code>・
-        <code>RS-SmartTCP</code>を同じ階層にクローンする必要があります。
-        この「簡単セットアップ」は5リポジトリすべてをクローンします——
-        実際には単一リポジトリの軽量ビルドではありません。
+        and real, non-optional cross-repo path dependencies (<code>open-cuda</code>,
+        <code>RPoem</code>, <code>open-web-server</code>, <code>RS-SmartTCP</code>
+        cloned as siblings) — none of which are needed for the prebuilt
+        download.<br />
+        正直な開示(2026-08-17更新): 以下に実行ファイル配布(Git/Rust/
+        ターミナルスクリプト不要)を追加しました——「以前はワンクリック
+        配布が無かった」状態は解消済みです。さらに下のソースビルド手順は
+        上級者・開発者向けの選択肢として残しています(GitとRust
+        ツールチェーン、<code>open-cuda</code>・<code>RPoem</code>・
+        <code>open-web-server</code>・<code>RS-SmartTCP</code>を同階層に
+        クローンする必要があります)——実行ファイル配布ではこれらは
+        一切不要です。
       </p>
 
-      <h3>Windows (PowerShell)</h3>
+      <h3>✅ Recommended: prebuilt download (no build, no terminal script to type) /
+        推奨: ビルド不要の実行ファイル配布(ターミナルへコマンドを打つ必要なし)</h3>
+      <p class="setup-note">
+        This is the same download used by the Windows installer's "install
+        aruaru-llm too" option (2026-08-10, see CLAUDE.md) — a ready-to-run
+        binary from GitHub Releases. The path dependencies on open-cuda/RPoem/
+        open-web-server/RS-SmartTCP mentioned below are only needed to
+        <strong>build from source</strong>; they are already compiled into
+        this prebuilt binary and do not need to be cloned separately.
+        Download, unzip, and run — no <code>git</code>/<code>cargo</code>
+        needed on this path.<br />
+        Windowsインストーラーの「aruaru-llmも同時インストール」オプション
+        (2026-08-10、CLAUDE.md参照)と同じダウンロード元です——GitHub
+        Releasesのビルド済み実行ファイルです。下記の
+        open-cuda/RPoem/open-web-server/RS-SmartTCPへの依存はソースから
+        ビルドする場合のみ必要で、この実行ファイルには既に組み込み済み
+        のため別途クローンする必要はありません。ダウンロード→展開→
+        実行するだけで、<code>git</code>・<code>cargo</code>は不要です。
+      </p>
+      <div class="settings-buttons">
+        <a class="setup-btn" href="https://github.com/aon-co-jp/aruaru-llm/releases/latest/download/aruaru-llm-windows-x86_64.zip">⬇ Windows (.zip)</a>
+        <a class="setup-btn" href="https://github.com/aon-co-jp/aruaru-llm/releases/latest/download/aruaru-llm-linux-x86_64.tar.gz">⬇ Linux (.tar.gz)</a>
+      </div>
+      <p class="setup-note">
+        macOS: no prebuilt binary is published yet (honest disclosure) — use
+        the build-from-source instructions below.<br />
+        macOS: ビルド済み配布は未公開です(正直な開示)——下記のソース
+        ビルド手順をご利用ください。
+      </p>
+
+      <h3>Advanced: build from source (developers) / 上級者向け: ソースからビルド</h3>
       <p class="setup-note">
         Run this in a normal PowerShell window (not as Administrator, not in
         <code>C:\Windows\System32</code> — that folder is protected and will
@@ -119,7 +171,7 @@ cd aruaru-llm
 cargo run --release</pre>
       <button type="button" class="copy-btn" data-target="win">Copy</button>
 
-      <h3>Linux / macOS (bash)</h3>
+      <p class="setup-note">Linux / macOS (bash):</p>
       <pre class="setup-script" data-script="unix">cd ~
 git clone https://github.com/aon-co-jp/open-cuda
 git clone https://github.com/aon-co-jp/RS-SmartTCP
@@ -190,6 +242,32 @@ cargo run --release</pre>
     </div>
   </div>
 
+  <div id="llm-recommend-modal" class="setup-modal hidden">
+    <div class="setup-panel">
+      <button type="button" id="llm-recommend-close" class="setup-close">✕</button>
+      <h2>Recommend an LLM / おすすめLLM</h2>
+      <p class="setup-honest">
+        <strong>Honest disclosure:</strong> This reads your GPU VRAM/CPU/system-memory/NPU
+        detection results from <code>aruaru-llm</code> (<code>GET /v1/recommend</code>) and
+        picks a size heuristically (VRAM &lt; 2GB → 124M, 2-4GB → 355M, 4-8GB → 774M,
+        8GB+ → 1.5B). It is a rough parameter-count-vs-VRAM estimate, not a precise
+        benchmark.<br /><br />
+        <strong>正直な開示:</strong> <code>aruaru-llm</code>の
+        <code>GET /v1/recommend</code>が返すGPU VRAM/CPU/システムメモリ/NPU検出結果を元に、
+        簡易ヒューリスティック(VRAM 2GB未満→124M、2-4GB→355M、4-8GB→774M、8GB以上→1.5B)で
+        サイズを選びます。パラメータ数とVRAM容量の大まかな見積もりであり、精密な
+        ベンチマークではありません。
+      </p>
+      <div id="llm-recommend-body">
+        <p class="setup-note">Click below to detect your hardware and compare LLM options. /
+          下のボタンでハードウェアを検出し、LLMの選択肢を比較します。</p>
+      </div>
+      <button type="button" id="llm-recommend-detect" class="setup-btn">
+        Detect & Compare / 検出して比較する
+      </button>
+    </div>
+  </div>
+
   <div id="aruaru-db-setup-modal" class="setup-modal hidden">
     <div class="setup-panel">
       <button type="button" id="aruaru-db-setup-close" class="setup-close">✕</button>
@@ -220,10 +298,19 @@ cargo run --release</pre>
           postgresql.org/download</a> から、お使いのOS向けのインストーラーをダウンロード・実行
         してください(Windows/Linux/macOSいずれも公式インストーラーあり)。
       </p>
-      <h3>2. aruaru-db(既存のインストーラースクリプトを使用)</h3>
+      <h3>2. aruaru-db</h3>
       <p class="setup-note">
-        <code>aruaru-db</code>には既に簡単セットアップスクリプトが用意されています——
-        新規にスクリプトを書く必要はありません。
+        ✅ Recommended / 推奨: git不要のビルド済みダウンロード。展開したフォルダで
+        <code>install.ps1</code>(Windows)/<code>install.sh</code>(Linux/macOS、
+        既にダウンロード済みなので中の<code>git clone</code>行は不要です)を実行
+        するだけです。
+      </p>
+      <div class="settings-buttons">
+        <a class="setup-btn" href="https://github.com/aon-co-jp/aruaru-db/releases/latest/download/aruaru-db-windows-x86_64.zip">⬇ Windows (.zip)</a>
+        <a class="setup-btn" href="https://github.com/aon-co-jp/aruaru-db/releases/latest/download/aruaru-db-linux-x86_64.tar.gz">⬇ Linux (.tar.gz)</a>
+      </div>
+      <p class="setup-note">
+        Advanced / 上級者向け(ソースから):
       </p>
       <h3>Windows (PowerShell)</h3>
       <pre class="setup-script" data-script="aruaru-db-win">cd $env:USERPROFILE
@@ -244,6 +331,165 @@ cd aruaru-db
         同じPostgreSQL/aruaru-dbインスタンスをそのまま共有できます(詳細は
         <a href="https://github.com/aon-co-jp/open-easy-web" target="_blank" rel="noopener noreferrer">open-easy-web</a>参照)。
       </p>
+    </div>
+  </div>
+
+  <div id="data-storage-modal" class="setup-modal hidden">
+    <div class="setup-panel">
+      <button type="button" id="data-storage-close" class="setup-close">✕</button>
+      <h2>Data & Model Storage / データ・モデルの保存先</h2>
+      <p class="setup-honest">
+        <strong>Honest disclosure:</strong> GPT-2-family model weights and the embedding model are
+        <strong>not bundled</strong> with this app (size/licensing) — you download them once via
+        "🧠 Recommend LLM" (PC/browser) or the in-app "Download model" button (Android), and they are
+        stored locally on this device. This panel lets you see/back up your local <em>conversation
+        history &amp; settings</em> database (<code>aruaru-llm</code>'s own model files are managed by
+        <code>aruaru-llm</code> itself, not by this panel).<br /><br />
+        <strong>正直な開示：</strong>GPT-2系モデル重み・埋め込みモデルはアプリに同梱されて
+        <strong>いません</strong>(サイズ・ライセンスの都合)——「🧠 おすすめLLM」(PC/ブラウザ版)、
+        またはアプリ内「モデルをダウンロード」ボタン(Android版)で一度取得すると、この端末上に
+        ローカル保存されます。この画面で見る/バックアップできるのは<em>会話履歴・設定</em>の
+        データベースです(<code>aruaru-llm</code>本体のモデルファイル自体は
+        <code>aruaru-llm</code>側が管理しており、この画面の対象外です)。
+      </p>
+
+      <h3>Current storage / 現在の保存先</h3>
+      <p class="setup-note" id="data-storage-info">Loading… / 読み込み中…</p>
+      <button type="button" id="data-storage-refresh" class="setup-btn">🔄 Refresh / 再読み込み</button>
+
+      <h3>Change storage location / 保存先を変更</h3>
+      <p class="setup-note">
+        Move the local database file to another folder (e.g. a microSD card or external drive).<br />
+        データベースファイルを別のフォルダ(microSDや外部ドライブなど)へ移動します。
+      </p>
+      <input type="text" id="data-storage-new-path" class="setup-input" placeholder="e.g. D:\open-english-data\open-english.sqlite3" />
+      <button type="button" id="data-storage-relocate-btn" class="setup-btn">📁 Move here / ここへ移動</button>
+      <p class="setup-note" id="data-storage-relocate-status"></p>
+
+      <h3>Backup via RSync / RSyncで同期バックアップ</h3>
+      <p class="setup-note">
+        Local path or <code>user@host:/path</code>.<br />
+        ローカルパス、または<code>user@host:/path</code>を指定してください。
+      </p>
+      <input type="text" id="data-storage-rsync-dest" class="setup-input" placeholder="e.g. /mnt/usb-backup/ or user@host:/backups/" />
+      <button type="button" id="data-storage-backup-btn" class="setup-btn">💾 Backup now / 今すぐバックアップ</button>
+      <button type="button" id="data-storage-install-rsync-btn" class="setup-btn hidden">⬇ Install RSync / RSyncをインストール</button>
+      <p class="setup-note" id="data-storage-backup-status"></p>
+
+      <h3>Backup conversation DB + aruaru-db/PostgreSQL together / 会話履歴DBとaruaru-db/PostgreSQLを同時にバックアップ</h3>
+      <p class="setup-note">
+        Enter <strong>one</strong> destination and both the local conversation DB and (if
+        <code>OPEN_ENGLISH_DATABASE_URL</code> is configured) the <code>aruaru-db</code>/PostgreSQL
+        mirror are backed up in a single click. The <code>aruaru-db</code> side is exported with
+        <code>pg_dump</code> (a consistent snapshot dump) rather than copying its live data files
+        directly, to avoid corrupting a database engine that may still be writing.<br />
+        宛先を<strong>1つ</strong>入力するだけで、会話履歴のローカルDBと(<code>OPEN_ENGLISH_DATABASE_URL</code>が
+        設定されていれば)<code>aruaru-db</code>/PostgreSQLミラーの両方を1回でバックアップします。
+        <code>aruaru-db</code>側は稼働中のデータファイルを直接コピーすると破損リスクがあるため、
+        <code>pg_dump</code>(一貫性のあるスナップショットダンプ)経由で書き出します。
+      </p>
+      <input type="text" id="data-storage-rsync-dest-all" class="setup-input" placeholder="e.g. /mnt/usb-backup/ or user@host:/backups/" />
+      <button type="button" id="data-storage-backup-all-btn" class="setup-btn">🔄 Backup both now / 両方を今すぐバックアップ</button>
+      <p class="setup-note" id="data-storage-backup-all-status"></p>
+
+      <h3>🔄 Updates &amp; Rollback / アップデート・ロールバック</h3>
+      <p class="setup-honest">
+        <strong>Honest disclosure:</strong> Only the last few versions actually installed on
+        <em>this machine</em> via the automatic updater are kept (3 generations by default, to
+        avoid using unbounded disk space) — you can only roll back to a version that is still
+        listed below, not to an arbitrary older release. Rolling back <code>open-english</code>
+        itself briefly restarts the server (this page will disconnect for a few seconds).<br /><br />
+        <strong>正直な開示：</strong>自動アップデート機能が実際に<em>この端末上で</em>適用した
+        直近の数バージョンのみを保持しています(ディスク容量への配慮から既定3世代)——
+        下の一覧に無い任意の過去バージョンへは戻せません。<code>open-english</code>本体を
+        ダウングレードすると、サーバーが一時的に再起動します(この画面も数秒間切断されます)。
+      </p>
+      <button type="button" id="updates-history-refresh" class="setup-btn">🔄 Refresh / 再読み込み</button>
+      <div id="updates-history-list" class="setup-note">Loading… / 読み込み中…</div>
+      <p class="setup-note" id="updates-downgrade-status"></p>
+    </div>
+  </div>
+
+  <div id="ai-coding-modal" class="setup-modal hidden">
+    <div class="setup-panel">
+      <button type="button" id="ai-coding-close" class="setup-close">✕</button>
+      <h2>AI Coding Assistant / AIでプログラミング</h2>
+      <p class="setup-honest">
+        <strong>Honest disclosure:</strong> This page runs in your normal web browser, which is
+        sandboxed for security. It <strong>cannot</strong> reach an arbitrary local drive on its
+        own, and it <strong>cannot</strong> launch a separate desktop application (such as Claude
+        Code Desktop) for you. What it <em>can</em> do: let you explicitly pick files/folders via
+        your browser's own file/folder picker (upload), let you save files back to your device
+        (download), and show you a shortcut to the AI tool of your choice so you can open/install
+        it yourself. Folder selection uses the File System Access API, which currently only works
+        in Chromium-based browsers (Chrome / Edge / Opera, etc.) — Firefox and Safari are not
+        supported and will show a fallback message below.<br /><br />
+        <strong>正直な開示：</strong>このページは通常のWebブラウザ上で動作しており、
+        セキュリティ上サンドボックス化されています。そのため<strong>任意のローカルドライブへ
+        自由にアクセスすることはできず</strong>、<strong>Claude Code Desktopのような別の
+        デスクトップアプリをこのページから起動することもできません</strong>。実現できるのは、
+        ブラウザ標準のファイル/フォルダ選択ダイアログで<em>あなたが明示的に選んだ</em>
+        ファイル・フォルダへのアクセス(アップロード)、ファイルをこの端末へ保存する機能
+        (ダウンロード)、そして選んだAIツールの案内リンクを表示して自分で開く/インストール
+        してもらうことです。フォルダ選択にはFile System Access APIを使用しており、現時点では
+        Chromium系ブラウザ(Chrome・Edge・Operaなど)のみ対応——Firefox・Safariは非対応で、
+        下に非対応の案内が表示されます。
+      </p>
+
+      <h3>📤 Upload files / ファイルをアップロード</h3>
+      <p class="setup-note">
+        Pick one or more files from your device. They stay in this browser tab's memory only —
+        nothing is uploaded to any server unless a feature explicitly says so.<br />
+        端末からファイルを1つ以上選択してください。選んだファイルはこのブラウザタブの
+        メモリ上に保持されるのみで、明示されない限りどこかのサーバーへ送信されることは
+        ありません。
+      </p>
+      <input type="file" id="ai-coding-upload" multiple class="setup-input" />
+      <p class="setup-note" id="ai-coding-upload-status">No files selected. / ファイル未選択です。</p>
+
+      <h3>📁 Select a local folder / ローカルフォルダを選択</h3>
+      <p class="setup-note">
+        Uses <code>showDirectoryPicker()</code> — a real GUI folder picker where you can browse
+        into any drive/folder you have access to and select it. Chromium-based browsers only.<br />
+        <code>showDirectoryPicker()</code>を使用します——実際のGUIフォルダ選択ダイアログで、
+        アクセス権のある任意のドライブ・フォルダを辿って選択できます。Chromium系ブラウザのみ
+        対応です。
+      </p>
+      <button type="button" id="ai-coding-folder-btn" class="setup-btn">📁 Select folder / フォルダを選択</button>
+      <p class="setup-note" id="ai-coding-folder-status"></p>
+
+      <h3>⬇ Download / ダウンロード</h3>
+      <p class="setup-note">
+        Save the files you uploaded above back to your device (a round-trip demo of the browser's
+        standard download mechanism — not a way to fetch files from elsewhere).<br />
+        上でアップロードしたファイルをこの端末へ保存し直します(ブラウザ標準のダウンロード
+        機構の往復デモです——他の場所からファイルを取得する機能ではありません)。
+      </p>
+      <button type="button" id="ai-coding-download-btn" class="setup-btn">⬇ Download uploaded files / アップロード済みファイルをダウンロード</button>
+      <p class="setup-note" id="ai-coding-download-status"></p>
+
+      <h3>🧠 Choose an AI coding tool / AIツールを選択</h3>
+      <p class="setup-note">
+        Selecting a tool here only shows you a link to its official site/download page — this
+        page cannot launch a desktop app such as Claude Code Desktop for you (browser security).
+        You install/open it yourself.<br />
+        ここでツールを選ぶと、公式サイト・ダウンロードページへの案内リンクが表示されるだけです
+        ——Claude Code Desktopのようなデスクトップアプリをこのページから起動することは
+        できません(ブラウザのセキュリティ制約)。インストール・起動はご自身で行ってください。
+      </p>
+      <label class="settings-field">
+        AI tool / AIツール
+        <select id="ai-coding-tool-select">
+          <option value="claude-code-desktop">Claude Code Desktop</option>
+          <option value="claude-code-cli">Claude Code (CLI)</option>
+          <option value="claude-ai">Claude.ai / Claude API (Anthropic)</option>
+          <option value="chatgpt">ChatGPT / OpenAI</option>
+          <option value="gemini">Google Gemini</option>
+          <option value="deepseek">DeepSeek</option>
+        </select>
+      </label>
+      <button type="button" id="ai-coding-tool-link-btn" class="setup-btn">🔗 Open official site / 公式サイトを開く</button>
+      <p class="setup-note" id="ai-coding-tool-status"></p>
     </div>
   </div>
 
@@ -521,6 +767,7 @@ cd aruaru-db
 
   <footer class="app-version">
     <span id="app-version-label">v...</span>
+    · <a href="facebook.html">Access via Facebook / Facebook経由でアクセス</a>
   </footer>
 
   <script src="app.js"></script>

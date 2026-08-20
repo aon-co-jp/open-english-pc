@@ -2358,3 +2358,160 @@ if (llmRecommendBtn && llmRecommendModal) {
   });
   llmRecommendDetectBtn.addEventListener("click", detectAndCompareLlm);
 }
+
+// AIでプログラミング / AI Coding Assistantパネル(ユーザー指示「UPLOADと
+// ダウンロード機能とGUIでローカルドライブ指定も可能な、CLAUDEなら
+// CLAUDE CODE DESKTOPもマウスで選択可能に」への対応、2026-08-20新設)。
+// 正直な開示: ブラウザはサンドボックス化されており(1)任意のローカル
+// ドライブへ自由にアクセスすること、(2)このページからClaude Code Desktop
+// のような別のデスクトップアプリを起動すること、のいずれも技術的に
+// できない。実現できる範囲は、ユーザーが明示的に選んだファイル/フォルダ
+// へのアクセス(File System Access API、Chromium系のみ)・ダウンロード・
+// 選択したAIツールの公式サイトへの案内リンク表示にとどめた
+// (誇張しないこと、ユーザー指示より)。
+const aiCodingBtn = document.getElementById("ai-coding-btn");
+const aiCodingModal = document.getElementById("ai-coding-modal");
+const aiCodingClose = document.getElementById("ai-coding-close");
+const aiCodingUploadEl = document.getElementById("ai-coding-upload");
+const aiCodingUploadStatusEl = document.getElementById("ai-coding-upload-status");
+const aiCodingFolderBtn = document.getElementById("ai-coding-folder-btn");
+const aiCodingFolderStatusEl = document.getElementById("ai-coding-folder-status");
+const aiCodingDownloadBtn = document.getElementById("ai-coding-download-btn");
+const aiCodingDownloadStatusEl = document.getElementById("ai-coding-download-status");
+const aiCodingToolSelectEl = document.getElementById("ai-coding-tool-select");
+const aiCodingToolLinkBtn = document.getElementById("ai-coding-tool-link-btn");
+const aiCodingToolStatusEl = document.getElementById("ai-coding-tool-status");
+
+let aiCodingUploadedFiles = [];
+
+if (aiCodingBtn && aiCodingModal) {
+  aiCodingBtn.addEventListener("click", () => aiCodingModal.classList.remove("hidden"));
+  aiCodingClose.addEventListener("click", () => aiCodingModal.classList.add("hidden"));
+  aiCodingModal.addEventListener("click", (e) => {
+    if (e.target === aiCodingModal) aiCodingModal.classList.add("hidden");
+  });
+}
+
+if (aiCodingUploadEl) {
+  aiCodingUploadEl.addEventListener("change", () => {
+    aiCodingUploadedFiles = Array.from(aiCodingUploadEl.files || []);
+    if (aiCodingUploadedFiles.length === 0) {
+      aiCodingUploadStatusEl.textContent = "No files selected. / ファイル未選択です。";
+      return;
+    }
+    const list = aiCodingUploadedFiles
+      .map((f) => `${f.name} (${formatBytes(f.size)})`)
+      .join(", ");
+    aiCodingUploadStatusEl.textContent =
+      `Selected ${aiCodingUploadedFiles.length} file(s): ${list} / ` +
+      `${aiCodingUploadedFiles.length}件のファイルを選択しました: ${list}`;
+  });
+}
+
+// フォルダ選択(File System Access API、Chromium系ブラウザのみ対応)。
+// 非対応ブラウザではボタンをdisabledにし、正直な非対応メッセージを表示する。
+if (aiCodingFolderBtn) {
+  if (typeof window.showDirectoryPicker !== "function") {
+    aiCodingFolderBtn.disabled = true;
+    aiCodingFolderStatusEl.textContent =
+      "Your browser does not support folder selection (showDirectoryPicker is only available " +
+      "in Chromium-based browsers such as Chrome/Edge). / お使いのブラウザはフォルダ選択に" +
+      "対応していません(showDirectoryPickerはChrome/EdgeなどChromium系ブラウザのみ対応です)。";
+  } else {
+    aiCodingFolderBtn.addEventListener("click", async () => {
+      try {
+        const dirHandle = await window.showDirectoryPicker();
+        const entryNames = [];
+        for await (const [name, handle] of dirHandle.entries()) {
+          entryNames.push(`${name}${handle.kind === "directory" ? "/" : ""}`);
+          if (entryNames.length >= 50) {
+            entryNames.push("… (truncated / 省略)");
+            break;
+          }
+        }
+        aiCodingFolderStatusEl.textContent =
+          `Selected folder: "${dirHandle.name}" (${entryNames.length} top-level entries shown) / ` +
+          `選択したフォルダ: 「${dirHandle.name}」(トップレベルの項目 ${entryNames.length}件を表示)\n` +
+          entryNames.join(", ");
+      } catch (e) {
+        // ユーザーがダイアログをキャンセルした場合もここに来る(AbortError)。
+        if (e && e.name === "AbortError") {
+          aiCodingFolderStatusEl.textContent = "Cancelled. / キャンセルされました。";
+        } else {
+          aiCodingFolderStatusEl.textContent = `Failed: ${e.message} / 失敗しました: ${e.message}`;
+        }
+      }
+    });
+  }
+}
+
+if (aiCodingDownloadBtn) {
+  aiCodingDownloadBtn.addEventListener("click", () => {
+    if (aiCodingUploadedFiles.length === 0) {
+      aiCodingDownloadStatusEl.textContent =
+        "Please upload file(s) above first. / まず上でファイルをアップロードしてください。";
+      return;
+    }
+    aiCodingUploadedFiles.forEach((file) => {
+      const url = URL.createObjectURL(file);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = file.name;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      // メモリリーク回避のため、少し待ってからURLを解放する。
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+    });
+    aiCodingDownloadStatusEl.textContent =
+      `Triggered download for ${aiCodingUploadedFiles.length} file(s). / ` +
+      `${aiCodingUploadedFiles.length}件のファイルのダウンロードを開始しました。`;
+  });
+}
+
+// AIツール案内リンク(正直な開示: リンク表示のみ、起動はできない)。
+const AI_CODING_TOOL_LINKS = {
+  "claude-code-desktop": {
+    url: "https://claude.com/product/claude-code",
+    label_en: "Claude Code Desktop official page",
+    label_ja: "Claude Code Desktop公式ページ",
+  },
+  "claude-code-cli": {
+    url: "https://docs.claude.com/en/docs/claude-code/overview",
+    label_en: "Claude Code (CLI) documentation",
+    label_ja: "Claude Code(CLI)ドキュメント",
+  },
+  "claude-ai": {
+    url: "https://claude.ai/",
+    label_en: "Claude.ai",
+    label_ja: "Claude.ai",
+  },
+  "chatgpt": {
+    url: "https://chat.openai.com/",
+    label_en: "ChatGPT",
+    label_ja: "ChatGPT",
+  },
+  "gemini": {
+    url: "https://gemini.google.com/",
+    label_en: "Google Gemini",
+    label_ja: "Google Gemini",
+  },
+  "deepseek": {
+    url: "https://www.deepseek.com/",
+    label_en: "DeepSeek",
+    label_ja: "DeepSeek",
+  },
+};
+
+if (aiCodingToolLinkBtn) {
+  aiCodingToolLinkBtn.addEventListener("click", () => {
+    const key = aiCodingToolSelectEl?.value;
+    const entry = AI_CODING_TOOL_LINKS[key];
+    if (!entry) return;
+    window.open(entry.url, "_blank", "noopener,noreferrer");
+    aiCodingToolStatusEl.textContent =
+      `Opened: ${entry.label_en} (${entry.url}) — this only opens a link, it cannot launch a ` +
+      `desktop app for you. / 開きました: ${entry.label_ja}(${entry.url})——リンクを開くのみで、` +
+      `デスクトップアプリを起動することはできません。`;
+  });
+}
