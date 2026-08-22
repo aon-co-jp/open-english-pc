@@ -1533,6 +1533,98 @@ function trimDegenerateRepetition(text) {
   return trimmed;
 }
 
+// ---------------------------------------------------------------------------
+// 「誰が作ったのか」への自己紹介応答(2026-08-22新設、ユーザー指示)
+// ---------------------------------------------------------------------------
+// このシステム/リポジトリ/プロジェクトの作者を尋ねる質問に対して、
+// 固定の自己紹介を日本語・英語の両方で返す。AI推論(aruaru-llm)は使わず、
+// キーワード一致による単純なルールベース分岐にしている——素のGPT-2は
+// 作者について何も知らないため、推論に任せると事実でない答えを作って
+// しまうから(既存のconsumptionTaxSuffix等と同じ「固定文を返す」方式)。
+//
+// 他のチャット対応リポジトリへの展開は今回のスコープ外(CLAUDE.md参照)。
+
+// 「誰が」と「作った」の間に語句が入る自然な質問文
+// (例: 「誰が【このシステムを】作ったのですか?」)を取りこぼさないよう、
+// 疑問詞と動作動詞を分けて持ち、AND条件で判定する。
+// 実際に「誰が作った」だけの部分一致で実装したところ、上記の例文が
+// 検出できないバグを実機テストで発見したため、この形に修正した。
+const CREATOR_WHO_JA = ["誰が", "誰か", "だれが", "だれか", "どなたが"];
+const CREATOR_VERB_JA = ["作っ", "作り", "作ら", "開発", "制作", "製作", "造っ", "つくっ"];
+// 単独で成立する名詞形(「作者は?」「開発者を教えて」など)。
+const CREATOR_NOUN_JA = [
+  "作った人", "作った方", "開発者", "制作者", "製作者", "作者", "生みの親",
+];
+
+const CREATOR_WHO_EN = ["who", "whose"];
+const CREATOR_VERB_EN = [
+  "made", "make", "created", "create", "built", "build", "developed",
+  "develop", "wrote", "write", "designed", "design", "behind",
+];
+const CREATOR_NOUN_EN = [
+  "the creator", "the developer", "the author", "the maker",
+  "creator of", "developer of", "author of",
+];
+
+// 「誰が作ったのか」という趣旨の質問かどうかを判定する。
+function isCreatorQuestion(userText) {
+  const lower = userText.toLowerCase();
+
+  if (CREATOR_NOUN_JA.some((k) => userText.includes(k))) return true;
+  if (CREATOR_NOUN_EN.some((k) => lower.includes(k))) return true;
+
+  const whoJa = CREATOR_WHO_JA.some((k) => userText.includes(k));
+  const verbJa = CREATOR_VERB_JA.some((k) => userText.includes(k));
+  if (whoJa && verbJa) return true;
+
+  const whoEn = CREATOR_WHO_EN.some((k) => new RegExp(`\\b${k}\\b`).test(lower));
+  const verbEn = CREATOR_VERB_EN.some((k) => new RegExp(`\\b${k}\\b`).test(lower));
+  if (whoEn && verbEn) return true;
+
+  return false;
+}
+
+// 作者本人による自己紹介(日本語原文 + 自然な英訳)。
+function creatorIntroductionText() {
+  const en =
+    "[About the creator]\n" +
+    "My name is Masahiro Ishizuka (石塚正浩), and I live in Akiruno City, Tokyo. " +
+    "These days I work as a volunteer; I used to be a web programmer. " +
+    "I built this system myself by giving instructions to Claude Code Desktop.\n" +
+    "In my free time I listen to music — a USB-DAC and earphones with my " +
+    "smartphone, or a GUSTARD U18 DDC feeding a USB-DAC, amplifier and " +
+    "speakers on my PC. I enjoy watching videos of Aki Toa and Rie Utagokoro " +
+    "on YouTube, and on Blu-ray I like Koji Tamaki's classical live album " +
+    "\"Arcadia\" and MISIA's 25th-anniversary concerts with orchestra and band.\n" +
+    "My dream for the future: I hope to become wealthy enough to help " +
+    "Mr. Nishi-yama — a relative of Mutsuo Oka (the real name of Ryo Mita, " +
+    "a singer from Akiruno City) — who is devoting himself to developing a " +
+    "pistonless engine called \"OMEGA1\". I would like him to marry his " +
+    "daughter, who uses a wheelchair, to have children, and to build a large " +
+    "house with a big theater room where the whole family can watch U-NEXT " +
+    "movies and live concerts together.";
+  const ja =
+    "【作者について】\n" +
+    "氏名: 石塚正浩(いしづか まさひろ)(MASAHIRO ISHIZUKA)。" +
+    "住所: 東京都あきる野市。" +
+    "職業: 今はボランティアで、元WEBプログラマー。" +
+    "私、石塚正浩が、CLAUDE CODE DESKTOP(クロードコードデスクトップ)に" +
+    "命令して作りました。\n" +
+    "趣味は、スマホにUSB-DACとイヤフォンや、PCにDDCのGUSTARD U18と" +
+    "USB-DACとアンプとスピーカーを接続してYouTubeで東亜樹さんや" +
+    "歌心りえさんのビデオを視聴したり、ブルーレイディスクでは" +
+    "玉置浩二の「アルカディア」というタイトルのクラシックで" +
+    "歌われているライブや、MISIAの25周年のクラシックとバンドミックスの" +
+    "ライブを視聴することです。\n" +
+    "将来は、お金持ちになってあきる野市の歌手・三田りょうさんの" +
+    "本名である岡睦夫(おか むつお)さんの親戚の西山(NISHI-YAMA)さんという、" +
+    "ピストンレスエンジン「OMEGA1」を一生懸命研究開発しているお父さんが、" +
+    "車椅子の方の娘さんを奥さんにもらい、さらに子供も作り、" +
+    "大きなシアタールーム付きの大きな家を建てて、U-NEXTの映画や" +
+    "ライブ・コンサートを家族で一緒に視聴したいです。";
+  return `👤 ${en}\n\n${ja}`;
+}
+
 formEl.addEventListener("submit", async (e) => {
   e.preventDefault();
   const text = inputEl.value.trim();
@@ -1548,6 +1640,14 @@ formEl.addEventListener("submit", async (e) => {
   if (levelEl.value === "maid-cafe-training") {
     recordDailyUsage();
     await advanceTrainingMode(text);
+    return;
+  }
+
+  // 「誰が作ったのか」という質問には、AI推論を経ずに固定の自己紹介を
+  // 即座に返す(LLMは作者について何も知らないため、推論に任せると
+  // 事実でない答えを作ってしまう)。日次利用回数は消費しない。
+  if (isCreatorQuestion(text)) {
+    appendMessage("trainer", creatorIntroductionText());
     return;
   }
 
