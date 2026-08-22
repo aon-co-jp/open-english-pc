@@ -2318,9 +2318,126 @@ const DEFAULT_LANGUAGE_CODES = ["en", "ja"];
 const ENABLED_LANGUAGES_KEY = "open-english.enabledLanguages";
 // メンテナンス中の言語追加案内を既に一度出したかどうか(毎回出すと煩わしいため)。
 const LANGUAGE_PROMPT_SHOWN_KEY = "open-english.languagePromptShown";
+// 母国語(ネイティブ)と、連続表示・読み上げの順番(2026-08-22の追加要望)。
+const NATIVE_LANGUAGE_KEY = "open-english.nativeLanguage";
+const LANGUAGE_ORDER_KEY = "open-english.languageOrder";
+
+// ---------------------------------------------------------------------------
+// 設定の永続化(ユーザー指示、2026-08-22追加要望「母国語と学びたい言語の設定が
+// メンテナンスやアップデートを挟んでも消えず、次回起動時に同じ組み合わせが
+// 有効になるように」への対応)。
+//
+// **調査結果(実装前に既存コードを確認したこと自体の記録)**: 既存の
+// `auto-update.js`は、バージョン変化を検出すると`openEnglish.`接頭辞を持つ
+// localStorageキーを**全削除**する設計だった(「旧バージョンの痕跡の破棄」)。
+// 今回の言語設定のキーは`open-english.`接頭辞のため現状では削除対象外だが、
+// 接頭辞の違いという偶然に頼るのは危険なので、`auto-update.js`側へ明示的な
+// 保持キー許可リスト(`PRESERVED_KEYS`)を追加した。
+//
+// **二重保存にする理由**: localStorageはブラウザ側のデータで、ブラウザの
+// 「サイトデータを削除」や別プロファイル/別端末では失われる。一方、
+// サーバー側のSQLite(`data/open-english.sqlite3`)は、既存の自己更新
+// (`self_update.rs`)・ダウングレード処理が`data\`ディレクトリを明示的に
+// 退避・復元する設計になっている(=アプリのアップデートで消えない)。
+// そこで、書き込みは常に両方へ行い、読み込みは localStorage を一次・
+// サーバーDBを二次(localStorageが空の時のフォールバック)とする。
+// **正直な開示**: サーバーが起動していない/`file://`直開きの場合は
+// DB側の復元は効かず、localStorageのみが頼りになる。
+// ---------------------------------------------------------------------------
+
+/** 設定を localStorage とサーバーDB(既存の`POST /v1/db/settings`)の両方へ保存する。 */
+function persistSetting(key, value) {
+  try {
+    localStorage.setItem(key, value);
+  } catch (e) {
+    /* localStorageが使えなくてもDB側には保存される(次回はDBから復元) */
+  }
+  fetch("/v1/db/settings", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ key, value }),
+  }).catch(() => {});
+}
+
+/**
+ * 起動時に一度だけ実行し、localStorageに無い設定をサーバーDBから復元する
+ * (ブラウザ側のデータが消えていても、アップデートを跨いで設定が戻る)。
+ */
+async function restoreSettingsFromServer() {
+  let settings;
+  try {
+    const res = await fetch("/v1/db/settings", { cache: "no-store" });
+    if (!res.ok) return;
+    settings = await res.json();
+  } catch (e) {
+    return; // サーバー未起動・file://等では何もしない(localStorageのみで動作)
+  }
+  if (!settings || typeof settings !== "object") return;
+  [ENABLED_LANGUAGES_KEY, NATIVE_LANGUAGE_KEY, LANGUAGE_ORDER_KEY].forEach((key) => {
+    try {
+      if (localStorage.getItem(key) === null && typeof settings[key] === "string") {
+        localStorage.setItem(key, settings[key]);
+      }
+    } catch (e) {
+      /* 復元できなくてもセッション中の動作は妨げない */
+    }
+  });
+}
+
+function loadNativeLanguage() {
+  try {
+    return localStorage.getItem(NATIVE_LANGUAGE_KEY) || "ja";
+  } catch (e) {
+    return "ja";
+  }
+}
+
+function loadLanguageOrder() {
+  try {
+    const raw = localStorage.getItem(LANGUAGE_ORDER_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.filter((c) => typeof c === "string") : [];
+  } catch (e) {
+    return [];
+  }
+}
 
 let worldLanguages = [];       // /v1/world-languages のサマリ一覧
 let worldExamQuestions = {};   // code -> questions[](world-language-exams.jsonから)
+// 各言語圏の静的な基礎情報(国旗・国名・首都・主要都市・観光名所・名物・
+// 著名人・代表的な企業)。`world-language-regions.json`から読み込む。
+// 言語選択UIの国旗/国名表示と、話題ブリーフィングの両方で使う。
+let worldRegions = {};
+
+async function loadWorldRegions() {
+  try {
+    const res = await fetch("world-language-regions.json", { cache: "no-store" });
+    const data = await res.json();
+    const map = {};
+    (data.languages || []).forEach((l) => {
+      map[l.code] = l;
+    });
+    worldRegions = map;
+  } catch (e) {
+    worldRegions = {};
+  }
+}
+
+/** 言語コードに対応する国旗絵文字(データが無ければ地球儀で代用)。 */
+function languageFlag(code) {
+  const r = worldRegions[code];
+  return (r && r.flag) || "🌐";
+}
+
+/** 言語コードに対応する国名ラベル(日英)。国名でも探せるようにUIへ併記する。 */
+function languageCountries(code) {
+  const r = worldRegions[code];
+  if (!r) return "";
+  const ja = r.countries_ja || "";
+  const en = r.countries_en || "";
+  return ja && en ? `${ja} / ${en}` : ja || en;
+}
 
 function loadEnabledLanguages() {
   try {
@@ -2335,18 +2452,9 @@ function loadEnabledLanguages() {
 }
 
 function saveEnabledLanguages(codes) {
-  try {
-    localStorage.setItem(ENABLED_LANGUAGES_KEY, JSON.stringify(codes));
-  } catch (e) {
-    /* 保存できなくてもセッション中は動作する(正直な開示: 再読み込みで失われる) */
-  }
-  // サーバー側の設定テーブルにも保存を試みる(2026-08-18実装済みの既存API、
-  // 失敗しても無視する——localStorageが一次保存先)。
-  fetch("/v1/db/settings", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ key: ENABLED_LANGUAGES_KEY, value: JSON.stringify(codes) }),
-  }).catch(() => {});
+  // localStorage(一次)+サーバーSQLite(二次、アップデートを跨いで残る)の
+  // 二重保存。詳細はpersistSetting()のdoc参照。
+  persistSetting(ENABLED_LANGUAGES_KEY, JSON.stringify(codes));
 }
 
 async function fetchWorldLanguages() {
@@ -2464,16 +2572,19 @@ function renderLanguagePackList() {
   const defaultRows = defaults
     .map(
       (d) =>
-        `<label class="language-pack-item language-pack-default"><input type="checkbox" checked disabled /> ${d.endonym} / ${d.ja} <span class="language-pack-count">(default / 既定)</span></label>`
+        `<label class="language-pack-item language-pack-default"><input type="checkbox" checked disabled /> ${languageFlag(d.code)} ${d.endonym} / ${d.ja}<span class="language-pack-country">${languageCountries(d.code)}</span> <span class="language-pack-count">(default / 既定)</span></label>`
     )
     .join("");
+  // 各行に国旗絵文字と国名(日英)を併記する(ユーザー指示、2026-08-22
+  // 「国名でも選びやすいように国名併記+国旗絵文字」への対応)。
   const rows = worldLanguages
     .map((lang) => {
       const checked = enabled.has(lang.code) ? " checked" : "";
       const count = lang.question_count
         ? `${lang.question_count}問 / ${lang.question_count} items`
         : "問題未収録 / no items yet";
-      return `<label class="language-pack-item"><input type="checkbox" data-lang-code="${lang.code}"${checked} /> ${lang.endonym} / ${lang.en} / ${lang.ja} <span class="language-pack-count">(${count})</span></label>`;
+      const countries = languageCountries(lang.code);
+      return `<label class="language-pack-item"><input type="checkbox" data-lang-code="${lang.code}"${checked} /> ${languageFlag(lang.code)} ${lang.endonym} / ${lang.en} / ${lang.ja}${countries ? `<span class="language-pack-country">${countries}</span>` : ""} <span class="language-pack-count">(${count})</span></label>`;
     })
     .join("");
   languagePackListEl.innerHTML = defaultRows + rows;
@@ -2482,10 +2593,30 @@ function renderLanguagePackList() {
   languagePackListEl.querySelectorAll("input[data-lang-code]").forEach((box) => {
     box.addEventListener("change", () => {
       enforceLanguageSelectionLimit();
-      renderMultiSpeakOutput();
+      refreshLanguageDependentUi();
     });
   });
   enforceLanguageSelectionLimit();
+  applyLanguagePackFilter();
+}
+
+/**
+ * 言語一覧の絞り込み(2026-08-22追加)。対応言語が130件と多いため、
+ * 言語名(現地語・英語・日本語)と**国名**(日英)・言語コードのいずれでも
+ * 部分一致で絞り込めるようにする(ユーザー指示「国名でも選びやすいように」)。
+ * チェック状態はDOMを作り直さず`display`の切替だけで隠すため、絞り込んでも
+ * 選択済みの言語が失われることはない。
+ */
+function applyLanguagePackFilter() {
+  const input = document.getElementById("language-pack-filter");
+  if (!input || !languagePackListEl) return;
+  const q = input.value.trim().toLowerCase();
+  languagePackListEl.querySelectorAll(".language-pack-item").forEach((item) => {
+    const box = item.querySelector("input[data-lang-code]");
+    const code = box ? box.dataset.langCode : "";
+    const hay = `${item.textContent} ${code}`.toLowerCase();
+    item.style.display = !q || hay.includes(q) ? "" : "none";
+  });
 }
 
 // 同時に選択できる言語数の上限・下限(ユーザー指示、2026-08-22
@@ -2553,7 +2684,7 @@ if (languagePackModal) {
         el.checked = i < MAX_ADDITIONAL_LANGUAGES;
       });
       enforceLanguageSelectionLimit();
-      renderMultiSpeakOutput();
+      refreshLanguageDependentUi();
       if (languagePackStatusEl) {
         languagePackStatusEl.textContent =
           `上限のため、一覧の先頭から${MAX_ADDITIONAL_LANGUAGES}言語のみ選択しました(英語・日本語と合わせて合計${MAX_TOTAL_LANGUAGES}言語)。別の言語にしたい場合はチェックを付け替えてください。 / ` +
@@ -2571,9 +2702,22 @@ if (languagePackModal) {
         el.checked = false;
       });
       enforceLanguageSelectionLimit();
+      refreshLanguageDependentUi();
+    });
+  }
+  const filterInput = document.getElementById("language-pack-filter");
+  if (filterInput) filterInput.addEventListener("input", applyLanguagePackFilter);
+
+  // 母国語(ネイティブ)の変更は即座に保存し、並び替えUI・連続表示にも反映する。
+  const nativeSelect = document.getElementById("native-language");
+  if (nativeSelect) {
+    nativeSelect.addEventListener("change", () => {
+      persistSetting(NATIVE_LANGUAGE_KEY, nativeSelect.value);
+      renderLanguageOrderList();
       renderMultiSpeakOutput();
     });
   }
+
   const saveBtn = document.getElementById("language-pack-save");
   if (saveBtn) {
     saveBtn.addEventListener("click", () => {
@@ -2583,6 +2727,11 @@ if (languagePackModal) {
       if (languagePackStatusEl) {
         languagePackStatusEl.textContent = `保存しました(${DEFAULT_LANGUAGE_CODES.length + codes.length}言語有効: 英語・日本語 + ${codes.length}言語)。 / Saved: English, Japanese + ${codes.length} additional language(s).`;
       }
+      // 言語を選び終えた直後に話題ブリーフィング(情報収集)を始める
+      // (ユーザー指示、2026-08-22「母国語と学びたい言語を選択した後、
+      // メンテナンス中の案内を出しつつ情報を集める」への対応)。
+      languagePackModal.classList.add("hidden");
+      runTopicBriefing();
     });
   }
 }
@@ -2638,7 +2787,150 @@ function multiSpeakTargetCodes() {
     languagePackModal && !languagePackModal.classList.contains("hidden")
       ? currentlyCheckedLanguageCodes()
       : loadEnabledLanguages();
-  return DEFAULT_LANGUAGE_CODES.concat(additional).slice(0, MAX_TOTAL_LANGUAGES);
+  const active = DEFAULT_LANGUAGE_CODES.concat(additional).slice(0, MAX_TOTAL_LANGUAGES);
+  // 母国語がまだインストール(有効化)されていない場合も、必ず読み上げ対象に
+  // 含める(合計最大6項目 = 英語・日本語+追加3言語+母国語1)。
+  const native = loadNativeLanguage();
+  const withNative = active.includes(native) ? active : active.concat([native]);
+  return orderActiveLanguages(withNative);
+}
+
+/**
+ * 有効な言語を、利用者が保存した並び順(`LANGUAGE_ORDER_KEY`)に従って
+ * 並べ替える(ユーザー指示、2026-08-22追加要望「連続表示・読み上げの
+ * 順番を好きな順に並び替えられるように、その順番も保存する」への対応)。
+ *
+ * 保存された順番に含まれない言語(後から追加した言語)は末尾へ回す。
+ * 並び順がまだ保存されていない場合は、母国語を先頭に置いた既定順にする
+ * ——母語での説明を最初に聞きたい、という自然な期待に合わせるため。
+ */
+function orderActiveLanguages(active) {
+  const saved = loadLanguageOrder().filter((code) => active.includes(code));
+  const rest = active.filter((code) => !saved.includes(code));
+  if (saved.length === 0) {
+    const native = loadNativeLanguage();
+    return active.includes(native) ? [native].concat(active.filter((c) => c !== native)) : active;
+  }
+  return saved.concat(rest);
+}
+
+function languageDisplayName(code) {
+  if (code === "en") return "English / 英語";
+  if (code === "ja") return "日本語 / Japanese";
+  const lang = worldLanguageByCode(code);
+  return lang ? `${lang.endonym} / ${lang.ja}` : code;
+}
+
+/**
+ * 母国語セレクトを**全対応言語**(英語・日本語+38言語)で組み立てる。
+ *
+ * 母国語は「学びたい言語」とは別の軸なので、インストール済み(有効化済み)の
+ * 言語に限定しない——母語がまだ有効化されていない場合は、連続表示・読み上げ
+ * の対象へ自動的に1行追加される(合計最大6項目、ユーザー指示2026-08-22
+ * 「母国語+学びたい言語〈最大5つ〉=合計最大6項目」への対応)。
+ */
+function renderNativeLanguageSelect() {
+  const el = document.getElementById("native-language");
+  if (!el) return;
+  const all = DEFAULT_LANGUAGE_CODES.concat(worldLanguages.map((l) => l.code));
+  const current = loadNativeLanguage();
+  el.innerHTML = all.map((code) => `<option value="${code}">${languageDisplayName(code)}</option>`).join("");
+  el.value = all.includes(current) ? current : "ja";
+  if (el.value !== current) persistSetting(NATIVE_LANGUAGE_KEY, el.value);
+}
+
+/**
+ * 並び替えUIを描画する。ユーザー指示(2026-08-22追加要望)により、順番の
+ * 指定方法を**3系統**用意し、いずれを操作しても互いに連動させる:
+ *  (a) 数値入力欄(1〜N)への直接入力
+ *  (b) 1(左端)〜N(右端)を横に並べたラジオボタン
+ *  (c) ▲▼ボタン(元々の実装、タッチ操作でそのまま使えるので残す)
+ *
+ * **重複の扱い**: 同じ順番を2つの言語に指定できないようにするため、
+ * 「入れ替え(swap)」方式を採る——エラーを出して操作を拒否するのではなく、
+ * 指定された位置に既にいる言語と席を交換する。UIが行き止まりにならず、
+ * 「3番にしたい」という意図がそのまま1操作で通るため。
+ */
+function renderLanguageOrderList() {
+  const listEl = document.getElementById("language-order-list");
+  if (!listEl) return;
+  const codes = multiSpeakTargetCodes();
+  const native = loadNativeLanguage();
+  const total = codes.length;
+  listEl.innerHTML = codes
+    .map((code, i) => {
+      const radios = codes
+        .map(
+          (_, n) =>
+            `<label class="language-order-radio"><input type="radio" name="lang-order-${code}" value="${n + 1}" data-code="${code}"${n === i ? " checked" : ""} /> ${n + 1}</label>`
+        )
+        .join("");
+      return `
+      <div class="language-order-item" data-code="${code}">
+        <span class="language-order-name">${code === native ? "🏠 " : ""}${languageDisplayName(code)}</span>
+        <label class="language-order-number">順番 / order:
+          <input type="number" min="1" max="${total}" step="1" value="${i + 1}" data-code="${code}" class="language-order-input" />
+        </label>
+        <span class="language-order-radios">${radios}</span>
+        <button type="button" class="setup-btn language-order-up" data-code="${code}" ${i === 0 ? "disabled" : ""} aria-label="上へ / move up">▲</button>
+        <button type="button" class="setup-btn language-order-down" data-code="${code}" ${i === total - 1 ? "disabled" : ""} aria-label="下へ / move down">▼</button>
+      </div>`;
+    })
+    .join("");
+  listEl.querySelectorAll(".language-order-up, .language-order-down").forEach((btn) => {
+    btn.addEventListener("click", () => moveLanguageInOrder(btn.dataset.code, btn.classList.contains("language-order-up") ? -1 : 1));
+  });
+  // 数値入力欄・ラジオボタンのどちらを操作しても同じ`setLanguageOrderPosition`を
+  // 通るため、再描画によって両方の表示が必ず同期する(片方だけずれることが無い)。
+  listEl.querySelectorAll(".language-order-input").forEach((input) => {
+    input.addEventListener("change", () => setLanguageOrderPosition(input.dataset.code, Number(input.value)));
+  });
+  listEl.querySelectorAll('.language-order-radio input[type="radio"]').forEach((radio) => {
+    radio.addEventListener("change", () => {
+      if (radio.checked) setLanguageOrderPosition(radio.dataset.code, Number(radio.value));
+    });
+  });
+}
+
+/**
+ * ある言語を「1始まりのposition番目」へ移動する(既にそこにいる言語とは入れ替え)。
+ * 数値入力欄・ラジオボタンの双方から呼ばれる共通の入口。
+ */
+function setLanguageOrderPosition(code, position) {
+  const codes = multiSpeakTargetCodes();
+  const target = Math.round(position);
+  const from = codes.indexOf(code);
+  // 範囲外・不正な値は黙って無視し、現在の並びで描画し直す(入力欄の値が
+  // 元に戻るだけで、UIが壊れた状態にはならない)。
+  if (from < 0 || !Number.isFinite(target) || target < 1 || target > codes.length) {
+    renderLanguageOrderList();
+    return;
+  }
+  const to = target - 1;
+  if (to === from) return;
+  [codes[from], codes[to]] = [codes[to], codes[from]];
+  persistSetting(LANGUAGE_ORDER_KEY, JSON.stringify(codes));
+  renderLanguageOrderList();
+  renderMultiSpeakOutput();
+}
+
+/** 言語の選択状態が変わったときに、母国語セレクト・並び替えUI・連続表示を一括で更新する。 */
+function refreshLanguageDependentUi() {
+  renderNativeLanguageSelect();
+  renderLanguageOrderList();
+  renderMultiSpeakOutput();
+}
+
+function moveLanguageInOrder(code, delta) {
+  const codes = multiSpeakTargetCodes();
+  const i = codes.indexOf(code);
+  const j = i + delta;
+  if (i < 0 || j < 0 || j >= codes.length) return;
+  [codes[i], codes[j]] = [codes[j], codes[i]];
+  // 並べ替えた結果をそのまま設定として保存する(次回起動時も同じ順番)。
+  persistSetting(LANGUAGE_ORDER_KEY, JSON.stringify(codes));
+  renderLanguageOrderList();
+  renderMultiSpeakOutput();
 }
 
 function multiSpeakLines() {
@@ -2804,13 +3096,189 @@ if (multiSpeakOutputEl) {
   }
 }
 
+// --- 話題ブリーフィング(言語選択後の情報収集) ---------------------------
+// ユーザー指示(2026-08-22): 母国語と学びたい言語を選んだ後、「メンテナンス中」
+// の案内を出しつつ、選んだ言語(特に一番上の言語)の地域について
+// ニュース・首都・主要都市・観光名所・名物・有名人・有名な企業を集めて、
+// その言語での話題に少しでもついていけるようにする。
+//
+// **技術的な実現方法(実装前に調査した結果)**:
+//  - ニュース: **実際にインターネットへ接続して取得している**。サーバー側
+//    (`GET /v1/region-news`)がGoogleニュースの公開RSSをその都度取得し、
+//    **見出しのみ**を返す(記事本文は取得も転載もしない——著作権への配慮)。
+//    オフライン等で取得できない場合は`ok:false`が返り、UIもその旨を正直に表示する。
+//  - 首都・主要都市・観光名所・名物・有名人・企業: `world-language-regions.json`
+//    (本アプリ用に書いた静的な基礎知識)をサーバー側`GET /v1/region-info`が返す。
+//    **リアルタイム情報ではなく、古くなり得る**ことをUIにも明記する。
+//  - `aruaru-llm`(GPT-2ベース)に事実を生成させる方式は採らなかった——
+//    もっともらしい嘘(ハルシネーション)を「情報収集の結果」として提示する
+//    ことになり、このプロジェクトの正直な開示方針に反するため。
+//
+// **待機UIについて**: ユーザー指示は「2分程度のメンテナンス表示」だったが、
+// 実際の処理は通常数秒で終わる。実処理より長く待たせる演出は利用者の時間を
+// 無駄にするため行わず、**実際の進捗をそのまま見せる**プログレス表示にした
+// (指示中の「実際の処理時間に合わせて実装してよい」に従う)。
+const briefingModal = document.getElementById("briefing-modal");
+const briefingProgressEl = document.getElementById("briefing-progress");
+const briefingBodyEl = document.getElementById("briefing-body");
+let lastBriefingText = "";
+
+function briefingList(title, items) {
+  if (!items || items.length === 0) return "";
+  const li = items.map((x) => `<li>${escapeHtmlText(x)}</li>`).join("");
+  return `<div class="briefing-section"><h4>${title}</h4><ul>${li}</ul></div>`;
+}
+
+/** 外部(RSS)由来のテキストを含むため、HTMLとして解釈させない(既存のXSS回避方針)。 */
+function escapeHtmlText(s) {
+  const div = document.createElement("div");
+  div.textContent = String(s);
+  return div.innerHTML;
+}
+
+async function runTopicBriefing() {
+  if (!briefingModal) return;
+  briefingModal.classList.remove("hidden");
+  briefingBodyEl.innerHTML = "";
+  const codes = multiSpeakTargetCodes();
+  const top = codes[0];
+  const steps = [];
+  const setProgress = (done, total, label) => {
+    briefingProgressEl.innerHTML =
+      `<p class="briefing-maintenance">🛠️ ただいま情報を集めています(メンテナンス中)… ${done}/${total} 完了 — ${escapeHtmlText(label)}<br />` +
+      `Gathering topic information (maintenance in progress)… ${done}/${total} done — ${escapeHtmlText(label)}</p>` +
+      `<progress max="${total}" value="${done}"></progress>`;
+  };
+  const total = codes.length + 1; // 各言語の基礎情報 + 先頭言語のニュース
+  let done = 0;
+  setProgress(done, total, "start / 開始");
+
+  // 1) 先頭の言語のニュース見出し(実際にインターネットから取得)
+  let newsHtml = "";
+  try {
+    const res = await fetch(`/v1/region-news?lang=${encodeURIComponent(top)}`, { cache: "no-store" });
+    const data = await res.json();
+    if (data.ok && (data.headlines || []).length > 0) {
+      newsHtml =
+        briefingList(`📰 最新ニュースの見出し(${languageDisplayName(top)}) / Latest headlines`, data.headlines) +
+        `<p class="setup-note">${escapeHtmlText(data.disclosure_ja || "")}<br />${escapeHtmlText(data.disclosure_en || "")}</p>`;
+    } else {
+      newsHtml =
+        `<div class="briefing-section"><h4>📰 最新ニュース / Latest news</h4>` +
+        `<p class="setup-note">今回は取得できませんでした(オフラインか、配信元へ到達できませんでした): ${escapeHtmlText(data.error || "unknown")}。<br />` +
+        `Could not fetch headlines this time (offline or the feed was unreachable).</p></div>`;
+    }
+  } catch (e) {
+    newsHtml =
+      `<div class="briefing-section"><h4>📰 最新ニュース / Latest news</h4>` +
+      `<p class="setup-note">取得に失敗しました(${escapeHtmlText(e.message)})。 / Fetching headlines failed.</p></div>`;
+  }
+  done += 1;
+  setProgress(done, total, "news / ニュース");
+
+  // 2) 各言語の静的な基礎情報(先頭の言語を最初に、いちばん詳しく表示する)
+  let infoHtml = "";
+  for (const code of codes) {
+    let region = null;
+    try {
+      const res = await fetch(`/v1/region-info?lang=${encodeURIComponent(code)}`, { cache: "no-store" });
+      const data = await res.json();
+      if (data.ok) region = data.region;
+    } catch (e) {
+      region = worldRegions[code] || null; // APIが無い配信形態でも静的JSONの内容で代替
+    }
+    if (!region) region = worldRegions[code] || null;
+    done += 1;
+    setProgress(done, total, languageDisplayName(code));
+    if (!region) {
+      infoHtml += `<div class="briefing-lang"><h3>${languageFlag(code)} ${escapeHtmlText(languageDisplayName(code))}</h3><p class="setup-note">この言語圏の基礎データはまだ作成されていません。 / No background data has been written for this language yet.</p></div>`;
+      continue;
+    }
+    const isTop = code === top;
+    // 詳細データ(首都以下)がまだ書かれていない言語は、空欄を並べるのではなく
+    // 「未作成である」ことを正直に表示する(誇張しない既存方針)。
+    if (!region.capital) {
+      infoHtml +=
+        `<div class="briefing-lang${isTop ? " briefing-lang-top" : ""}">` +
+        `<h3>${languageFlag(code)} ${escapeHtmlText(languageDisplayName(code))}${isTop ? " <span class=\"briefing-top-badge\">最優先 / top</span>" : ""}</h3>` +
+        `<p><strong>国・地域 / Region:</strong> ${escapeHtmlText(region.regions || "")}</p>` +
+        `<p class="setup-note">この言語圏の詳細データ(首都・主要都市・観光名所・名物・著名人・企業)はまだ作成されていません——現在は国旗と国名のみ登録されています。<br />` +
+        `Detailed background data (capital, cities, sights, food, people, companies) has not been written for this language yet; only its flag and country label are registered so far.</p>` +
+        `</div>`;
+      continue;
+    }
+    const companies = (region.companies || []).map((c) => `${c.name} — ${c.about_ja} / ${c.about_en}`);
+    infoHtml +=
+      `<div class="briefing-lang${isTop ? " briefing-lang-top" : ""}">` +
+      `<h3>${languageFlag(code)} ${escapeHtmlText(languageDisplayName(code))}${isTop ? " <span class=\"briefing-top-badge\">最優先 / top</span>" : ""}</h3>` +
+      `<p><strong>国・地域 / Region:</strong> ${escapeHtmlText(region.regions || "")}<br />` +
+      `<strong>首都 / Capital:</strong> ${escapeHtmlText(region.capital || "")}</p>` +
+      briefingList("🏙 主要都市 / Major cities", region.major_cities) +
+      briefingList("🗺 観光名所 / Sights", region.sights) +
+      briefingList("🍽 名物 / Famous food", region.foods) +
+      briefingList("⭐ 有名人 / Famous people", region.people) +
+      briefingList("🏢 有名な会社・ブランド / Well-known companies", companies) +
+      briefingList("✨ その他有名なもの / Other well-known things", region.other) +
+      `</div>`;
+  }
+
+  briefingProgressEl.innerHTML =
+    `<p class="briefing-maintenance">✅ 情報の収集が終わりました(${total}/${total})。 / Finished gathering information.</p>`;
+  briefingBodyEl.innerHTML = newsHtml + infoHtml;
+
+  // 学習継続(既存の流れに接続): この話題をそのままAI講師との会話練習へ渡す。
+  const topRegion = worldRegions[top] || {};
+  lastBriefingText =
+    `Let's talk about ${topRegion.countries_en || languageDisplayName(top)}. ` +
+    `Capital: ${topRegion.capital || "?"}. Major cities: ${(topRegion.major_cities || []).slice(0, 3).join(", ")}. ` +
+    `Famous sights: ${(topRegion.sights || []).slice(0, 2).join(", ")}. Famous food: ${(topRegion.foods || []).slice(0, 2).join(", ")}. ` +
+    `Well-known companies: ${(topRegion.companies || []).slice(0, 2).map((c) => c.name).join(", ")}. ` +
+    `Please help me practise small talk about these topics in ${topRegion.countries_en || languageDisplayName(top)}.`;
+}
+
+if (briefingModal) {
+  const openBtn = document.getElementById("briefing-btn");
+  if (openBtn) openBtn.addEventListener("click", runTopicBriefing);
+  const closeBtn = document.getElementById("briefing-close");
+  if (closeBtn) closeBtn.addEventListener("click", () => briefingModal.classList.add("hidden"));
+  briefingModal.addEventListener("click", (e) => {
+    if (e.target === briefingModal) briefingModal.classList.add("hidden");
+  });
+  const practiceBtn = document.getElementById("briefing-practice-btn");
+  if (practiceBtn) {
+    practiceBtn.addEventListener("click", () => {
+      if (!lastBriefingText) return;
+      briefingModal.classList.add("hidden");
+      // 先頭の言語のトレーナーへ切り替えてから練習リクエストを送る
+      // (既存の資格試験→トレーナーの導線と同じ考え方)。
+      const top = multiSpeakTargetCodes()[0];
+      if (learnTargetEl && learnTargetEl.querySelector(`option[value="world:${top}"]`)) {
+        learnTargetEl.value = `world:${top}`;
+      } else if (learnTargetEl && top === "ja") {
+        learnTargetEl.value = "japanese";
+      } else if (learnTargetEl && top === "en") {
+        learnTargetEl.value = "english";
+      }
+      if (replyLangEl) replyLangEl.value = "hybrid";
+      inputEl.value = lastBriefingText;
+      formEl.dispatchEvent(new Event("submit", { cancelable: true }));
+    });
+  }
+}
+
 // 起動時: 対応言語一覧を取得してメニューへ反映し、メンテナンス中(初回)は
 // 言語追加の案内モーダルを自動で開く。
 (async function initWorldLanguages() {
+  // localStorageに設定が無い場合(ブラウザデータ消去後・別プロファイル等)は
+  // サーバーDBから復元する。**必ず`worldLanguages`の取得より前に呼ぶこと**
+  // ——メニュー構築より後だと復元が今回の描画に間に合わない(実機検証で
+  // 「復元されない」実バグとして発覚したため、順序に依存する点をここに明記)。
+  await restoreSettingsFromServer();
+  await loadWorldRegions();
   worldLanguages = await fetchWorldLanguages();
   applyEnabledLanguagesToMenus();
   await loadMultiSpeakPhrases();
-  renderMultiSpeakOutput();
+  refreshLanguageDependentUi();
   let alreadyPrompted = false;
   try {
     alreadyPrompted = localStorage.getItem(LANGUAGE_PROMPT_SHOWN_KEY) === "1";

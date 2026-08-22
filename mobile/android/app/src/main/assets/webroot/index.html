@@ -104,7 +104,8 @@
     <button type="button" id="google-search-settings-btn" class="setup-btn">🔎 Google Search Setup</button>
     <button type="button" id="setup-btn" class="setup-btn">⚙ Setup aruaru-llm</button>
     <button type="button" id="exam-prep-btn" class="setup-btn">📝 Exam Prep / 資格対策</button>
-    <button type="button" id="language-pack-btn" class="setup-btn">🌐 Languages / 言語を追加</button>
+    <button type="button" id="language-pack-btn" class="setup-btn">🌐 Languages / 言語のインストール</button>
+    <button type="button" id="briefing-btn" class="setup-btn">🗞 話題ブリーフィング / Topic briefing</button>
     <button type="button" id="aruaru-db-setup-btn" class="setup-btn">🗄 Setup aruaru-db</button>
     <button type="button" id="llm-recommend-btn" class="setup-btn">🧠 Recommend LLM / おすすめLLM</button>
     <button type="button" id="data-storage-btn" class="setup-btn">💾 Data & Model Storage / データ・モデルの保存先</button>
@@ -572,10 +573,14 @@ cd aruaru-db
   <div id="language-pack-modal" class="setup-modal hidden">
     <div class="setup-card">
       <button type="button" id="language-pack-close" class="setup-close">✕</button>
-      <h2>🌐 英語と日本語以外の言語を追加しますか? / Add languages besides English and Japanese?</h2>
+      <h2>🌐 言語のインストール / アンインストール — Install / uninstall languages</h2>
       <p class="setup-note">
-        どの言語を追加しますか? チェックした言語だけが「学びたい言語」メニューと資格対策コーナーの模擬試験メニューに表示されます。<br />
-        Which languages would you like to add? Only the languages you check will appear in the "Learn" menu and in the practice-exam menu.
+        <strong>チェックを入れる = その言語をインストール(追加)</strong>、<strong>チェックを外す = アンインストール(削除)</strong>です。
+        インストールした言語だけが「学びたい言語」メニュー・資格対策コーナーの模擬試験メニュー・多言語の連続読み上げに現れます。
+        インストール・アンインストールはいつでも何度でも行え、メンテナンスや自動アップデートの後もその状態が保たれます。<br />
+        <strong>Checking a box installs (adds) that language; unchecking it uninstalls (removes) it.</strong>
+        Only installed languages appear in the "Learn" menu, the practice-exam menu, and the multilingual read-aloud.
+        You can install or uninstall at any time, as often as you like, and your choices are kept across maintenance and automatic updates.
       </p>
       <p class="setup-honest">
         <strong>Honest disclosure:</strong> the multilingual quizzes are original practice questions written for this app.
@@ -586,12 +591,32 @@ cd aruaru-db
         (DELE・DELF・Goethe-Zertifikat・HSK・TOPIK等)の過去問ではなく、それらとは一切無関係で、公認も受けていません。
         レベル表記はCEFR風の大まかな目安に過ぎず、収録問題数も言語ごとに不均一(現状3〜6問)です——各言語の横に実際の問題数を表示しています。
       </p>
+      <!--
+        母国語(ネイティブ)の指定(ユーザー指示、2026-08-22追加要望)。
+        既存の「日本語/英語がデフォルト」という話とは別に、「自分の母語は
+        どれか」を1つだけ明示的に選ぶ項目。連続表示・読み上げの既定の
+        先頭言語になり、AI講師へのプロンプトにも母語として伝えられる。
+      -->
+      <label class="settings-field">
+        🏠 母国語(ネイティブ) / My native language
+        <select id="native-language"></select>
+      </label>
+      <p class="setup-note">
+        母国語・言語の組み合わせ・表示順の設定は、メンテナンスや自動アップデートを挟んでも保持されます(ブラウザのlocalStorage +
+        ローカルSQLite DBの二重保存。localStorageが消えてもDB側から復元します)。<br />
+        Your native language, language selection, and display order are kept across maintenance and automatic updates
+        (stored both in the browser's localStorage and in the local SQLite database; if localStorage is cleared, the settings are restored from the database).
+      </p>
       <div class="settings-buttons">
-        <button type="button" id="language-pack-select-all" class="setup-btn">✅ 全部を選択 / Select all</button>
+        <button type="button" id="language-pack-select-all" class="setup-btn">✅ 上限までまとめてインストール / Install up to the limit</button>
         <button type="button" id="language-pack-clear-others" class="setup-btn">
-          ␡ 日本語と英語以外の全部を解除 / Clear all except EN &amp; JA
+          ␡ 日本語と英語以外を全部アンインストール / Uninstall all except EN &amp; JA
         </button>
       </div>
+      <label class="settings-field">
+        🔎 言語名・国名で絞り込み / Filter by language or country
+        <input type="text" id="language-pack-filter" class="setup-input" placeholder="例: France / フランス / fr" />
+      </label>
       <div id="language-pack-list" class="language-pack-list"></div>
       <div class="settings-buttons">
         <button type="button" id="language-pack-save" class="setup-btn">💾 保存 / Save</button>
@@ -614,6 +639,24 @@ cd aruaru-db
         (<strong>minimum 2, maximum 5 languages including English and Japanese</strong>; since those two are always on,
         you can add up to <strong>3</strong> more).
       </p>
+      <!--
+        表示順のカスタマイズ(ユーザー指示、2026-08-22追加要望)。実装方式は
+        上下移動ボタン(ドラッグ&ドロップよりタッチ端末でも確実に操作でき、
+        既存UIへの追加も小さい)。並び順は設定として保存され、次回以降の
+        連続表示・読み上げにもそのまま使われる。
+      -->
+      <h4>↕ 表示・読み上げの順番 / Display &amp; read-aloud order</h4>
+      <p class="setup-note">
+        順番は3つの方法で指定でき、どれを操作しても互いに連動します: <strong>①数字を直接入力</strong>(1〜6)、
+        <strong>②1(左)〜6(右)のラジオボタン</strong>、<strong>③▲▼ボタン</strong>。
+        既に他の言語が使っている番号を指定した場合は、その言語と順番を入れ替えます(同じ番号が重複することはありません)。
+        母国語には🏠が付きます。並び順も保存され、次回以降も同じ順番で表示・読み上げされます。<br />
+        You can set the order in three interlinked ways: <strong>(1) type the number</strong> (1–6),
+        <strong>(2) pick a radio button from 1 (left) to 6 (right)</strong>, or <strong>(3) use ▲ / ▼</strong>.
+        Choosing a number already used by another language swaps the two, so numbers never collide.
+        Your native language is marked with 🏠, and the order is saved for next time.
+      </p>
+      <div id="language-order-list" class="language-order-list"></div>
       <label class="settings-field">
         フレーズ / Phrase
         <select id="multi-speak-phrase"></select>
@@ -639,6 +682,36 @@ cd aruaru-db
         文章は表示されますが別言語の声で読まれたり無音でスキップされたりします(本アプリは独自の音声合成エンジンを同梱していません)。
         フレーズの訳文は最善努力ベースで、母語話者には硬く聞こえる場合があります。
       </p>
+    </div>
+  </div>
+
+  <!--
+    話題ブリーフィング(ユーザー指示、2026-08-22「言語を選んだ後、メンテナンス中の
+    案内を出しつつ、その言語圏のニュース・首都・主要都市・観光名所・名物・有名人・
+    有名な会社を集めて、その言語での話題についていけるようにする」への対応)。
+    ニュースだけは実際にインターネット(公開RSS)から取得し、それ以外は静的な
+    基礎データを表示する——どちらであるかをUI上で明示する。
+  -->
+  <div id="briefing-modal" class="setup-modal hidden">
+    <div class="setup-card">
+      <button type="button" id="briefing-close" class="setup-close">✕</button>
+      <h2>🗞 話題ブリーフィング / Topic briefing</h2>
+      <div id="briefing-progress"></div>
+      <p class="setup-honest">
+        <strong>Honest disclosure:</strong> the news headlines are fetched live from a public Google News RSS feed each
+        time you run this — headlines only, never the article text (open the original story to read it). Everything else
+        (capital, major cities, sights, food, people, companies) is <strong>static background knowledge written for this
+        app</strong>: it is not fetched from the internet, it is not real-time, and it can be out of date. Company
+        descriptions are short factual summaries written here, not copied from company marketing material.<br />
+        <strong>正直な開示:</strong> ニュース見出しは実行のたびに公開のGoogleニュースRSSから実際に取得しています(見出しのみで、
+        記事本文は取得・転載していません——本文は元記事でお読みください)。それ以外(首都・主要都市・観光名所・名物・有名人・企業)は
+        <strong>本アプリ用に記述した静的な基礎知識</strong>で、インターネットから取得したリアルタイム情報ではなく、古くなっている場合があります。
+        企業の説明文も本アプリで書き下ろした簡潔な事実ベースの要約であり、各社の宣伝文の転載ではありません。
+      </p>
+      <div id="briefing-body"></div>
+      <button type="button" id="briefing-practice-btn" class="setup-btn">
+        💬 この話題でAI講師と練習する / Practise these topics with the tutor
+      </button>
     </div>
   </div>
 

@@ -42,13 +42,29 @@
     return res.json();
   }
 
+  // 利用者自身が設定した内容(母国語・学びたい言語の組み合わせ・表示順)は、
+  // バージョンアップ時の「旧バージョンの痕跡の破棄」の対象外とする
+  // (ユーザー指示、2026-08-22「母国語と学びたい言語の設定がメンテナンスや
+  // アップデートを挟んでも消えず、次回起動時に同じ組み合わせが有効に
+  // なるように」への対応)。破棄してよいのはキャッシュ的な内部状態であって、
+  // 利用者が手で選んだ設定ではない——ここを明示的な許可リストにしておかないと、
+  // 将来キーの接頭辞を`openEnglish.`へ揃えた瞬間に設定が消える事故になる。
+  const PRESERVED_KEYS = [
+    "open-english.enabledLanguages",   // 学びたい/表示してほしい言語(2〜5か国語)
+    "open-english.nativeLanguage",     // 母国語(ネイティブ)
+    "open-english.languageOrder",      // 連続表示・読み上げの順番
+    "open-english.languagePromptShown",
+  ];
+
   // このアプリ専用の名前空間(`openEnglish.`接頭辞)を持つlocalStorage
   // キーのみを削除する——ブラウザの他のサイト/他のデータには一切触れない。
+  // ただし`PRESERVED_KEYS`(利用者の設定)は常に残す。
   function clearOwnLocalStorage() {
     const keysToRemove = [];
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
-      if (key && key.startsWith(LOCAL_STORAGE_PREFIX) && key !== VERSION_KEY) {
+      if (!key || key === VERSION_KEY || PRESERVED_KEYS.includes(key)) continue;
+      if (key.startsWith(LOCAL_STORAGE_PREFIX)) {
         keysToRemove.push(key);
       }
     }

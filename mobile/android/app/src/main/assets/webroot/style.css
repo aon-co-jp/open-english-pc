@@ -674,3 +674,94 @@ body {
   user-select: text;
   -webkit-user-select: text;
 }
+
+/* 母国語指定+表示順のカスタマイズUI(2026-08-22追加)。順番は数値入力欄・
+   ラジオボタン・▲▼ボタンの3系統から指定でき、互いに連動する。 */
+.language-order-list {
+  margin: 8px 0;
+}
+.language-order-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  border: 1px solid #e3e3e3;
+  border-radius: 8px;
+  padding: 6px 8px;
+  margin-bottom: 6px;
+  background: #fff;
+}
+.language-order-name {
+  font-weight: 600;
+  min-width: 12em;
+  flex: 1 1 12em;
+}
+.language-order-number {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.9rem;
+}
+.language-order-input {
+  width: 4em;
+  font-size: 1rem;
+  padding: 2px 4px;
+}
+.language-order-radios {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.language-order-radio {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 0.9rem;
+}
+
+/* 言語選択の国名併記(2026-08-22追加)。 */
+.language-pack-country {
+  color: #666;
+  font-size: 0.85em;
+  margin-left: 4px;
+}
+
+/* 話題ブリーフィング(2026-08-22追加)。 */
+.briefing-maintenance {
+  font-weight: 600;
+  margin: 4px 0;
+}
+#briefing-progress progress {
+  width: 100%;
+  height: 14px;
+}
+.briefing-lang {
+  border: 1px solid #e3e3e3;
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin: 8px 0;
+  background: #fff;
+}
+.briefing-lang-top {
+  border-color: #f096be;
+  background: #fff7fb;
+}
+.briefing-top-badge {
+  font-size: 0.75em;
+  background: #f096be;
+  color: #fff;
+  border-radius: 6px;
+  padding: 1px 6px;
+  vertical-align: middle;
+}
+.briefing-section {
+  margin: 6px 0;
+}
+.briefing-section h4 {
+  margin: 4px 0;
+  font-size: 1rem;
+}
+.briefing-section ul {
+  margin: 2px 0 2px 1.2em;
+  padding: 0;
+}
