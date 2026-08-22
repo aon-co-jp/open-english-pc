@@ -364,6 +364,91 @@ function setStatus(ok, text) {
   statusEl.className = `status ${ok ? "ok" : "error"}`;
 }
 
+// ---------------------------------------------------------------------------
+// aruaru-llm連携の実用性向上(2026-08-22追加)
+// ---------------------------------------------------------------------------
+// これまで`fetch`にタイムアウトが一切無く、aruaru-llmが重いモデル
+// (gpt2-xl等)をロード中だったりプロセスが応答しなくなったりすると、
+// 「送信したのに何も起きない」状態が無限に続いていた(UI上の手掛かりも
+// 皆無)。AbortControllerで上限を設け、超過時は「何が起きたか」を英日で
+// 正直に伝える。
+// 補助的なaruaru-llm呼び出し(地理DB・ニュース・紹介判定など、応答文へ
+// 付け足す情報)のタイムアウト。これらは`askTrainer`の中で`await`されて
+// いるため、ここが無限に待つと生成本体が終わっていても返信が出てこない
+// ——本体より短い上限を設け、間に合わなければその付加情報だけ諦める
+// (いずれの呼び出し元も`catch`で空文字列を返す設計になっている)。
+const AUX_TIMEOUT_MS = 8000;
+
+/** 指定ミリ秒でabortする`fetch`。タイムアウト時は`err.isTimeout`が真になる。 */
+async function fetchWithTimeout(url, options = {}, timeoutMs = 15000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } catch (err) {
+    if (err && err.name === "AbortError") {
+      const e = new Error(`timed out after ${Math.round(timeoutMs / 1000)}s`);
+      e.isTimeout = true;
+      throw e;
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// 実行基盤バッジ(`GET /v1/runtime`、aruaru-llm側に2026-08-22新設)。
+// **正直な開示**: aruaru-llmは`open-cuda`のデバイス抽象
+// (`opencuda_core::GpuDevice`)の上で動いており、既定ビルドは
+// `opencuda_cpu::CpuDevice`(CPU/rayon)1台のみ——つまりGPU高速化は
+// 効いていない。`--features real-vulkan`でビルドし、かつ実GPUの初期化に
+// 成功した場合のみGPUがデバイスプールへ追加される。このバッジは
+// aruaru-llmが実際に報告した内容をそのまま出すだけで、こちら側で
+// 「GPU対応済み」と装うことはしない。独立リポジトリ
+// `aon-co-jp/open-directx`はこの経路に一切関与していない
+// (CLAUDE.md 2026-08-20の調査結果)。
+const runtimeBadgeEl = document.getElementById("runtime-badge");
+let lastRuntimeInfo = null;
+/** 直近の`/v1/generate`往復に要した実測ミリ秒(ステータス欄へ表示する)。 */
+let lastReplyLatencyMs = null;
+
+/** ステータス欄へ付ける「直近の実測応答時間」("(4.9s)")。未計測なら空文字。 */
+function latencySuffix() {
+  return lastReplyLatencyMs != null ? ` (last reply ${(lastReplyLatencyMs / 1000).toFixed(1)}s)` : "";
+}
+
+function renderRuntimeBadge(info) {
+  if (!runtimeBadgeEl) return;
+  if (!info) {
+    runtimeBadgeEl.textContent = "compute: unknown / 実行基盤: 不明";
+    runtimeBadgeEl.className = "runtime-badge unknown";
+    runtimeBadgeEl.title = "aruaru-llmの GET /v1/runtime に接続できませんでした(古いaruaru-llmには存在しないエンドポイントです)。";
+    return;
+  }
+  const label = info.gpu_in_use ? "GPU" : "CPU";
+  const model = info.engine || "(unknown engine)";
+  runtimeBadgeEl.textContent = `compute: ${label} · ${model}`;
+  runtimeBadgeEl.className = `runtime-badge ${info.gpu_in_use ? "gpu" : "cpu"}`;
+  runtimeBadgeEl.title =
+    `${info.summary_ja || ""}\n${info.summary_en || ""}\n` +
+    `devices: ${(info.devices || []).map((d) => d.name).join(", ")}\n` +
+    `GPU features enabled at build time: ${(info.enabled_gpu_features || []).join(", ") || "(none)"}\n` +
+    `${info.disclosure || ""}`;
+}
+
+async function refreshRuntimeInfo() {
+  const base = apiBaseEl.value.trim();
+  try {
+    const res = await fetchWithTimeout(`${base}/v1/runtime`, { cache: "no-store" }, 5000);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    lastRuntimeInfo = await res.json();
+  } catch (err) {
+    lastRuntimeInfo = null;
+  }
+  renderRuntimeBadge(lastRuntimeInfo);
+  return lastRuntimeInfo;
+}
+
 // キャビンアテンダント+メイドカフェ風の声質(ユーザー指示、2026-08-10)。
 // 正直な開示: Web Speech APIはブラウザ・OS標準の音声合成エンジンを使う
 // ため、声質そのものを自作することはできない——できるのは(1)利用可能な
@@ -562,11 +647,11 @@ async function findCountryFunFact(text) {
   let dbCapital = null;
   try {
     const base = apiBaseEl.value.trim();
-    const res = await fetch(`${base}/v1/geo/lookup`, {
+    const res = await fetchWithTimeout(`${base}/v1/geo/lookup`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ country: text.trim() }),
-    });
+    }, AUX_TIMEOUT_MS);
     const data = await res.json();
     if (data.found && data.capital) {
       dbCapital = data.capital;
@@ -609,7 +694,7 @@ async function findCountryFunFact(text) {
 async function fujiInfoText() {
   try {
     const base = apiBaseEl.value.trim();
-    const res = await fetch(`${base}/v1/geo/fuji`);
+    const res = await fetchWithTimeout(`${base}/v1/geo/fuji`, {}, AUX_TIMEOUT_MS);
     const info = await res.json();
     const hut = info.mountain_huts && info.mountain_huts[0];
     const transport = info.transport_reservations && info.transport_reservations[0];
@@ -637,11 +722,11 @@ async function fujiInfoText() {
 async function tourSearchText(place) {
   try {
     const base = apiBaseEl.value.trim();
-    const res = await fetch(`${base}/v1/geo/tours`, {
+    const res = await fetchWithTimeout(`${base}/v1/geo/tours`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ place }),
-    });
+    }, AUX_TIMEOUT_MS);
     const data = await res.json();
     let text = `🧳 Tours & booking for ${place} / ${place}の観光ツアー・予約情報`;
     if (data.configured && data.web_results && data.web_results.length) {
@@ -826,28 +911,54 @@ let wasConnected = false;
 async function checkHealth() {
   const base = apiBaseEl.value.trim();
   try {
-    const res = await fetch(`${base}/healthz`);
+    // 5秒間隔のポーリングなので、タイムアウトもそれ未満(4秒)にして
+    // 未応答のリクエストが積み上がらないようにする(2026-08-22)。
+    const res = await fetchWithTimeout(`${base}/healthz`, {}, 4000);
     if (res.ok) {
-      setStatus(true, "aruaru-llm: connected");
+      // 実機検証(2026-08-22)で判明した粗の修正: 5秒ごとのヘルスチェックが
+      // 直前の応答時間表示("connected (4.9s)")を即座に上書きして消して
+      // しまい、せっかく計測した実測値がほぼ見えなかった。直近の実測値が
+      // あれば維持する。
+      setStatus(true, `aruaru-llm: connected${latencySuffix()}`);
       if (!wasConnected) {
         const msg = "aruaru-llm installed and connected! / aruaru-llmがインストールされ接続されました!";
         appendMessage("system", msg);
         speak(msg);
+        // 接続した瞬間に「今どこで計算しているのか(CPU/GPU・モデル)」を
+        // 取りに行く(2026-08-22追加)。毎回のヘルスチェックでは叩かない
+        // ——実行基盤は頻繁には変わらないため。
+        refreshRuntimeInfo();
+      } else if (!lastRuntimeInfo) {
+        // 接続はできているのに実行基盤が不明のまま(初回取得が失敗した、
+        // あるいはaruaru-llmを再起動した直後)なら取り直す。
+        refreshRuntimeInfo();
       }
       wasConnected = true;
     } else {
       setStatus(false, `aruaru-llm: HTTP ${res.status}`);
       wasConnected = false;
+      renderRuntimeBadge(null);
     }
   } catch (err) {
-    setStatus(false, "aruaru-llm: unreachable (CORS or server not running?)");
+    setStatus(false, err.isTimeout ? "aruaru-llm: no response within 4s / 4秒以内に応答なし" : "aruaru-llm: unreachable (CORS or server not running?)");
     wasConnected = false;
+    renderRuntimeBadge(null);
   }
 }
 
 // 定期的に自動で接続確認する(ユーザー指示: インストール後の自動認識)。
 // 5秒ごとにポーリングし、上記の初回接続検知ロジックで通知する。
 setInterval(checkHealth, 5000);
+
+// 実機検証(2026-08-22)で判明した粗への対応: ブラウザはバックグラウンド
+// タブの`setInterval`を大幅に間引く(もしくは凍結する)ため、別タブを
+// 見ている間にaruaru-llmが復帰しても、タブへ戻った時点の表示が
+// 「unreachable」のまま張り付いたままになることを実際に観測した。
+// タブが再び表示されたタイミングで即座に確認し直す。
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") checkHealth();
+});
+window.addEventListener("focus", checkHealth);
 
 // キャラクター切替(ユーザー指示、2026-08-10「メイドカフェ魔法少女と
 // 風天のトラさんをいつでも変更できるように」への対応)。
@@ -925,7 +1036,15 @@ async function askTrainer(userText) {
   const useWebSearch = webSearchToggleEl && webSearchToggleEl.checked;
   const endpoint = useWebSearch ? "/v1/generate-with-search" : "/v1/generate";
 
-  const res = await fetch(`${base}${endpoint}`, {
+  // タイムアウト上限(2026-08-22追加)。GPT-2のCPU貪欲デコードは
+  // 1トークンあたりほぼ一定時間かかるため、大きなモデル(gpt2-xl等)へ
+  // 切り替えた環境では24トークンでも数十秒かかり得る。実測(distilgpt2・
+  // 32スレッドCPU)は24トークンで約5秒だったので、余裕を見て60秒
+  // (Google検索補強を挟む場合はさらに+30秒)を上限とする。無限に待つ
+  // 従来挙動よりは遥かにましだが、「速くなる」わけではない(正直な開示)。
+  const timeoutMs = useWebSearch ? 90000 : 60000;
+  const startedAt = performance.now();
+  const res = await fetchWithTimeout(`${base}${endpoint}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     // 正直な開示: max_new_tokensを48から24へ縮小した(ユーザー指摘
@@ -934,11 +1053,26 @@ async function askTrainer(userText) {
     // 短縮になる——ファインチューニング無しの素のモデルであるという
     // 制約自体は変わらない。
     body: JSON.stringify({ prompt, max_new_tokens: 24 }),
-  });
+  }, timeoutMs);
   if (!res.ok) {
-    throw new Error(`aruaru-llm returned HTTP ${res.status}`);
+    // 本文にaruaru-llm側の`error`フィールドが入っていることがあるので、
+    // ステータスコードだけでなく理由も見せる(2026-08-22改善)。
+    let detail = "";
+    try {
+      const body = await res.json();
+      if (body && body.error) detail = ` — ${body.error}`;
+    } catch (_) { /* JSONでない場合は無視 */ }
+    throw new Error(`aruaru-llm returned HTTP ${res.status}${detail}`);
   }
   const data = await res.json();
+  lastReplyLatencyMs = Math.round(performance.now() - startedAt);
+  // 応答に含まれる`engine`(実行経路サフィックス付き、例
+  // `distilgpt2-greedy-decode-v0-open-cuda-llm-cpu`)でバッジを最新化する
+  // ——モデルをホットスワップした場合もこれで追従できる。
+  if (data.engine && lastRuntimeInfo && lastRuntimeInfo.engine !== data.engine) {
+    lastRuntimeInfo = { ...lastRuntimeInfo, engine: data.engine };
+    renderRuntimeBadge(lastRuntimeInfo);
+  }
   const completion = data.completion ?? "(no completion field in response)";
   let reply = ensureHybridReply(trimDegenerateRepetition(completion), userText);
 
@@ -978,11 +1112,11 @@ async function askTrainer(userText) {
 async function referralsSuffix(userText) {
   try {
     const base = apiBaseEl.value.trim();
-    const res = await fetch(`${base}/v1/referrals/check`, {
+    const res = await fetchWithTimeout(`${base}/v1/referrals/check`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ text: userText }),
-    });
+    }, AUX_TIMEOUT_MS);
     const data = await res.json();
     if (!data.matched || !data.referrals) return "";
     const r = data.referrals;
@@ -1279,7 +1413,7 @@ async function newsSuffix(userText) {
   if (!mentionsNewsTopic(userText)) return "";
   try {
     const base = apiBaseEl.value.trim();
-    const res = await fetch(`${base}/v1/news/latest`);
+    const res = await fetchWithTimeout(`${base}/v1/news/latest`, {}, AUX_TIMEOUT_MS);
     const data = await res.json();
     if (!data.items || data.items.length === 0) {
       const reason = data.last_error ? ` (${data.last_error})` : "";
@@ -1417,15 +1551,58 @@ formEl.addEventListener("submit", async (e) => {
     return;
   }
 
+  // 「送信したのに沈黙する」問題への対応(2026-08-22)。GPT-2のCPU
+  // 生成は実測で数秒かかるため、待っている間そのことが見えるように
+  // 経過秒数付きのプレースホルダーを出し、応答が来たら中身を差し替える。
+  // 正直な開示: これは体感の改善であって生成そのものは速くならない。
+  // また`aruaru-llm`の`/v1/generate`は生成完了後に一括でJSONを返す設計
+  // (トークン単位のストリーミングAPIは存在しない)ため、いわゆる
+  // 逐次ストリーミング表示は実装できない——できるのはここまで。
+  const pending = appendMessage("trainer", "…thinking / 考え中… (0.0s)");
+  pending.classList.add("pending");
+  const pendingStartedAt = performance.now();
+  const pendingTimer = setInterval(() => {
+    const sec = ((performance.now() - pendingStartedAt) / 1000).toFixed(1);
+    pending.textContent = `…thinking / 考え中… (${sec}s)`;
+  }, 100);
+  const finishPending = (msg, role) => {
+    clearInterval(pendingTimer);
+    pending.classList.remove("pending");
+    pending.className = `msg ${role}`;
+    pending.dataset.role = role;
+    pending.textContent = msg;
+    logEl.scrollTop = logEl.scrollHeight;
+  };
+
   try {
     recordDailyUsage();
     const reply = await askTrainer(text);
-    appendMessage("trainer", reply);
+    finishPending(reply, "trainer");
     speak(reply);
-    setStatus(true, "aruaru-llm: connected");
+    setStatus(true, `aruaru-llm: connected${latencySuffix()}`);
   } catch (err) {
-    appendMessage("system", `Error talking to aruaru-llm: ${err.message}`);
+    // エラーの種類ごとに、次に何をすればよいかまで英日で伝える
+    // (2026-08-22改善、従来は`err.message`をそのまま出すだけだった)。
+    let msg;
+    if (err.isTimeout) {
+      msg =
+        `⏱ aruaru-llm did not reply in time (${err.message}). It may still be loading a large model, ` +
+        `or the model is too big for this machine. Try a shorter message, or switch to a smaller model ` +
+        `(POST /v1/download-smaller on the aruaru-llm side).\n` +
+        `⏱ aruaru-llmから時間内に応答がありませんでした(${err.message})。大きなモデルの読み込み中か、` +
+        `この端末にはモデルが大きすぎる可能性があります。短い文で試すか、より小さなモデルへ切り替えてください。`;
+    } else if (err instanceof TypeError) {
+      msg =
+        `🔌 Could not reach aruaru-llm at ${apiBaseEl.value.trim()}. Is it running (default port 4600)?\n` +
+        `🔌 ${apiBaseEl.value.trim()} のaruaru-llmへ接続できませんでした。起動しているか確認してください(既定ポート4600)。`;
+    } else {
+      msg = `⚠ Error talking to aruaru-llm: ${err.message}\n⚠ aruaru-llmとの通信でエラー: ${err.message}`;
+    }
+    finishPending(msg, "system");
     setStatus(false, "aruaru-llm: request failed");
+    // 失敗したときこそ実行基盤の状態を取り直す(落ちていればバッジも
+    // unknownになり、状況が一目でわかる)。
+    refreshRuntimeInfo();
   }
 });
 
