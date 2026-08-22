@@ -903,7 +903,19 @@ async function askTrainer(userText) {
   }
   // 正直な開示: プロンプトへの指示文付加のみでレベル・言語を守らせようと
   // しているだけで、GPT-2側が実際にそれを守る保証は無い。
-  const trainerRole = trainerRoleByTarget[learnTargetEl ? learnTargetEl.value : "english"] || trainerRoleByTarget.english;
+  // 学びたい言語がユーザー自身で追加した「世界の言語」(`world:<code>`)の
+  // 場合は、その言語名を差し込んだトレーナー役をその場で組み立てる
+  // (2026-08-22追加)。**正直な開示**: これはプロンプトへ言語名を書くだけで、
+  // GPT-2側がその言語で自然に応答する保証は無い(既存の制約と同じ)。
+  const learnTargetValue = learnTargetEl ? learnTargetEl.value : "english";
+  let trainerRole;
+  if (learnTargetValue.startsWith("world:")) {
+    const langInfo = typeof worldLanguageByCode === "function" ? worldLanguageByCode(learnTargetValue.slice(6)) : null;
+    const langName = langInfo ? langInfo.en : learnTargetValue.slice(6);
+    trainerRole = `You are a friendly ${langName} conversation trainer at a maid cafe, helping the student practice ${langName}. Explain in English when helpful.`;
+  } else {
+    trainerRole = trainerRoleByTarget[learnTargetValue] || trainerRoleByTarget.english;
+  }
   const prompt = `${trainerRole} ${levelInstruction} ${langInstruction}\nStudent: ${userText}\nTrainer:`;
 
   // Google検索補強(ユーザー指示「発話・入力の都度Google検索する」への
@@ -2148,8 +2160,23 @@ const EXAM_PREP_QUESTIONS_PER_ATTEMPT = 10;
 
 async function renderExamPrepQuiz() {
   const exam = examPrepExamEl.value;
-  const extra = await loadExtraExamPrepQuestions();
-  const pool = (EXAM_PREP_QUESTIONS[exam] || []).concat(extra[exam] || []);
+  let pool;
+  if (exam.startsWith("world:")) {
+    // 世界の言語の擬似模擬試験(2026-08-22追加)。問題は
+    // `world-language-exams.json`側にあり、既存の英検/JLPT等のプールとは
+    // 別系統で読み込む(既存の仕組みは一切変更しない)。
+    const code = exam.slice("world:".length);
+    const map = await loadWorldExamQuestions();
+    pool = (map[code] || []).map((item) => ({
+      // レベル(CEFR風の目安)を問題文の頭に付けて表示する。
+      q: item.level ? `[${item.level}] ${item.q}` : item.q,
+      choices: item.choices,
+      answer: item.answer,
+    }));
+  } else {
+    const extra = await loadExtraExamPrepQuestions();
+    pool = (EXAM_PREP_QUESTIONS[exam] || []).concat(extra[exam] || []);
+  }
   // プール全体からランダムに抽出した上で出題順もシャッフルし、各問の
   // 選択肢の並び(正解の位置)も毎回シャッフルする——正解が常に同じ
   // 位置に来る/常に同じ問題の組み合わせで出題される、という予測可能性を
@@ -2217,6 +2244,27 @@ function practiceExamPrepWithTrainer() {
   const targets = examPrepMissedQuestions.length > 0 ? examPrepMissedQuestions : questions.map((item) => ({ q: item.q, correctChoice: item.choices[item.answer] }));
   if (targets.length === 0) return;
 
+  // 世界の言語の擬似模擬試験を受けた後は、その言語のトレーナーへ移行して
+  // 学習を途切れさせない(2026-08-22追加、既存のJLPT→日本語教室と同じ流れを
+  // 多言語へ拡張したもの)。応答言語は英語との併記(hybrid)にして、母語話者で
+  // なくても内容を追えるようにする。
+  if (exam.startsWith("world:")) {
+    const code = exam.slice("world:".length);
+    const lang = worldLanguageByCode(code) || { endonym: code, en: code };
+    if (learnTargetEl && learnTargetEl.querySelector(`option[value="world:${code}"]`)) {
+      learnTargetEl.value = `world:${code}`;
+    }
+    if (replyLangEl) replyLangEl.value = "hybrid";
+    const worldSummary = targets.map((t, i) => `${i + 1}) "${t.q}" (answer: ${t.correctChoice})`).join(" ");
+    examPrepModal.classList.add("hidden");
+    inputEl.value =
+      `I just took an original ${lang.en} practice quiz (not a real certification exam). ` +
+      `Please continue as my ${lang.en} tutor and help me understand and practice these items, ` +
+      `explaining in English and giving example sentences in ${lang.en}. ${worldSummary}`;
+    formEl.dispatchEvent(new Event("submit", { cancelable: true }));
+    return;
+  }
+
   const isJlpt = exam.startsWith("jlpt") || exam.startsWith("nihongoKentei");
   // JLPT受験後は「日本語教室」へ移行する(ユーザー指示「テスト後に
   // 日本語教室に移って、英語と日本語で表示としゃべって」への対応)。
@@ -2236,6 +2284,552 @@ function practiceExamPrepWithTrainer() {
   inputEl.value = requestText;
   formEl.dispatchEvent(new Event("submit", { cancelable: true }));
 }
+
+// ===========================================================================
+// 多言語擬似模擬試験 + 追加言語パック選択(2026-08-22新設)
+// ---------------------------------------------------------------------------
+// ユーザー指示への対応:
+//  1.「日本語と英語をデフォルトとして選択できますが、世界中の言語も選択
+//     可能です」——`index.html`の`#world-language-banner`で日英併記の大きな
+//     案内を表示する。
+//  2.「日本語における英検・TOEIC・TOEFLのような、その言語の運用能力を測る
+//     擬似模擬試験を世界中の言語で」——`world-language-exams.json`に各言語の
+//     オリジナル問題を収録し、資格対策モーダルの試験メニューへ`world:<code>`
+//     という値で追加する。
+//  3.「受験後の学習継続」——既存の`examPrepMissedQuestions`の仕組みをそのまま
+//     再利用し、採点後に間違えた問題を持ってその言語のトレーナーへ移行する。
+//  4.「メンテナンス中に言語を追加するか尋ね、チェックで選ばせる。全部を選択
+//     ボタンと、日英以外を全部解除するボタンを置く」——`#language-pack-modal`。
+//
+// **正直な開示(誇張しないこと)**:
+//  - 収録しているのはこのアプリ用に書き下ろしたオリジナル問題で、実在の
+//    語学資格試験(DELE/DELF/Goethe-Zertifikat/HSK/TOPIK等)の過去問では
+//    なく、それらの試験とは一切無関係。試験名も騙らず「運用能力チェック
+//    (オリジナル問題)」として提示する。
+//  - 収録数は言語ごとに不均一(現状3〜6問)で、CEFR風のレベル表記も
+//    大まかな目安に過ぎない。UI上でも問題数をそのまま表示する。
+//  - トレーナー(aruaru-llmのGPT-2)は英語中心のモデルであり、対象言語で
+//    自然な応答を返す保証は無い——これは既存の既知の制約と同じ。
+// ===========================================================================
+
+// 「英語・日本語」は常に有効な既定言語(このリストからは外せない)。
+const DEFAULT_LANGUAGE_CODES = ["en", "ja"];
+// 追加で有効化した言語コードの保存先(既存の`localStorage`利用パターンに合わせる)。
+const ENABLED_LANGUAGES_KEY = "open-english.enabledLanguages";
+// メンテナンス中の言語追加案内を既に一度出したかどうか(毎回出すと煩わしいため)。
+const LANGUAGE_PROMPT_SHOWN_KEY = "open-english.languagePromptShown";
+
+let worldLanguages = [];       // /v1/world-languages のサマリ一覧
+let worldExamQuestions = {};   // code -> questions[](world-language-exams.jsonから)
+
+function loadEnabledLanguages() {
+  try {
+    const raw = localStorage.getItem(ENABLED_LANGUAGES_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.filter((c) => typeof c === "string") : [];
+  } catch (e) {
+    // localStorageが使えない環境でも他機能を止めない(既存方針)。
+    return [];
+  }
+}
+
+function saveEnabledLanguages(codes) {
+  try {
+    localStorage.setItem(ENABLED_LANGUAGES_KEY, JSON.stringify(codes));
+  } catch (e) {
+    /* 保存できなくてもセッション中は動作する(正直な開示: 再読み込みで失われる) */
+  }
+  // サーバー側の設定テーブルにも保存を試みる(2026-08-18実装済みの既存API、
+  // 失敗しても無視する——localStorageが一次保存先)。
+  fetch("/v1/db/settings", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ key: ENABLED_LANGUAGES_KEY, value: JSON.stringify(codes) }),
+  }).catch(() => {});
+}
+
+async function fetchWorldLanguages() {
+  try {
+    const res = await fetch("/v1/world-languages", { cache: "no-store" });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    return Array.isArray(data.languages) ? data.languages : [];
+  } catch (e) {
+    // APIが無い配信形態(`file://`直開き等)では静的JSONへフォールバックする。
+    try {
+      const res2 = await fetch("world-language-exams.json", { cache: "no-store" });
+      const data2 = await res2.json();
+      return (data2.languages || []).map((l) => ({
+        code: l.code, endonym: l.endonym, en: l.en, ja: l.ja, rtl: !!l.rtl,
+        authored: !!l.authored, question_count: (l.questions || []).length,
+        levels: [...new Set((l.questions || []).map((q) => q.level))].sort(),
+      }));
+    } catch (e2) {
+      return [];
+    }
+  }
+}
+
+let worldExamQuestionsPromise = null;
+function loadWorldExamQuestions() {
+  if (!worldExamQuestionsPromise) {
+    worldExamQuestionsPromise = fetch("world-language-exams.json", { cache: "no-store" })
+      .then((res) => (res.ok ? res.json() : { languages: [] }))
+      .then((data) => {
+        const map = {};
+        (data.languages || []).forEach((l) => {
+          map[l.code] = l.questions || [];
+        });
+        worldExamQuestions = map;
+        return map;
+      })
+      .catch(() => ({}));
+  }
+  return worldExamQuestionsPromise;
+}
+
+function worldLanguageByCode(code) {
+  return worldLanguages.find((l) => l.code === code) || null;
+}
+
+function worldLanguageLabel(lang) {
+  const levels = (lang.levels || []).join("/");
+  return `${lang.endonym} / ${lang.en} / ${lang.ja} — 運用能力チェック(オリジナル問題${levels ? `, ${levels}目安` : ""})`;
+}
+
+/**
+ * 有効化された言語を「学びたい言語」メニューと資格対策の試験メニューへ反映する。
+ * 既定の英語・日本語の項目はそのまま残し、その下へ追加する(既存UIを壊さない)。
+ */
+function applyEnabledLanguagesToMenus() {
+  const enabled = loadEnabledLanguages();
+
+  // 1) 学びたい言語メニュー
+  if (learnTargetEl) {
+    const previous = learnTargetEl.value;
+    learnTargetEl.querySelectorAll("option[data-world-lang]").forEach((o) => o.remove());
+    enabled.forEach((code) => {
+      const lang = worldLanguageByCode(code);
+      if (!lang) return;
+      const opt = document.createElement("option");
+      opt.value = `world:${code}`;
+      opt.dataset.worldLang = code;
+      opt.textContent = `${lang.endonym} conversation / ${lang.ja}会話`;
+      learnTargetEl.appendChild(opt);
+    });
+    if (learnTargetEl.querySelector(`option[value="${previous}"]`)) learnTargetEl.value = previous;
+  }
+
+  // 2) 資格対策コーナーの試験メニュー(既存の英検/TOEIC/JLPT等はそのまま)
+  if (examPrepExamEl) {
+    const previous = examPrepExamEl.value;
+    examPrepExamEl.querySelectorAll("optgroup[data-world-group]").forEach((g) => g.remove());
+    const group = document.createElement("optgroup");
+    group.dataset.worldGroup = "1";
+    group.label = "世界の言語 / World languages (original practice sets)";
+    enabled.forEach((code) => {
+      const lang = worldLanguageByCode(code);
+      if (!lang || !lang.question_count) return;
+      const opt = document.createElement("option");
+      opt.value = `world:${code}`;
+      opt.textContent = `${worldLanguageLabel(lang)} — ${lang.question_count}問`;
+      group.appendChild(opt);
+    });
+    if (group.children.length > 0) examPrepExamEl.appendChild(group);
+    if (examPrepExamEl.querySelector(`option[value="${previous}"]`)) examPrepExamEl.value = previous;
+  }
+
+  const note = document.getElementById("exam-prep-world-note");
+  if (note) {
+    const usable = enabled.filter((c) => (worldLanguageByCode(c) || {}).question_count).length;
+    note.textContent = usable > 0
+      ? `世界の言語の擬似模擬試験を${usable}言語ぶん有効化しています(オリジナル問題、実在の資格試験とは無関係)。 / ${usable} world-language practice sets enabled (original questions, unaffiliated with any real certification exam).`
+      : "世界の言語の模擬試験はまだ有効化されていません。上の「🌐 Languages / 言語を追加」から選べます。 / No world-language practice sets enabled yet — add them from the 🌐 Languages button above.";
+  }
+}
+
+// --- 追加言語パック選択モーダル -------------------------------------------
+const languagePackModal = document.getElementById("language-pack-modal");
+const languagePackListEl = document.getElementById("language-pack-list");
+const languagePackStatusEl = document.getElementById("language-pack-status");
+
+function renderLanguagePackList() {
+  if (!languagePackListEl) return;
+  const enabled = new Set(loadEnabledLanguages());
+  const defaults = [
+    { code: "en", endonym: "English", ja: "英語", fixed: true },
+    { code: "ja", endonym: "日本語", ja: "日本語", fixed: true },
+  ];
+  const defaultRows = defaults
+    .map(
+      (d) =>
+        `<label class="language-pack-item language-pack-default"><input type="checkbox" checked disabled /> ${d.endonym} / ${d.ja} <span class="language-pack-count">(default / 既定)</span></label>`
+    )
+    .join("");
+  const rows = worldLanguages
+    .map((lang) => {
+      const checked = enabled.has(lang.code) ? " checked" : "";
+      const count = lang.question_count
+        ? `${lang.question_count}問 / ${lang.question_count} items`
+        : "問題未収録 / no items yet";
+      return `<label class="language-pack-item"><input type="checkbox" data-lang-code="${lang.code}"${checked} /> ${lang.endonym} / ${lang.en} / ${lang.ja} <span class="language-pack-count">(${count})</span></label>`;
+    })
+    .join("");
+  languagePackListEl.innerHTML = defaultRows + rows;
+  // 個別のON/OFF(利用者が好きな2言語だけ、といった自由な組み合わせ)は
+  // 通常のチェックボックスとしてそのまま機能する。ここでは上限のみ制御する。
+  languagePackListEl.querySelectorAll("input[data-lang-code]").forEach((box) => {
+    box.addEventListener("change", () => {
+      enforceLanguageSelectionLimit();
+      renderMultiSpeakOutput();
+    });
+  });
+  enforceLanguageSelectionLimit();
+}
+
+// 同時に選択できる言語数の上限・下限(ユーザー指示、2026-08-22
+// 「最低2か国語・最大5か国語、日英含む」)。英語・日本語は常に有効で
+// 外せないため、下限2は常に満たされ、追加できるのは最大3言語になる。
+const MIN_TOTAL_LANGUAGES = 2;
+const MAX_TOTAL_LANGUAGES = 5;
+const MAX_ADDITIONAL_LANGUAGES = MAX_TOTAL_LANGUAGES - DEFAULT_LANGUAGE_CODES.length; // = 3
+
+/**
+ * 上限に達したら未チェックのチェックボックスをdisabledにする(既にチェック
+ * 済みのものは外せるようdisabledにしない)。上限・下限の状況を案内文へ出す。
+ */
+function enforceLanguageSelectionLimit() {
+  if (!languagePackListEl) return;
+  const boxes = Array.from(languagePackListEl.querySelectorAll("input[data-lang-code]"));
+  const checked = boxes.filter((b) => b.checked);
+  const atMax = checked.length >= MAX_ADDITIONAL_LANGUAGES;
+  boxes.forEach((b) => {
+    b.disabled = atMax && !b.checked;
+  });
+  if (languagePackStatusEl) {
+    const total = DEFAULT_LANGUAGE_CODES.length + checked.length;
+    languagePackStatusEl.textContent = atMax
+      ? `上限に達しました: 合計${total}言語(最大${MAX_TOTAL_LANGUAGES}言語、英語・日本語を含む)。他の言語を選ぶには、どれかのチェックを外してください。 / Limit reached: ${total} languages (max ${MAX_TOTAL_LANGUAGES} including English and Japanese). Uncheck one to choose another.`
+      : `現在 合計${total}言語を選択中(最低${MIN_TOTAL_LANGUAGES}・最大${MAX_TOTAL_LANGUAGES}言語、英語・日本語は常に有効)。 / Currently ${total} languages selected (min ${MIN_TOTAL_LANGUAGES}, max ${MAX_TOTAL_LANGUAGES}; English and Japanese are always on).`;
+  }
+}
+
+function currentlyCheckedLanguageCodes() {
+  if (!languagePackListEl) return [];
+  return Array.from(languagePackListEl.querySelectorAll("input[data-lang-code]:checked")).map(
+    (el) => el.dataset.langCode
+  );
+}
+
+function openLanguagePackModal() {
+  if (!languagePackModal) return;
+  renderLanguagePackList();
+  if (languagePackStatusEl) languagePackStatusEl.textContent = "";
+  languagePackModal.classList.remove("hidden");
+}
+
+if (languagePackModal) {
+  const openBtns = ["language-pack-btn", "world-language-banner-btn"];
+  openBtns.forEach((id) => {
+    const btn = document.getElementById(id);
+    if (btn) btn.addEventListener("click", openLanguagePackModal);
+  });
+  const closeBtn = document.getElementById("language-pack-close");
+  if (closeBtn) closeBtn.addEventListener("click", () => languagePackModal.classList.add("hidden"));
+  languagePackModal.addEventListener("click", (e) => {
+    if (e.target === languagePackModal) languagePackModal.classList.add("hidden");
+  });
+  const selectAllBtn = document.getElementById("language-pack-select-all");
+  if (selectAllBtn) {
+    // 「全部を選択」: 合計5言語(英語・日本語+3言語)という上限があるため、
+    // 全言語をチェック状態にすることはできない——一覧の先頭から上限ぶんだけ
+    // チェックし、その旨をUIで正直に案内する(ユーザー指示「全部を選択の
+    // 挙動も上限と矛盾しないように、UI上で分かりやすく説明する」への対応)。
+    selectAllBtn.addEventListener("click", () => {
+      const boxes = Array.from(languagePackListEl.querySelectorAll("input[data-lang-code]"));
+      boxes.forEach((el, i) => {
+        el.disabled = false;
+        el.checked = i < MAX_ADDITIONAL_LANGUAGES;
+      });
+      enforceLanguageSelectionLimit();
+      renderMultiSpeakOutput();
+      if (languagePackStatusEl) {
+        languagePackStatusEl.textContent =
+          `上限のため、一覧の先頭から${MAX_ADDITIONAL_LANGUAGES}言語のみ選択しました(英語・日本語と合わせて合計${MAX_TOTAL_LANGUAGES}言語)。別の言語にしたい場合はチェックを付け替えてください。 / ` +
+          `Because of the ${MAX_TOTAL_LANGUAGES}-language limit, only the first ${MAX_ADDITIONAL_LANGUAGES} languages were selected (plus English and Japanese). Uncheck and pick others if you prefer.`;
+      }
+    });
+  }
+  // 「日本語と英語以外の全部を解除」——既定の英語・日本語はそもそも
+  // チェックボックス自体が固定(disabled・常時checked)なので、追加言語の
+  // チェックだけを外せばユーザーの要望通りの状態になる。
+  const clearOthersBtn = document.getElementById("language-pack-clear-others");
+  if (clearOthersBtn) {
+    clearOthersBtn.addEventListener("click", () => {
+      languagePackListEl.querySelectorAll("input[data-lang-code]").forEach((el) => {
+        el.checked = false;
+      });
+      enforceLanguageSelectionLimit();
+      renderMultiSpeakOutput();
+    });
+  }
+  const saveBtn = document.getElementById("language-pack-save");
+  if (saveBtn) {
+    saveBtn.addEventListener("click", () => {
+      const codes = currentlyCheckedLanguageCodes();
+      saveEnabledLanguages(codes);
+      applyEnabledLanguagesToMenus();
+      if (languagePackStatusEl) {
+        languagePackStatusEl.textContent = `保存しました(${DEFAULT_LANGUAGE_CODES.length + codes.length}言語有効: 英語・日本語 + ${codes.length}言語)。 / Saved: English, Japanese + ${codes.length} additional language(s).`;
+      }
+    });
+  }
+}
+
+// --- 多言語の連続表示・連続読み上げ ---------------------------------------
+// ユーザー指示(2026-08-22)への対応: 選択した2〜5か国語(英語・日本語を含む)
+// について、同じ内容を選択順に画面へ表示しながら音声で順番に読み上げる。
+// 表示文はコピー&ペースト可能なテキスト(`user-select`を妨げない通常のDOM
+// +readonlyのtextarea)とし、ファイルダウンロード保存・DB保存にも対応する。
+// 何度でも再生し直せるよう、全体の再生ボタンと言語ごとの再生ボタンを置く。
+//
+// **正直な開示**: 音声は既存機能と同じブラウザ内蔵のWeb Speech APIを流用
+// しているだけで、独自の音声合成エンジンは持たない——その言語の音声が
+// OS/ブラウザに無ければ、表示はできても読み上げは別言語の声になるか
+// 無音でスキップされる。
+const multiSpeakPhraseEl = document.getElementById("multi-speak-phrase");
+const multiSpeakOutputEl = document.getElementById("multi-speak-output");
+const multiSpeakStatusEl = document.getElementById("multi-speak-status");
+let multiSpeakPhrases = [];
+
+// 言語コード -> Web Speech APIへ渡すBCP-47タグ(声の選択に使う)。
+const SPEECH_LANG_TAGS = {
+  en: "en-US", ja: "ja-JP", es: "es-ES", fr: "fr-FR", de: "de-DE", it: "it-IT",
+  pt: "pt-PT", nl: "nl-NL", sv: "sv-SE", no: "nb-NO", da: "da-DK", fi: "fi-FI",
+  pl: "pl-PL", cs: "cs-CZ", ro: "ro-RO", ru: "ru-RU", uk: "uk-UA", el: "el-GR",
+  tr: "tr-TR", ar: "ar-SA", he: "he-IL", fa: "fa-IR", hi: "hi-IN", bn: "bn-BD",
+  id: "id-ID", ms: "ms-MY", vi: "vi-VN", th: "th-TH", tl: "fil-PH", zh: "zh-CN",
+  ko: "ko-KR", sw: "sw-KE",
+};
+
+async function loadMultiSpeakPhrases() {
+  try {
+    const res = await fetch("world-language-phrases.json", { cache: "no-store" });
+    const data = await res.json();
+    multiSpeakPhrases = data.phrases || [];
+  } catch (e) {
+    multiSpeakPhrases = [];
+  }
+  if (multiSpeakPhraseEl) {
+    multiSpeakPhraseEl.innerHTML = multiSpeakPhrases
+      .map((p) => `<option value="${p.id}">${p.label_ja} / ${p.label_en}</option>`)
+      .join("");
+  }
+}
+
+/**
+ * 現在の再生対象言語(英語・日本語 + チェック済みの追加言語、最大5言語)。
+ * モーダルが開いていればチェックボックスの「今の状態」を、閉じていれば
+ * 保存済みの設定を使う。
+ */
+function multiSpeakTargetCodes() {
+  const additional =
+    languagePackModal && !languagePackModal.classList.contains("hidden")
+      ? currentlyCheckedLanguageCodes()
+      : loadEnabledLanguages();
+  return DEFAULT_LANGUAGE_CODES.concat(additional).slice(0, MAX_TOTAL_LANGUAGES);
+}
+
+function multiSpeakLines() {
+  const phrase = multiSpeakPhrases.find((p) => p.id === (multiSpeakPhraseEl ? multiSpeakPhraseEl.value : ""));
+  if (!phrase) return [];
+  return multiSpeakTargetCodes()
+    .map((code) => {
+      const lang = worldLanguageByCode(code);
+      const name = code === "en" ? "English / 英語" : code === "ja" ? "日本語 / Japanese" : lang ? `${lang.endonym} / ${lang.ja}` : code;
+      return { code, name, text: (phrase.text || {})[code] || "" };
+    })
+    .filter((row) => row.text);
+}
+
+function renderMultiSpeakOutput() {
+  if (!multiSpeakOutputEl) return;
+  const lines = multiSpeakLines();
+  if (lines.length < MIN_TOTAL_LANGUAGES) {
+    multiSpeakOutputEl.innerHTML = `<p class="setup-note">この言語の訳文がまだ揃っていません(最低${MIN_TOTAL_LANGUAGES}言語必要です)。 / Not enough translated lines yet (minimum ${MIN_TOTAL_LANGUAGES}).</p>`;
+    return;
+  }
+  multiSpeakOutputEl.innerHTML = lines
+    .map(
+      (row, i) => `
+      <div class="multi-speak-row" data-code="${row.code}">
+        <div class="multi-speak-row-head">
+          <span class="multi-speak-lang">${i + 1}. ${row.name}</span>
+          <button type="button" class="setup-btn multi-speak-row-play" data-code="${row.code}">🔁 この言語だけ再生 / Play this one</button>
+        </div>
+        <textarea class="multi-speak-text" readonly rows="2">${row.text}</textarea>
+      </div>`
+    )
+    .join("");
+  multiSpeakOutputEl.querySelectorAll(".multi-speak-row-play").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const row = lines.find((r) => r.code === btn.dataset.code);
+      if (row) speakOneLanguage(row);
+    });
+  });
+}
+
+function speakOneLanguage(row) {
+  if (!("speechSynthesis" in window)) {
+    if (multiSpeakStatusEl) multiSpeakStatusEl.textContent = "このブラウザは音声読み上げに対応していません。 / This browser does not support speech synthesis.";
+    return;
+  }
+  window.speechSynthesis.cancel();
+  const tag = SPEECH_LANG_TAGS[row.code] || row.code;
+  const utter = new SpeechSynthesisUtterance(row.text);
+  utter.lang = tag;
+  const voice = pickVoice(tag, false);
+  if (voice) utter.voice = voice;
+  utter.rate = 0.9;
+  window.speechSynthesis.speak(utter);
+}
+
+/**
+ * 選択言語の順に、画面表示をハイライトしながら連続して読み上げる。
+ * 何度でも呼べる(呼ぶたびに先頭からやり直す)。
+ */
+function playMultiSpeakSequence() {
+  const lines = multiSpeakLines();
+  renderMultiSpeakOutput();
+  if (lines.length < MIN_TOTAL_LANGUAGES) return;
+  if (!("speechSynthesis" in window)) {
+    if (multiSpeakStatusEl) multiSpeakStatusEl.textContent = "このブラウザは音声読み上げに対応していないため、表示のみ行いました。 / Speech synthesis is unavailable in this browser; text is displayed only.";
+    return;
+  }
+  window.speechSynthesis.cancel();
+  const rows = Array.from(multiSpeakOutputEl.querySelectorAll(".multi-speak-row"));
+  lines.forEach((line, i) => {
+    const tag = SPEECH_LANG_TAGS[line.code] || line.code;
+    const utter = new SpeechSynthesisUtterance(line.text);
+    utter.lang = tag;
+    const voice = pickVoice(tag, false);
+    if (voice) utter.voice = voice;
+    utter.rate = 0.9;
+    utter.onstart = () => {
+      rows.forEach((r) => r.classList.remove("speaking-now"));
+      if (rows[i]) rows[i].classList.add("speaking-now");
+    };
+    utter.onend = () => {
+      if (i === lines.length - 1) {
+        rows.forEach((r) => r.classList.remove("speaking-now"));
+        if (multiSpeakStatusEl) multiSpeakStatusEl.textContent = `${lines.length}言語の再生が終わりました。何度でも再生できます。 / Finished reading ${lines.length} languages. You can replay as many times as you like.`;
+      }
+    };
+    window.speechSynthesis.speak(utter);
+  });
+  if (multiSpeakStatusEl) multiSpeakStatusEl.textContent = `${lines.length}言語を順番に再生しています… / Reading ${lines.length} languages in order…`;
+}
+
+function multiSpeakPlainText() {
+  const phrase = multiSpeakPhrases.find((p) => p.id === (multiSpeakPhraseEl ? multiSpeakPhraseEl.value : ""));
+  const header = phrase ? `# ${phrase.label_ja} / ${phrase.label_en}` : "# open-english multilingual phrases";
+  return [header].concat(multiSpeakLines().map((row) => `${row.name}: ${row.text}`)).join("\n");
+}
+
+if (multiSpeakOutputEl) {
+  const playBtn = document.getElementById("multi-speak-play");
+  const replayBtn = document.getElementById("multi-speak-replay");
+  const stopBtn = document.getElementById("multi-speak-stop");
+  if (playBtn) playBtn.addEventListener("click", playMultiSpeakSequence);
+  if (replayBtn) replayBtn.addEventListener("click", playMultiSpeakSequence);
+  if (stopBtn) {
+    stopBtn.addEventListener("click", () => {
+      if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+      multiSpeakOutputEl.querySelectorAll(".multi-speak-row").forEach((r) => r.classList.remove("speaking-now"));
+      if (multiSpeakStatusEl) multiSpeakStatusEl.textContent = "停止しました。 / Stopped.";
+    });
+  }
+  if (multiSpeakPhraseEl) multiSpeakPhraseEl.addEventListener("change", renderMultiSpeakOutput);
+
+  const copyBtn = document.getElementById("multi-speak-copy");
+  if (copyBtn) {
+    copyBtn.addEventListener("click", async () => {
+      const text = multiSpeakPlainText();
+      try {
+        await navigator.clipboard.writeText(text);
+        if (multiSpeakStatusEl) multiSpeakStatusEl.textContent = "クリップボードへコピーしました。 / Copied to the clipboard.";
+      } catch (e) {
+        // クリップボードAPIが使えない場合でも、各行のtextareaから手動で
+        // 選択・コピーできる(readonlyにしているだけで選択は妨げていない)。
+        if (multiSpeakStatusEl) multiSpeakStatusEl.textContent = "自動コピーに失敗しました。各行のテキストを手動で選択してコピーしてください。 / Automatic copy failed; please select the text manually and copy it.";
+      }
+    });
+  }
+
+  const downloadBtn = document.getElementById("multi-speak-download");
+  if (downloadBtn) {
+    downloadBtn.addEventListener("click", () => {
+      const blob = new Blob([multiSpeakPlainText()], { type: "text/plain;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `open-english-phrases-${new Date().toISOString().slice(0, 10)}.txt`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      if (multiSpeakStatusEl) multiSpeakStatusEl.textContent = "テキストファイルとして保存しました。 / Saved as a text file.";
+    });
+  }
+
+  // DB保存は既存の会話履歴API(`POST /v1/db/history`、2026-08-18実装済みの
+  // SQLite永続化)をそのまま使う——新しいDB基盤は作らない(ユーザー指示
+  // 「既存の永続化パターンに合わせること」への対応)。
+  const saveDbBtn = document.getElementById("multi-speak-save-db");
+  if (saveDbBtn) {
+    saveDbBtn.addEventListener("click", async () => {
+      try {
+        const res = await fetch("/v1/db/history", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ role: "multilingual-phrase", content: multiSpeakPlainText() }),
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        if (multiSpeakStatusEl) multiSpeakStatusEl.textContent = "データベース(ローカルSQLite)へ保存しました。 / Saved to the local SQLite database.";
+      } catch (e) {
+        if (multiSpeakStatusEl) multiSpeakStatusEl.textContent = `データベースへの保存に失敗しました(${e.message})。ダウンロード保存やコピーはそのまま使えます。 / Saving to the database failed (${e.message}); download and copy still work.`;
+      }
+    });
+  }
+}
+
+// 起動時: 対応言語一覧を取得してメニューへ反映し、メンテナンス中(初回)は
+// 言語追加の案内モーダルを自動で開く。
+(async function initWorldLanguages() {
+  worldLanguages = await fetchWorldLanguages();
+  applyEnabledLanguagesToMenus();
+  await loadMultiSpeakPhrases();
+  renderMultiSpeakOutput();
+  let alreadyPrompted = false;
+  try {
+    alreadyPrompted = localStorage.getItem(LANGUAGE_PROMPT_SHOWN_KEY) === "1";
+  } catch (e) {
+    alreadyPrompted = false;
+  }
+  const maintenanceVisible =
+    document.getElementById("maintenance-banner") &&
+    !document.getElementById("maintenance-banner").classList.contains("hidden");
+  if (!alreadyPrompted && maintenanceVisible && worldLanguages.length > 0) {
+    // メンテナンス(起動直後の60秒カウントダウン)の待ち時間に案内する。
+    openLanguagePackModal();
+    try {
+      localStorage.setItem(LANGUAGE_PROMPT_SHOWN_KEY, "1");
+    } catch (e) {
+      /* 保存できない場合は毎回表示されるだけで実害は無い */
+    }
+  }
+})();
 
 if (examPrepBtn && examPrepModal) {
   examPrepBtn.addEventListener("click", () => {

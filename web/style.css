@@ -586,3 +586,91 @@ body {
   padding: 6px 8px;
   font-size: 0.95rem;
 }
+
+/* 世界の言語も選べることを大きく案内するバナー(2026-08-22追加、
+   ユーザー指示「日本語と英語をデフォルトとして選択できますが、世界中の
+   言語も選択可能ですと、日本語と英語で大きく表示して」)。 */
+.world-language-banner {
+  background: linear-gradient(90deg, #fff2f8, #f2f6ff);
+  border: 2px solid #f096be;
+  border-radius: 10px;
+  margin: 8px;
+  padding: 10px 14px;
+  text-align: center;
+}
+.world-language-banner-main {
+  margin: 0 0 8px;
+  font-size: 1.15rem;
+  line-height: 1.6;
+  font-weight: 600;
+}
+.world-language-banner-main strong {
+  color: #c2185b;
+  font-size: 1.2em;
+}
+@media (max-width: 600px) {
+  .world-language-banner-main { font-size: 1rem; }
+}
+
+/* 追加言語パック選択UI(2026-08-22追加)。 */
+.language-pack-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 4px 12px;
+  max-height: 45vh;
+  overflow-y: auto;
+  margin: 10px 0;
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+}
+.language-pack-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.95rem;
+}
+.language-pack-item.language-pack-default {
+  opacity: 0.75;
+}
+.language-pack-count {
+  color: #777;
+  font-size: 0.85em;
+}
+
+/* 多言語の連続表示・読み上げ(2026-08-22追加)。表示文はコピー&ペースト
+   できる必要があるため、user-select を妨げる指定は一切しない。 */
+.multi-speak-output {
+  margin: 8px 0;
+}
+.multi-speak-row {
+  border: 1px solid #e3e3e3;
+  border-radius: 8px;
+  padding: 6px 8px;
+  margin-bottom: 6px;
+  background: #fff;
+}
+.multi-speak-row.speaking-now {
+  border-color: #f096be;
+  background: #fff5fa;
+}
+.multi-speak-row-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.multi-speak-lang {
+  font-weight: 600;
+}
+.multi-speak-text {
+  width: 100%;
+  box-sizing: border-box;
+  margin-top: 4px;
+  font-size: 1rem;
+  line-height: 1.5;
+  resize: vertical;
+  user-select: text;
+  -webkit-user-select: text;
+}

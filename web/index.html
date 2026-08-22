@@ -38,6 +38,20 @@
       Let's put your unused phones to full use! (Experimental) We've implemented a PC-side task distribution API (<code>GET /v1/background-fold/task</code>, <code>POST /v1/background-fold/task-result</code>) and an Android polling worker that computes tasks. Real-device and NPU-equipped hardware verification has not been done, and the actual computation always runs on CPU even on NNAPI-capable devices (NNAPI is only detected, not yet used for the math). To try it, enter the PC's URL in the "put unused phones to full use" section of the Android app and start.
     </p>
   </div>
+  <!--
+    世界中の言語も選べることを大きく案内するバナー(ユーザー指示、
+    2026-08-22「日本語と英語をデフォルトとして選択できますが、世界中の
+    言語も選択可能ですと、日本語と英語で大きく表示して」への対応)。
+  -->
+  <div id="world-language-banner" class="world-language-banner">
+    <p class="world-language-banner-main">
+      🌍 日本語と英語をデフォルトとして選択できますが、<strong>世界中の言語も選択可能です。</strong><br />
+      English and Japanese are the defaults, but <strong>you can choose languages from all over the world.</strong>
+    </p>
+    <button type="button" id="world-language-banner-btn" class="setup-btn">
+      🌐 追加する言語を選ぶ / Choose additional languages
+    </button>
+  </div>
   <header class="topbar">
     <h1>open-english <span class="phase-badge">Phase 0</span></h1>
     <label class="level-select">
@@ -90,6 +104,7 @@
     <button type="button" id="google-search-settings-btn" class="setup-btn">🔎 Google Search Setup</button>
     <button type="button" id="setup-btn" class="setup-btn">⚙ Setup aruaru-llm</button>
     <button type="button" id="exam-prep-btn" class="setup-btn">📝 Exam Prep / 資格対策</button>
+    <button type="button" id="language-pack-btn" class="setup-btn">🌐 Languages / 言語を追加</button>
     <button type="button" id="aruaru-db-setup-btn" class="setup-btn">🗄 Setup aruaru-db</button>
     <button type="button" id="llm-recommend-btn" class="setup-btn">🧠 Recommend LLM / おすすめLLM</button>
     <button type="button" id="data-storage-btn" class="setup-btn">💾 Data & Model Storage / データ・モデルの保存先</button>
@@ -529,8 +544,14 @@ cd aruaru-db
           <option value="nihongoKentei1">日本語検定 1級 / Nihongo Kentei Grade 1</option>
           <option value="nihongoKentei2">日本語検定 2級 / Nihongo Kentei Grade 2</option>
           <option value="nihongoKentei3">日本語検定 3級 / Nihongo Kentei Grade 3</option>
+          <!--
+            世界の言語の擬似模擬試験(2026-08-22追加)は、app.js の
+            populateWorldLanguageExamOptions() が起動時に <optgroup> として
+            ここへ動的に追加する(有効化された言語のみ)。
+          -->
         </select>
       </label>
+      <p class="setup-note" id="exam-prep-world-note"></p>
       <div id="exam-prep-quiz"></div>
       <div class="settings-buttons">
         <button type="button" id="exam-prep-start" class="setup-btn">Start / 開始</button>
@@ -542,6 +563,85 @@ cd aruaru-db
       </button>
     </div>
   </div>
+  <!--
+    追加言語パック選択モーダル(ユーザー指示、2026-08-22「メンテナンス中に
+    英語と日本語以外の言語を追加しますか?どの言語を追加しますか?と表示し、
+    対応言語一覧から利用者自身がチェックで選べるように」への対応)。
+    メンテナンスバナー表示中は app.js が自動でこのモーダルを開く。
+  -->
+  <div id="language-pack-modal" class="setup-modal hidden">
+    <div class="setup-card">
+      <button type="button" id="language-pack-close" class="setup-close">✕</button>
+      <h2>🌐 英語と日本語以外の言語を追加しますか? / Add languages besides English and Japanese?</h2>
+      <p class="setup-note">
+        どの言語を追加しますか? チェックした言語だけが「学びたい言語」メニューと資格対策コーナーの模擬試験メニューに表示されます。<br />
+        Which languages would you like to add? Only the languages you check will appear in the "Learn" menu and in the practice-exam menu.
+      </p>
+      <p class="setup-honest">
+        <strong>Honest disclosure:</strong> the multilingual quizzes are original practice questions written for this app.
+        They are not past questions from, and are not affiliated with or endorsed by, any official language certification
+        exam (DELE, DELF, Goethe-Zertifikat, HSK, TOPIK, etc.). Levels are loose CEFR-style approximations only, and the
+        number of questions per language is uneven (currently 3–6 items per language) — the count is shown next to each language.<br />
+        <strong>正直な開示:</strong> 多言語クイズは本アプリ用に書き下ろしたオリジナル練習問題です。実在の語学資格試験
+        (DELE・DELF・Goethe-Zertifikat・HSK・TOPIK等)の過去問ではなく、それらとは一切無関係で、公認も受けていません。
+        レベル表記はCEFR風の大まかな目安に過ぎず、収録問題数も言語ごとに不均一(現状3〜6問)です——各言語の横に実際の問題数を表示しています。
+      </p>
+      <div class="settings-buttons">
+        <button type="button" id="language-pack-select-all" class="setup-btn">✅ 全部を選択 / Select all</button>
+        <button type="button" id="language-pack-clear-others" class="setup-btn">
+          ␡ 日本語と英語以外の全部を解除 / Clear all except EN &amp; JA
+        </button>
+      </div>
+      <div id="language-pack-list" class="language-pack-list"></div>
+      <div class="settings-buttons">
+        <button type="button" id="language-pack-save" class="setup-btn">💾 保存 / Save</button>
+      </div>
+      <p id="language-pack-status" class="setup-note"></p>
+
+      <!--
+        多言語の連続表示・連続読み上げ(ユーザー指示、2026-08-22
+        「選択した2〜5か国語について同じ内容を順番に画面表示しながら
+        音声で読み上げ、テキストはコピペ・ファイル保存・DB保存でき、
+        何度でも再生し直せるように」への対応)。音声は既存のWeb Speech API
+        (`speechSynthesis`)の仕組みをそのまま流用する。
+      -->
+      <hr />
+      <h3>🔊 多言語で連続表示・読み上げ / Sequential multilingual display &amp; read-aloud</h3>
+      <p class="setup-note">
+        選択した言語(英語・日本語を含めて<strong>最低2か国語・最大5か国語</strong>)の順に、同じ内容を画面へ表示しながら音声で読み上げます。
+        英語・日本語は常に有効なので、追加できるのは<strong>最大3言語</strong>までです。<br />
+        The same content is shown and read aloud in each selected language, in order
+        (<strong>minimum 2, maximum 5 languages including English and Japanese</strong>; since those two are always on,
+        you can add up to <strong>3</strong> more).
+      </p>
+      <label class="settings-field">
+        フレーズ / Phrase
+        <select id="multi-speak-phrase"></select>
+      </label>
+      <div class="settings-buttons">
+        <button type="button" id="multi-speak-play" class="setup-btn">▶ 連続再生 / Play all</button>
+        <button type="button" id="multi-speak-replay" class="setup-btn">🔁 もう一度最初から / Replay all</button>
+        <button type="button" id="multi-speak-stop" class="setup-btn">⏹ 停止 / Stop</button>
+      </div>
+      <div id="multi-speak-output" class="multi-speak-output"></div>
+      <div class="settings-buttons">
+        <button type="button" id="multi-speak-copy" class="setup-btn">📋 全部コピー / Copy all</button>
+        <button type="button" id="multi-speak-download" class="setup-btn">⬇ ファイル保存 / Download .txt</button>
+        <button type="button" id="multi-speak-save-db" class="setup-btn">🗄 データベースに保存 / Save to DB</button>
+      </div>
+      <p id="multi-speak-status" class="setup-note"></p>
+      <p class="setup-honest">
+        <strong>Honest disclosure:</strong> read-aloud uses the browser's built-in Web Speech API. If your browser/OS has no
+        installed voice for a language, that line is displayed but may be read with a wrong-language voice or skipped
+        silently — this app does not bundle its own speech engine. The phrase translations are best-effort and may sound
+        stiff to native speakers.<br />
+        <strong>正直な開示:</strong> 読み上げはブラウザ内蔵のWeb Speech APIを使います。その言語の音声がOS/ブラウザに入っていない場合、
+        文章は表示されますが別言語の声で読まれたり無音でスキップされたりします(本アプリは独自の音声合成エンジンを同梱していません)。
+        フレーズの訳文は最善努力ベースで、母語話者には硬く聞こえる場合があります。
+      </p>
+    </div>
+  </div>
+
   <p class="level-hint">You can change the level and reply language above at any time, before or during the conversation. / レベル・応答言語はいつでも(会話の前でも途中でも)上のメニューから変更できます。</p>
 
   <main class="stage">
