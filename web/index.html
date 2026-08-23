@@ -619,68 +619,84 @@ cd aruaru-db
         and a plain PostgreSQL server has not been tested end to end in our development environment.
       </p>
       <p class="setup-honest">
-        <strong>より安全にしたい方へ: aruaru-db と PostgreSQL の二重(DUAL)構成</strong><br />
+        <strong>より安全にしたい方へ: aruaru-db と PostgreSQL の二重(DUAL)構成 — 実装済みです</strong><br />
         aruaru-db と PostgreSQL の<strong>両方</strong>を用意し、互いに写しを持たせておくと、片方が壊れても
-        もう片方から学習履歴を復元できます。<strong>正直な実装状況</strong>: open-english 自身が一度に接続できる
-        保存先は「内蔵SQLite + <code>OPEN_ENGLISH_DATABASE_URL</code> で指定した1つ」だけで、
-        <strong>open-english から2つのデータベースへ同時に書き込む機能は未実装(今後の課題)</strong>です。
-        現状でDUAL構成にする方法は、aruaru-db 側の <code>DUAL_DATABASE_URL</code>(aruaru-db が持つ
-        PostgreSQLへのミラー機能)を使い、open-english → aruaru-db → PostgreSQL という形で写しを作る運用です
-        (aruaru-db 側のドキュメントをご確認ください)。<br />
+        もう片方から学習履歴を復元できます。<strong>実装状況(2026-08-24 更新)</strong>:
+        <strong>open-english 自身が2つのデータベースへ同時に書き込む機能を実装しました</strong>
+        (以前このページに書いていた「未実装」という案内は、この更新で解消されています)。<br />
+        <strong>設定方法</strong>: 環境変数を2つ設定するだけです。
+        <code>OPEN_ENGLISH_DATABASE_URL</code>(1つ目、aruaru-db を想定)と
+        <code>OPEN_ENGLISH_DATABASE_URL_SECONDARY</code>(2つ目、標準的な PostgreSQL を想定)。
+        どちらにどちらを割り当てても動作は同じです(どちらも通常の PostgreSQL 接続として扱われるため)。
+        <strong>両方を設定すれば両方へ同時に書き込み</strong>、片方だけなら<strong>そちらのみ</strong>、
+        どちらも未設定なら<strong>内蔵SQLiteのみ</strong>で従来どおり動作します。<br />
+        <code>OPEN_ENGLISH_DATABASE_URL=host=127.0.0.1 user=... dbname=...</code><br />
+        <code>OPEN_ENGLISH_DATABASE_URL_SECONDARY=host=127.0.0.1 user=... dbname=...</code><br />
+        書き込みは<strong>2つのデータベースそれぞれ独立に</strong>行われます——片方が停止・接続不能でも、
+        もう片方への書き込みはそのまま完了し、学習の進行(HTTPリクエスト)も止まりません。
+        失敗した側だけがサーバーのログに記録されます。現在の設定状態は
+        <code>GET /v1/db/info</code> の <code>dual_mirror</code> / <code>mirror_targets</code> で確認できます。<br />
+        <strong>正直な但し書き</strong>: 実装したのは「書き込み時に両方へ送る」ところまでです。
+        <strong>片方が停止していた期間に取りこぼした行を、復旧後に自動で追いつかせる自己修復機能は
+        実装していません</strong>(その場合はバックアップからのリストアが必要です)。また、接続は平文(TLS非対応)の
+        ため、SSL必須のマネージドPostgreSQLサービスへは現状つながりません。<br />
         <strong>バックアップ(rsync)について</strong>: 学習履歴DBは、open-english の
         「💾 Data &amp; Model Storage」パネルにある rsync バックアップ機能で、外付けドライブ・別PC・VPS等へ
-        コピー対象として<strong>加えることができます</strong>(自動で常時バックアップされるわけではありません。
-        rsync が入っていない環境では、同パネルからインストールを案内します)。
-        <strong>正直な調査結果</strong>: 「open-easy-web で管理されている rsync の仕組み」を実際に
-        <code>F:\runo\open-easy-web</code> のドキュメント・ソースで探しましたが、rsync に関する記述・実装は
-        見つかりませんでした。したがって、現時点で使えるのは上記の open-english 内蔵の rsync 機能です。<br /><br />
-        <strong>For extra safety: a dual aruaru-db + PostgreSQL setup.</strong> Running <strong>both</strong> and
-        keeping one as a copy of the other means a failure on one side does not lose your learning history.
-        <strong>Honest implementation status</strong>: open-english itself writes to its built-in SQLite plus the
-        <em>single</em> database named by <code>OPEN_ENGLISH_DATABASE_URL</code> —
-        <strong>writing to two databases at once from open-english is not implemented yet</strong>. Today the way to
-        get a dual setup is aruaru-db's own <code>DUAL_DATABASE_URL</code> mirroring to PostgreSQL, i.e.
-        open-english → aruaru-db → PostgreSQL. <strong>Backups (rsync)</strong>: the learning-history database
-        <em>can be added</em> to an rsync backup to an external drive, another PC, or a VPS from the
-        "💾 Data &amp; Model Storage" panel (it is not backed up automatically). <strong>Honest finding</strong>: we
-        looked for the "rsync mechanism managed by open-easy-web" in that repository's docs and sources and found no
-        rsync feature there, so the built-in rsync backup above is what is actually available today.
+        コピー対象として<strong>加えることができます</strong>(自動で常時バックアップされるわけではありません)。
+        rsync 自体の一般的な使い方——コマンド例、Googleドライブへの同期(rclone)、レンタルサーバー/VPSへの同期、
+        定期実行、復元——は、独立したガイドページにまとめてあります:
+        <a href="https://easy-web.tokyo/rsync" target="_blank" rel="noopener noreferrer">https://easy-web.tokyo/rsync</a>
+        (<strong>正直な但し書き</strong>: これは rsync の<strong>使い方ガイド</strong>であって、
+        open-easy-web に rsync の同期機構が実装されているという意味ではありません)。<br /><br />
+        <strong>For extra safety: a dual aruaru-db + PostgreSQL setup — now implemented.</strong> Running
+        <strong>both</strong> and keeping one as a copy of the other means a failure on one side does not lose your
+        learning history. <strong>Implementation status (updated 2026-08-24)</strong>:
+        <strong>open-english now writes to two databases at once itself</strong> — the earlier note on this page
+        saying this was "not implemented yet" no longer applies.
+        <strong>How to set it up</strong>: just set two environment variables —
+        <code>OPEN_ENGLISH_DATABASE_URL</code> (the first target, typically aruaru-db) and
+        <code>OPEN_ENGLISH_DATABASE_URL_SECONDARY</code> (the second, typically a standard PostgreSQL). It does not
+        matter which one you assign to which, since both are treated as ordinary PostgreSQL connections.
+        Set <strong>both</strong> and every record is written to both; set <strong>one</strong> and only that one is
+        used; set <strong>neither</strong> and it falls back to the built-in SQLite as before. The two writes are
+        <strong>fully independent</strong>: if one database is down or unreachable, the write to the other still
+        completes and your session is never interrupted — only the failing side is noted in the server log. You can
+        check the current configuration via <code>dual_mirror</code> and <code>mirror_targets</code> in
+        <code>GET /v1/db/info</code>. <strong>Honest caveats</strong>: what is implemented is sending each write to
+        both targets. <strong>There is no self-healing catch-up</strong> that replays rows missed while one side was
+        down (you would restore from a backup instead), and the connection is made without TLS, so managed PostgreSQL
+        services that require SSL will not connect yet. <strong>Backups (rsync)</strong>: the learning-history
+        database <em>can be added</em> to an rsync backup to an external drive, another PC, or a VPS from the
+        "💾 Data &amp; Model Storage" panel (it is not backed up automatically). General rsync usage — commands,
+        syncing to Google Drive with rclone, syncing to shared hosting or a VPS, scheduling and restoring — is
+        documented on its own page:
+        <a href="https://easy-web.tokyo/rsync" target="_blank" rel="noopener noreferrer">https://easy-web.tokyo/rsync</a>
+        (<strong>honest caveat</strong>: that is a <strong>usage guide</strong> for rsync; it does not mean
+        open-easy-web contains an rsync synchronisation mechanism).
       </p>
       <p class="setup-honest">
-        <strong>Googleドライブへの同期もできます(要セットアップ)</strong><br />
+        <strong>Googleドライブ・レンタルサーバー・VPSへの同期もできます(要セットアップ)</strong><br />
         rsync でローカルフォルダへバックアップしたあと、<a href="https://rclone.org/drive/" target="_blank"
-        rel="noopener noreferrer">rclone</a> のような一般的なツールを使えば、そのフォルダをGoogleドライブへ同期できます。
-        手順は (1) rclone をインストール、(2) <code>rclone config</code> で Google Drive のリモート(例: <code>gdrive</code>)を作成、
-        (3) 同期コマンドを実行、の3つだけです:<br />
-        <code>rclone sync /path/to/backup gdrive:open-english-backup</code><br />
-        定期実行したい場合は、このコマンドをOSのタスクスケジューラ(Windowsのタスク スケジューラ、Linux/macOSのcron)に
-        登録してください。<strong>正直な但し書き</strong>: open-english にGoogleドライブ連携は実装していません
-        ——<strong>自動的にGoogleドライブへ同期されるわけではなく</strong>、上記のセットアップをご自身で行えば
-        同期も可能、という案内です。<br /><br />
-        <strong>You can also sync to Google Drive (with a little setup).</strong> After the rsync backup has written to a
-        local folder, a general-purpose tool such as <a href="https://rclone.org/drive/" target="_blank"
-        rel="noopener noreferrer">rclone</a> can sync that folder to Google Drive: install rclone, run
-        <code>rclone config</code> to add a Google Drive remote (say <code>gdrive</code>), then run
-        <code>rclone sync /path/to/backup gdrive:open-english-backup</code>. Schedule it with Task Scheduler or cron if
-        you want it to repeat. <strong>Honest caveat</strong>: open-english has no Google Drive integration —
-        <strong>nothing is synced to Google Drive automatically</strong>; this is simply a setup you can choose to do.
-      </p>
-      <p class="setup-honest">
-        <strong>レンタルサーバー・VPSへの同期もできます(要セットアップ)</strong><br />
+        rel="noopener noreferrer">rclone</a> を使えばそのフォルダを Googleドライブへ同期できます。
         SSHが使えるレンタルサーバー(ロリポップ、さくらインターネット等のSSH対応プラン)やVPS
-        (ConoHa、さくらのVPS等)であれば、rsync でそのまま同期できます:<br />
-        <code>rsync -avz /path/to/backup user@your-vps-host:/backup/open-english/</code><br />
-        SSH鍵を設定しておけばパスワード入力なしで実行でき、cron やタスク スケジューラに登録すれば定期実行もできます。
-        SSHが使えない共有レンタルサーバーの場合は、FTPS/SFTP に対応した rclone のリモート設定を使う方法もあります。
-        <strong>正直な但し書き</strong>: 接続先の設定・SSH鍵の配置はご自身で行っていただく必要があります
-        ——<strong>このアプリが自動的にレンタルサーバーやVPSを設定することはありません</strong>。
-        セットアップすれば同期先として使えます、というご案内です。<br /><br />
-        <strong>You can also sync to shared hosting or a VPS (with setup).</strong> Any host you can reach over SSH —
-        shared hosting plans with SSH access (Lolipop, Sakura Internet, …) or a VPS (ConoHa, Sakura VPS, …) — works
-        directly with rsync: <code>rsync -avz /path/to/backup user@your-vps-host:/backup/open-english/</code>. Add an SSH
-        key to avoid password prompts, and schedule it with cron or Task Scheduler for regular runs; for shared hosting
-        without SSH, an rclone remote over FTPS/SFTP is an alternative. <strong>Honest caveat</strong>: you configure the
-        destination and SSH keys yourself — <strong>the app never sets up a host or VPS for you</strong>.
+        (ConoHa、さくらのVPS等)であれば、rsync でそのまま同期できます。
+        <strong>具体的なコマンド例・rclone の設定手順・SSH鍵の準備・cron やタスク スケジューラでの定期実行・
+        復元のしかたは、独立したガイドページにまとめました</strong>:
+        <a href="https://easy-web.tokyo/rsync" target="_blank" rel="noopener noreferrer">https://easy-web.tokyo/rsync</a><br />
+        <strong>正直な但し書き</strong>: open-english に Googleドライブ連携は実装していません——
+        <strong>自動的にGoogleドライブやVPSへ同期されるわけではなく</strong>、接続先の設定・SSH鍵の配置は
+        ご自身で行っていただく必要があります。ご案内しているのは「セットアップすれば同期先として使えます」
+        という一般的な手順です。<br /><br />
+        <strong>You can also sync to Google Drive, shared hosting, or a VPS (with a little setup).</strong> After the
+        rsync backup has written to a local folder, <a href="https://rclone.org/drive/" target="_blank"
+        rel="noopener noreferrer">rclone</a> can sync that folder to Google Drive. Any host you can reach over SSH —
+        shared hosting plans with SSH access, or a VPS — works directly with rsync.
+        <strong>The actual commands, rclone configuration, SSH key setup, scheduling with cron or Task Scheduler, and
+        how to restore are all documented on a dedicated guide page</strong>:
+        <a href="https://easy-web.tokyo/rsync" target="_blank" rel="noopener noreferrer">https://easy-web.tokyo/rsync</a><br />
+        <strong>Honest caveat</strong>: open-english has no Google Drive integration —
+        <strong>nothing is synced to Google Drive or a VPS automatically</strong>, and you configure the destination
+        and SSH keys yourself. What we provide is the general procedure you can choose to follow.
       </p>
       <p class="setup-note">
         本機能をより快適にご利用いただくには、<strong>Google検索</strong>(上部の「🔎 Google Search Setup」)と

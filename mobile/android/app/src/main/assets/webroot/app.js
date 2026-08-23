@@ -2747,11 +2747,30 @@ async function refreshDataStorageInfo() {
   try {
     const res = await fetch("/v1/db/info");
     const info = await res.json();
+    // 2026-08-24: DUAL同時書き込み(2つのDBへ同時に書き込む設定)に対応した
+    // ため、ミラーの状態を「無効 / 1か所 / DUAL(2か所同時)」の3値で正直に
+    // 表示する。`dual_mirror`・`mirror_targets`は新しいサーバーのみが返す
+    // ため、古いサーバーへ繋いだ場合は従来どおりの2値表示へフォールバック
+    // する(`postgres_mirror_configured`は引き続き返るため)。
+    const targets = Array.isArray(info.mirror_targets) ? info.mirror_targets : [];
+    let mirrorEn;
+    let mirrorJa;
+    if (!info.postgres_mirror_configured) {
+      mirrorEn = "disabled (local SQLite only)";
+      mirrorJa = "無効(内蔵SQLiteのみ)";
+    } else if (info.dual_mirror) {
+      mirrorEn = `DUAL — writing to both simultaneously [${targets.join(", ")}]`;
+      mirrorJa = `DUAL(2か所へ同時書き込み)[${targets.join(", ")}]`;
+    } else {
+      const only = targets.length ? ` [${targets.join(", ")}]` : "";
+      mirrorEn = `enabled, single target${only} (set OPEN_ENGLISH_DATABASE_URL_SECONDARY for DUAL)`;
+      mirrorJa = `有効(1か所のみ)${only}(DUALにするには OPEN_ENGLISH_DATABASE_URL_SECONDARY を設定)`;
+    }
     dataStorageInfoEl.textContent =
       `Conversation/settings DB path: ${info.db_path} (${formatBytes(info.db_file_size_bytes)}) ` +
-      `| Cloud DB mirror (aruaru-db): ${info.postgres_mirror_configured ? "enabled" : "disabled"} ` +
+      `| Cloud DB mirror: ${mirrorEn} ` +
       `/ 会話・設定DBの保存先: ${info.db_path}(${formatBytes(info.db_file_size_bytes)}) ` +
-      `| クラウドDBミラー(aruaru-db): ${info.postgres_mirror_configured ? "有効" : "無効"}`;
+      `| クラウドDBミラー: ${mirrorJa}`;
   } catch (e) {
     dataStorageInfoEl.textContent = `Failed to load storage info: ${e.message} / 保存先情報の取得に失敗しました: ${e.message}`;
   }
