@@ -2044,6 +2044,296 @@ function markOfBeastText() {
   return `🔢 ${MARK_OF_BEAST_TEXTS.en}\n\n${MARK_OF_BEAST_TEXTS.ja}`;
 }
 
+// ---------------------------------------------------------------------------
+// 作者(石塚正浩様)のオリジナル算数クイズ(2026-08-23追加、ユーザー指示)
+//
+// 上の`isCreatorQuestion()`/`isReligionHistoryQuestion()`/
+// `isMarkOfBeastQuestion()`と全く同じ方式——**AI推論(aruaru-llm)を通さず**
+// 人手で書いた固定文を返すルールベース分岐。素のGPT-2に算数の問題と解答を
+// 生成させると、計算が合っていない「もっともらしい嘘」を出すため、
+// 出題も採点も固定文に限定している。日次利用回数は消費しない。
+//
+// 【改変時の注意】
+//  (1) 解答`(9×9+9)÷9 = 10`は実際に検算済み(81+9=90、90÷9=10)。
+//      別解を追加する場合は必ず自分で計算を確かめること。
+//  (2) この問題は**トンチ・ひっかけではない**(小数点をつける、9を横に
+//      倒して∞にする、といった類の問題ではない)。純粋な四則演算+括弧
+//      だけで解ける、電卓・そろばんでも検算できる問題である、という
+//      性質を問題文から落とさないこと——利用者が変な方向へ悩まないため。
+//  (3)「最年少で解けたのは小学一年生」というエピソードは作者から伺った
+//      実際の話として紹介しており、創作を足さないこと。
+// ---------------------------------------------------------------------------
+
+// 「何か問題を出して」「クイズ出して」の類を検出する。
+// 「誰が作ったか」判定と同じ教訓(疑問詞と動詞の間に語句が入ると部分一致が
+// 効かない)を踏まえ、**出題を求める語**と**問題・クイズを指す語**の
+// AND条件で判定し、単独で成立する表現はOR条件で拾う。
+const QUIZ_TOPIC_JA = ["問題", "クイズ", "なぞなぞ", "出題", "パズル"];
+const QUIZ_ASK_JA = [
+  "出して", "出し", "ください", "下さい", "ちょうだい", "頂戴",
+  "お願い", "ほしい", "欲しい", "やりたい", "解きたい", "挑戦",
+  "教えて", "ある?", "ありますか",
+];
+// 単独で「クイズを求めている」と判断してよい表現。
+const QUIZ_STANDALONE_JA = [
+  "クイズを出", "クイズ出", "問題を出", "問題出", "何か問題", "なにか問題",
+  "問題ください", "問題下さい",
+];
+const QUIZ_TOPIC_EN = ["quiz", "puzzle", "problem", "riddle", "brain teaser", "brainteaser"];
+const QUIZ_ASK_EN = [
+  "give me", "give us", "show me", "ask me", "got a", "have a", "any ",
+  "can you", "could you", "please", "i want", "i'd like", "let's try",
+  "let me try", "challenge me", "test me",
+];
+const QUIZ_STANDALONE_EN = [
+  "give me a quiz", "quiz me", "give me a problem", "give me a puzzle",
+  "ask me a question", "challenge me",
+];
+
+function isQuizRequest(userText) {
+  const lower = userText.toLowerCase();
+  if (QUIZ_STANDALONE_JA.some((k) => userText.includes(k))) return true;
+  if (QUIZ_STANDALONE_EN.some((k) => lower.includes(k))) return true;
+
+  const topicJa = QUIZ_TOPIC_JA.some((k) => userText.includes(k));
+  const askJa = QUIZ_ASK_JA.some((k) => userText.includes(k));
+  if (topicJa && askJa) return true;
+
+  const topicEn = QUIZ_TOPIC_EN.some((k) => lower.includes(k));
+  const askEn = QUIZ_ASK_EN.some((k) => lower.includes(k));
+  return topicEn && askEn;
+}
+
+// 出題後に「わからない」「答えは?」と聞かれたかどうかの判定。
+// **出題済みのとき(`quizAwaitingAnswer === true`)だけ**参照するため、
+// 「わからない」のような一般的すぎる語でも通常の英会話練習を乗っ取らない。
+const QUIZ_GIVEUP_JA = [
+  "わからない", "分からない", "わかりません", "分かりません", "解らない",
+  "答え", "解答", "正解", "ヒント", "降参", "ギブアップ", "教えて", "無理",
+];
+const QUIZ_GIVEUP_EN = [
+  "i don't know", "i dont know", "no idea", "give up", "i give up",
+  "answer", "solution", "hint", "tell me", "show me", "what is it",
+  "i can't", "i cannot",
+];
+
+function isQuizAnswerRequest(userText) {
+  const lower = userText.toLowerCase();
+  if (QUIZ_GIVEUP_JA.some((k) => userText.includes(k))) return true;
+  return QUIZ_GIVEUP_EN.some((k) => lower.includes(k));
+}
+
+// 2段階のやり取り(まず問題文だけ、次に解答)のための会話状態。
+// 既存の`examPrepMissedQuestions`と同じく、単純なモジュールスコープの
+// 変数1つで持つ(状態機械は組まない)。
+let quizAwaitingAnswer = false;
+
+// 問題文・解答の対訳表。言語コードをキーにした構造で、
+// **既定は日本語と英語**、主要な数言語のみ翻訳を用意する。
+// 未収録の言語を選んでいる利用者には、正直に日英併記で出題する
+// (全130言語ぶんの翻訳を機械翻訳で埋めて「対応済み」に見せることはしない)。
+const QUIZ_TEXTS = {
+  en: {
+    intro:
+      "Here is an original puzzle from the creator of this app, Masahiro Ishizuka.",
+    question:
+      "Using four 9s, fill each circle in\n" +
+      "    9 ◯ 9 ◯ 9 ◯ 9 = 10\n" +
+      "with one of + (plus), - (minus), × (times) or ÷ (divided by). " +
+      "You may use the same symbol more than once, and you may add " +
+      "parentheses ( ) to change the order of operations. Make the result " +
+      "exactly 10.",
+    fair:
+      "This is not a trick question or a play on words. It is pure " +
+      "arithmetic — you can check it on a calculator or an abacus.",
+    episode:
+      "The youngest person who has solved this so far was a first-grader in " +
+      "elementary school. Take your time!",
+    prompt:
+      "When you would like the answer, just say \"I don't know\" or \"Tell me the answer\".",
+    answerTitle: "Here is the answer.",
+    answer:
+      "    (9 × 9 + 9) ÷ 9 = 10\n" +
+      "Step by step: 9 × 9 = 81, then 81 + 9 = 90, and finally 90 ÷ 9 = 10.",
+    closing: "Nicely done for sticking with it. Want to try it on someone else?",
+  },
+  ja: {
+    intro:
+      "このアプリの作者・石塚正浩さんのオリジナル問題です。",
+    question:
+      "数字の9を4つ使って、\n" +
+      "    9 ◯ 9 ◯ 9 ◯ 9 = 10\n" +
+      "の◯の中に、+(足す)・-(引く)・×(掛ける)・÷(割る)のいずれかを" +
+      "入れてください。同じ記号を何度使っても構いません。必要なら" +
+      "括弧()を使って計算の優先順位を変えてもかまいません。" +
+      "計算結果がちょうど10になるようにしてください。",
+    fair:
+      "トンチやひねった問題ではありません。純粋な四則演算の問題ですので、" +
+      "電卓やそろばんでも解けます。",
+    episode:
+      "これまでで最年少で解けたのは、小学一年生の子でした。じっくり考えてみてください!",
+    prompt:
+      "答えが知りたくなったら「わからない」「答えを教えて」と送ってください。",
+    answerTitle: "答えはこちらです。",
+    answer:
+      "    (9 × 9 + 9) ÷ 9 = 10\n" +
+      "順番に計算すると、9 × 9 = 81、81 + 9 = 90、そして 90 ÷ 9 = 10 です。",
+    closing: "最後までお付き合いいただきありがとうございました。ぜひ誰かに出題してみてください。",
+  },
+  es: {
+    intro: "Este es un acertijo original del creador de esta aplicación, Masahiro Ishizuka.",
+    question:
+      "Usando cuatro nueves, complete cada círculo de\n" +
+      "    9 ◯ 9 ◯ 9 ◯ 9 = 10\n" +
+      "con + (más), - (menos), × (por) o ÷ (entre). Puede repetir el mismo " +
+      "símbolo y puede usar paréntesis ( ) para cambiar el orden de las " +
+      "operaciones. El resultado debe ser exactamente 10.",
+    fair:
+      "No es una pregunta con trampa ni un juego de palabras: es aritmética pura, " +
+      "y se puede comprobar con una calculadora o un ábaco.",
+    episode:
+      "La persona más joven que lo ha resuelto hasta ahora fue un niño de primer grado de primaria.",
+    prompt: "Cuando quiera la respuesta, escriba «no lo sé» o «dime la respuesta».",
+    answerTitle: "Esta es la respuesta.",
+    answer:
+      "    (9 × 9 + 9) ÷ 9 = 10\n" +
+      "Paso a paso: 9 × 9 = 81, luego 81 + 9 = 90, y por último 90 ÷ 9 = 10.",
+    closing: "Gracias por su paciencia. ¿Se lo propone a alguien más?",
+  },
+  fr: {
+    intro: "Voici une énigme originale du créateur de cette application, Masahiro Ishizuka.",
+    question:
+      "Avec quatre 9, remplissez chaque cercle de\n" +
+      "    9 ◯ 9 ◯ 9 ◯ 9 = 10\n" +
+      "par + (plus), - (moins), × (fois) ou ÷ (divisé par). Vous pouvez " +
+      "réutiliser le même symbole et ajouter des parenthèses ( ) pour changer " +
+      "l'ordre des opérations. Le résultat doit valoir exactement 10.",
+    fair:
+      "Ce n'est ni une devinette ni un jeu de mots : c'est de l'arithmétique pure, " +
+      "vérifiable à la calculatrice ou au boulier.",
+    episode:
+      "La plus jeune personne à l'avoir résolue jusqu'ici était un enfant de CP.",
+    prompt: "Quand vous voudrez la réponse, écrivez « je ne sais pas » ou « donne-moi la réponse ».",
+    answerTitle: "Voici la réponse.",
+    answer:
+      "    (9 × 9 + 9) ÷ 9 = 10\n" +
+      "Étape par étape : 9 × 9 = 81, puis 81 + 9 = 90, et enfin 90 ÷ 9 = 10.",
+    closing: "Merci d'avoir persévéré. À votre tour de la poser à quelqu'un !",
+  },
+  de: {
+    intro: "Dies ist ein Originalrätsel des Entwicklers dieser App, Masahiro Ishizuka.",
+    question:
+      "Füllen Sie mit vier Neunen jeden Kreis in\n" +
+      "    9 ◯ 9 ◯ 9 ◯ 9 = 10\n" +
+      "mit + (plus), - (minus), × (mal) oder ÷ (geteilt durch). Dasselbe " +
+      "Zeichen darf mehrfach vorkommen, und Sie dürfen Klammern ( ) setzen, " +
+      "um die Reihenfolge zu ändern. Das Ergebnis soll genau 10 sein.",
+    fair:
+      "Das ist keine Fangfrage und kein Wortspiel, sondern reine Rechnerei — " +
+      "mit Taschenrechner oder Abakus nachprüfbar.",
+    episode:
+      "Die jüngste Person, die es bisher gelöst hat, war ein Erstklässler.",
+    prompt: "Wenn Sie die Lösung möchten, schreiben Sie „Ich weiß es nicht“ oder „Sag mir die Antwort“.",
+    answerTitle: "Hier ist die Lösung.",
+    answer:
+      "    (9 × 9 + 9) ÷ 9 = 10\n" +
+      "Schritt für Schritt: 9 × 9 = 81, dann 81 + 9 = 90 und schließlich 90 ÷ 9 = 10.",
+    closing: "Danke fürs Durchhalten. Geben Sie es gern weiter!",
+  },
+  zh: {
+    intro: "这是本应用作者石塚正浩先生的原创趣题。",
+    question:
+      "用四个9,在\n" +
+      "    9 ◯ 9 ◯ 9 ◯ 9 = 10\n" +
+      "的每个圆圈里填入 +(加)、-(减)、×(乘)、÷(除) 之一。" +
+      "同一个符号可以重复使用,也可以加括号 ( ) 改变运算顺序。" +
+      "请让结果正好等于10。",
+    fair: "这不是脑筋急转弯,也不是文字游戏,而是纯粹的四则运算,用计算器或算盘都能验算。",
+    episode: "目前解出这道题的最小年纪,是一位小学一年级的孩子。",
+    prompt: "想看答案时,请回复「不知道」或「告诉我答案」。",
+    answerTitle: "答案如下。",
+    answer:
+      "    (9 × 9 + 9) ÷ 9 = 10\n" +
+      "逐步计算:9 × 9 = 81,81 + 9 = 90,最后 90 ÷ 9 = 10。",
+    closing: "感谢您耐心思考,也欢迎拿这道题去考考别人。",
+  },
+  ko: {
+    intro: "이 앱을 만든 이시즈카 마사히로 님의 오리지널 문제입니다.",
+    question:
+      "숫자 9를 네 개 사용하여\n" +
+      "    9 ◯ 9 ◯ 9 ◯ 9 = 10\n" +
+      "의 각 동그라미에 +(더하기), -(빼기), ×(곱하기), ÷(나누기) 중 " +
+      "하나를 넣어 주세요. 같은 기호를 여러 번 써도 되고, 필요하면 " +
+      "괄호 ( )로 계산 순서를 바꿔도 됩니다. 결과가 정확히 10이 되게 하세요.",
+    fair: "말장난이나 함정 문제가 아닙니다. 순수한 사칙연산이라 계산기나 주판으로도 확인할 수 있습니다.",
+    episode: "지금까지 이 문제를 푼 최연소자는 초등학교 1학년 어린이였습니다.",
+    prompt: "답이 궁금해지면 「모르겠어요」 또는 「답을 알려 주세요」라고 보내 주세요.",
+    answerTitle: "정답입니다.",
+    answer:
+      "    (9 × 9 + 9) ÷ 9 = 10\n" +
+      "차례대로 계산하면 9 × 9 = 81, 81 + 9 = 90, 마지막으로 90 ÷ 9 = 10입니다.",
+    closing: "끝까지 고민해 주셔서 감사합니다. 다른 분에게도 내 보세요!",
+  },
+};
+
+/**
+ * 出題に使う言語コードを決める。
+ * 「学びたい言語」(`world:<code>`/`english`/`japanese`)を最優先し、
+ * 未設定なら母国語設定を見る。翻訳が用意されていない言語なら`null`を返し、
+ * 呼び出し側は日英併記の既定へフォールバックする(正直な扱い)。
+ */
+function quizPreferredLangCode() {
+  let code = null;
+  const target = typeof learnTargetEl !== "undefined" && learnTargetEl ? learnTargetEl.value : null;
+  if (target === "japanese") code = "ja";
+  else if (target === "english") code = "en";
+  else if (target && target.startsWith("world:")) code = target.slice(6);
+
+  if (!code && typeof loadNativeLanguage === "function") {
+    try {
+      code = loadNativeLanguage();
+    } catch (_) {
+      code = null;
+    }
+  }
+  if (!code) return null;
+  // "zh-Hant"等の派生コードは基底コード(zh)の訳文を流用する。
+  if (!QUIZ_TEXTS[code] && code.includes("-")) code = code.split("-")[0];
+  return QUIZ_TEXTS[code] ? code : null;
+}
+
+function quizBlock(code) {
+  const t = QUIZ_TEXTS[code];
+  return `${t.intro}\n\n${t.question}\n\n${t.fair}\n${t.episode}\n\n${t.prompt}`;
+}
+
+function quizAnswerBlock(code) {
+  const t = QUIZ_TEXTS[code];
+  return `${t.answerTitle}\n\n${t.answer}\n\n${t.closing}`;
+}
+
+/**
+ * 出題文を組み立てる。既定は日本語+英語の併記。
+ * 利用者が選んでいる言語の訳文が用意されていれば、それを先頭に加える。
+ */
+function quizQuestionText() {
+  const pref = quizPreferredLangCode();
+  const blocks = [];
+  if (pref && pref !== "ja" && pref !== "en") blocks.push(quizBlock(pref));
+  blocks.push(quizBlock("ja"));
+  blocks.push(quizBlock("en"));
+  return `🧮 ${blocks.join("\n\n---\n\n")}`;
+}
+
+function quizAnswerText() {
+  const pref = quizPreferredLangCode();
+  const blocks = [];
+  if (pref && pref !== "ja" && pref !== "en") blocks.push(quizAnswerBlock(pref));
+  blocks.push(quizAnswerBlock("ja"));
+  blocks.push(quizAnswerBlock("en"));
+  return `✅ ${blocks.join("\n\n---\n\n")}`;
+}
+
 formEl.addEventListener("submit", async (e) => {
   e.preventDefault();
   const text = inputEl.value.trim();
@@ -2077,6 +2367,24 @@ formEl.addEventListener("submit", async (e) => {
   // 宗教史判定より先に置く(こちらの方が話題が具体的なため)。
   if (isMarkOfBeastQuestion(text)) {
     appendMessage("trainer", markOfBeastText());
+    return;
+  }
+
+  // 出題済みで解答待ちの状態なら、「わからない」「答えを教えて」等に
+  // 反応して解答を返す(2段階のやり取り)。**必ず`isQuizRequest`より
+  // 先に置くこと**——「もう一問出して」等でない限り、解答待ちの返事を
+  // 優先して拾いたいため。
+  if (quizAwaitingAnswer && !isQuizRequest(text) && isQuizAnswerRequest(text)) {
+    quizAwaitingAnswer = false;
+    appendMessage("trainer", quizAnswerText());
+    return;
+  }
+
+  // 「何か問題を出して」「クイズ出して」への対応(作者のオリジナル問題)。
+  // AI推論を経ずに固定文で出題する。日次利用回数は消費しない。
+  if (isQuizRequest(text)) {
+    quizAwaitingAnswer = true;
+    appendMessage("trainer", quizQuestionText());
     return;
   }
 
