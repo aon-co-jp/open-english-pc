@@ -425,13 +425,35 @@ function renderRuntimeBadge(info) {
     runtimeBadgeEl.title = "aruaru-llmの GET /v1/runtime に接続できませんでした(古いaruaru-llmには存在しないエンドポイントです)。";
     return;
   }
-  const label = info.gpu_in_use ? "GPU" : "CPU";
+  // 階層的アクセラレーション(2026-08-23、aruaru-llm側`acceleration`
+  // フィールド新設)。CUDA → Vulkan → DirectX(密GEMMのみ)→ CPU SIMD の
+  // うち、aruaru-llmが「実際に有効」と報告した段だけを表示する
+  // (こちら側で推測・粉飾はしない)。古いaruaru-llm(このフィールドを
+  // 返さない)に対しては従来通りGPU/CPUの2値表示へフォールバックする。
+  const accel = info.acceleration || null;
+  const tier = accel ? accel.tier : info.gpu_in_use ? "vulkan" : "cpu-simd";
+  const shortLabel = { cuda: "GPU (CUDA)", vulkan: "GPU (Vulkan)", "directx-gemm": "GPU (DirectX 12, GEMM) + CPU SIMD", "cpu-simd": "CPU SIMD" }[tier] || (info.gpu_in_use ? "GPU" : "CPU");
   const model = info.engine || "(unknown engine)";
-  runtimeBadgeEl.textContent = `compute: ${label} · ${model}`;
-  runtimeBadgeEl.className = `runtime-badge ${info.gpu_in_use ? "gpu" : "cpu"}`;
+  runtimeBadgeEl.textContent = `compute: ${shortLabel} · ${model}`;
+  runtimeBadgeEl.className = `runtime-badge ${tier === "cpu-simd" ? "cpu" : "gpu"}`;
+
+  // ツールチップには各段の compiled_in / active を正直に並べる。
+  const tierLines = accel
+    ? ["cuda", "vulkan", "directx", "cpu_simd"]
+        .map((k) => {
+          const t = accel[k];
+          if (!t) return null;
+          const state = t.active ? "ACTIVE" : t.compiled_in ? "compiled in, not active" : "not compiled in";
+          return `  - ${k}: ${state} — ${t.detail || ""}`;
+        })
+        .filter(Boolean)
+        .join("\n")
+    : "";
   runtimeBadgeEl.title =
     `${info.summary_ja || ""}\n${info.summary_en || ""}\n` +
+    (accel ? `acceleration tier: ${accel.tier_label_ja || ""} / ${accel.tier_label_en || ""}\n${tierLines}\n` : "") +
     `devices: ${(info.devices || []).map((d) => d.name).join(", ")}\n` +
+    `CPU SIMD: ${(info.cpu_simd && info.cpu_simd.features) || "(unknown)"}\n` +
     `GPU features enabled at build time: ${(info.enabled_gpu_features || []).join(", ") || "(none)"}\n` +
     `${info.disclosure || ""}`;
 }
