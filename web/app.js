@@ -1625,6 +1625,233 @@ function creatorIntroductionText() {
   return `👤 ${en}\n\n${ja}`;
 }
 
+// ---------------------------------------------------------------------------
+// イスラム教・イラン(ペルシャ)・アラブの歴史に関する中立的応答
+// (2026-08-23新設、ユーザー指示)
+// ---------------------------------------------------------------------------
+// 「イスラム教についてどう思うか」「イランとアラブは違う文明だと聞くが、
+// 深い歴史やルーツを知りたい」といった趣旨の質問に対して、AI推論
+// (aruaru-llm)を使わず固定文を返す。自己紹介応答と同じ理由——素のGPT-2に
+// 宗教史を語らせると事実でない内容(ハルシネーション)を作ってしまい、
+// 宗教という主題では特に害が大きいため、史実として確立している範囲だけを
+// 人手で書いた固定文に限定する。
+//
+// 【内容の確定にあたってユーザーと確認した経緯(正直な記録)】
+// ユーザーから当初、(a)「クルアーンは聖書のアラビア語訳から成立した」
+// (b)「ムハンマドに兄弟がいて、その人物が翻訳者だった」という説を
+// 含めたいという相談があった。調べた限り(b)は現存するムハンマドの
+// 伝記史料で兄弟の存在が確認できず、(a)も学術的な裏付けが確認できない
+// ため、複数回のやり取りの末、**両方とも事実としては含めない**ことで
+// 合意した。イスラム以前のアラビア半島にキリスト教共同体が存在し聖書の
+// アラビア語訳の動きがあったこと(史実)と、クルアーンの成立(別個の
+// 独立した伝統)は、混同せず切り分けて記述している。
+// ゾロアスター教の影響についても「一部の研究者が指摘する説」という
+// 留保を必ず付け、断定しない。
+// YouTube等の外部動画への自動リンク表示は行わない(見送りで合意済み)。
+//
+// 【2026-08-23 追加分の注意(改変時は必ず読むこと)】
+// (1) 「当時の翻訳は人の手によるもので、揺れや誤差はあり得ただろう」という
+//     注記を追加したが、これは**イスラム以前の聖書のアラビア語訳という
+//     史実部分にのみ**掛かる、前近代の翻訳作業一般の限界についての中立的な
+//     補足である。「クルアーンは聖書の翻訳ミスから生まれた」という含意を
+//     一切持たせないこと——この注記とクルアーンの成立を結びつける表現
+//     (「だからクルアーンは〜」等)を書いてはならない。クルアーンの成立に
+//     ついては上記2)の「別個の独立した伝統/教義上は啓示」という記述を
+//     維持する。ユーザーとの複数回のやり取りで、含めてよい内容とダメな
+//     内容をこの線引きで明確に切り分けることに合意した。
+// (2) 末尾に「言語の壁が誤解の一因になり得る/自動翻訳と多言語での対話が
+//     相互理解と平和に寄与し得る」というメッセージを追加した。特定宗教の
+//     起源についての主張は一切含めないこと。
+//
+// 他言語への展開を見越して、本文は言語コードをキーとする表で持つ。
+// 現状は日本語(ja)・英語(en)のみ。他言語を足す場合はこの表に追加する。
+
+// 質問の検出キーワード。表記ゆれ(カタカナ/漢字/英語)を広めに拾う。
+const RELIGION_HISTORY_KEYWORDS_JA = [
+  "イスラム", "イスラーム", "ムスリム", "回教",
+  "クルアーン", "コーラン", "ムハンマド", "マホメット",
+  "イラン", "ペルシャ", "ペルシア", "ゾロアスター", "拝火教",
+  "アラブ", "アラビア", "サーサーン", "ササン朝",
+];
+const RELIGION_HISTORY_KEYWORDS_EN = [
+  "islam", "islamic", "muslim", "quran", "qur'an", "koran",
+  "muhammad", "mohammed", "prophet muhammad",
+  "iran", "iranian", "persia", "persian", "zoroaster", "zoroastrian",
+  "arab", "arabs", "arabia", "arabian", "sasanian", "sassanid",
+];
+
+// 上記キーワードを含む発言のうち、「歴史・ルーツ・どう思うか」を尋ねる
+// 趣旨のものだけに反応させる。単に "Iran" と一言出ただけの英会話練習を
+// 乗っ取ってしまわないための絞り込み。
+const RELIGION_HISTORY_INTENT_JA = [
+  "歴史", "ルーツ", "起源", "成り立ち", "由来", "どう思", "違い", "文明",
+  "教えて", "聞かせて", "知りたい", "解説", "背景", "関係",
+];
+const RELIGION_HISTORY_INTENT_EN = [
+  "history", "historical", "root", "roots", "origin", "origins",
+  "what do you think", "how do you feel", "difference", "different",
+  "civilization", "civilisation", "tell me", "explain", "background",
+  "relationship", "related",
+];
+
+function isReligionHistoryQuestion(userText) {
+  const lower = userText.toLowerCase();
+
+  const topicJa = RELIGION_HISTORY_KEYWORDS_JA.some((k) => userText.includes(k));
+  // 語尾の派生形("Zoroastrian" → "Zoroastrianism"、"Arab" → "Arabic" 等)を
+  // 取りこぼさないよう、末尾の単語境界は課さず語頭の境界のみで判定する
+  // (実機相当のテストで "Explain the origins of Zoroastrianism" が
+  //  検出できないバグを見つけたため修正した)。
+  const topicEn = RELIGION_HISTORY_KEYWORDS_EN.some((k) =>
+    new RegExp(`\\b${k.replace(/'/g, "['']")}`).test(lower),
+  );
+  if (!topicJa && !topicEn) return false;
+
+  const intentJa = RELIGION_HISTORY_INTENT_JA.some((k) => userText.includes(k));
+  const intentEn = RELIGION_HISTORY_INTENT_EN.some((k) => lower.includes(k));
+  return intentJa || intentEn;
+}
+
+// 中立的・事実ベースの解説文。言語コードをキーにした表。
+const RELIGION_HISTORY_TEXTS = {
+  en:
+    "[A neutral, historical note]\n" +
+    "I don't hold or advocate a position for or against any religion — Islam " +
+    "included. What I can offer is a summary of what mainstream historical " +
+    "scholarship generally says, with the uncertain parts clearly marked as " +
+    "uncertain.\n\n" +
+    "1) Pre-Islamic Arabia was religiously diverse.\n" +
+    "Before the rise of Islam in the 7th century, the Arabian Peninsula and " +
+    "its borderlands were home to polytheistic communities as well as " +
+    "established Jewish and Christian ones. Najran in the south had a " +
+    "well-documented Christian community, and the Ghassanids, an Arab " +
+    "Christian kingdom allied with the Byzantine Empire, sat on the northern " +
+    "frontier. There is historical evidence that biblical material circulated " +
+    "among Arabic-speaking Christians and that efforts were made to render " +
+    "parts of scripture into Arabic. So Arabic-speaking Christianity is not a " +
+    "later import — it was already there.\n" +
+    "One general note about that translation activity itself: in that era far " +
+    "less information and far fewer reference materials were available than " +
+    "today, and the work was done entirely by hand, so a degree of variation " +
+    "between versions and some margin of error were only to be expected. " +
+    "That is a limitation inherent to translation work in any premodern " +
+    "setting — it applies to translation efforts generally, and is simply " +
+    "worth keeping in mind when reading about them.\n\n" +
+    "2) The Qur'an is described by scholarship as a separate tradition.\n" +
+    "The formation of the Qur'an — oral proclamation and transmission, then " +
+    "later written compilation — is described in the academic literature as " +
+    "its own distinct tradition, not as a product of those Bible-translation " +
+    "efforts. In Islamic doctrine, the Qur'an is held to be revelation given " +
+    "by God to Muhammad. Claims sometimes heard online — for example that the " +
+    "Qur'an was assembled from a translation of the Bible, or that a brother " +
+    "of Muhammad acted as the translator — are not supported by the surviving " +
+    "sources (the extant biographical material on Muhammad does not attest " +
+    "such a brother), so I won't repeat them as fact.\n\n" +
+    "3) Iran and the Arab world are genuinely distinct civilizations.\n" +
+    "You're right that these are different lineages. Iran's is an Iranian " +
+    "(Indo-European) linguistic and cultural tradition, running through the " +
+    "Achaemenid, Parthian and Sasanian empires, with Persian as its language " +
+    "and Zoroastrianism as its dominant pre-Islamic religion. The Arab world's " +
+    "is a Semitic linguistic tradition centred on Arabic. Iran adopted Islam " +
+    "after the Sasanian defeat in the 7th century, but it kept its own " +
+    "language and much of its cultural inheritance rather than becoming " +
+    "Arabic-speaking — one reason the two remain culturally distinct today. " +
+    "The later Shia/Sunni distinction adds another layer, though it does not " +
+    "map neatly onto the Iranian/Arab divide.\n\n" +
+    "4) Zoroastrianism and its possible influence — stated with reservation.\n" +
+    "Zoroastrianism, which flourished in ancient Iran, features eschatology, " +
+    "angelic beings and a dualistic vision of a cosmic struggle between good " +
+    "and evil. Some scholars have argued that these ideas influenced certain " +
+    "concepts in Judaism and, through it, Christianity, particularly around " +
+    "the period of the Babylonian exile and Persian rule. This is a scholarly " +
+    "hypothesis with real support, but it is debated — the direction and " +
+    "extent of influence, and the dating of the relevant Zoroastrian texts, " +
+    "are all contested. I'd present it as \"some scholars argue this\", not as " +
+    "settled fact, and I'd avoid sweeping claims about a single shared origin " +
+    "behind all these religions.\n\n" +
+    "If you'd like to go deeper, good things to look up are: pre-Islamic " +
+    "Arabia, the Ghassanids and the Christians of Najran, the Sasanian Empire, " +
+    "the history of Zoroastrianism, and the academic study of the Qur'an's " +
+    "compilation. A general historical encyclopedia is a reasonable starting " +
+    "point, and reading more than one is better than reading one.\n\n" +
+    "One last thought, from an app whose whole purpose is language learning: " +
+    "language barriers are one of the things that let misunderstandings about " +
+    "other cultures and religions take hold. If automatic translation keeps " +
+    "improving and people everywhere can converse across languages as part of " +
+    "ordinary daily life, that may help reduce such misunderstandings, deepen " +
+    "mutual understanding, and bring us a little closer to a peaceful world.",
+  ja:
+    "【中立的な歴史のメモ】\n" +
+    "私は特定の宗教を支持したり否定したりする立場は取りません" +
+    "(イスラム教についても同様です)。お伝えできるのは、歴史学で" +
+    "一般に認められている範囲の要約と、確かでない部分は確かでないと" +
+    "明示すること、この2つです。\n\n" +
+    "1) イスラム以前のアラビア半島は宗教的に多様でした。\n" +
+    "7世紀にイスラム教が興る以前、アラビア半島とその周縁には多神教の" +
+    "共同体に加えて、ユダヤ教徒やキリスト教徒の共同体も確かに存在して" +
+    "いました。南部のナジュラーンには記録の豊富なキリスト教徒共同体が" +
+    "あり、北の辺境にはビザンツ帝国と同盟したアラブ系キリスト教国家" +
+    "ガッサーン朝がありました。アラビア語話者のキリスト教徒の間で聖書の" +
+    "内容が流通し、聖書の一部をアラビア語に訳そうとする動きがあったことは" +
+    "史料的に裏付けられています。つまりアラビア語圏のキリスト教は後世の" +
+    "輸入品ではなく、以前からそこにありました。\n" +
+    "なお、この翻訳の営みそのものについて一般的な注記を一つ。当時は現代に" +
+    "比べて情報も参照できる資料もはるかに少なく、翻訳はすべて人の手で" +
+    "行われました。ですから版ごとの多少の揺れや、ある程度の誤差は当然" +
+    "あり得ただろう、という点は留意すべきです。これは前近代の翻訳作業一般に" +
+    "付き物の限界であり、翻訳の営みについて読むときに念頭に置いておくと" +
+    "よい、というだけのことです。\n\n" +
+    "2) クルアーンの成立は、学術的には別個の独立した伝統として" +
+    "記述されます。\n" +
+    "クルアーンの成立過程——口頭での啓示の宣布と伝承、その後の文字化・" +
+    "編纂——は、学術研究では上記の聖書翻訳の動きとは別の、独立した" +
+    "伝統として記述されます。イスラム教の教義上は、クルアーンは神から" +
+    "ムハンマドへ与えられた啓示であるとされています。なお、インターネット上で" +
+    "見かけることのある「クルアーンは聖書の翻訳から出来た」「ムハンマドに" +
+    "兄弟がいて、その人物が翻訳者だった」といった説は、現存する史料からは" +
+    "裏付けが確認できません(現存するムハンマドの伝記史料にそのような" +
+    "兄弟の存在は確認されません)。そのため、これらを事実としてお伝えする" +
+    "ことは控えます。\n\n" +
+    "3) イランとアラブは、実際に系統の異なる文明です。\n" +
+    "ご指摘のとおり両者は別の系譜です。イランはイラン系" +
+    "(インド・ヨーロッパ語族)の言語・文化的伝統で、アケメネス朝・" +
+    "パルティア・サーサーン朝と続き、言語はペルシャ語、イスラム化以前の" +
+    "主要宗教はゾロアスター教でした。一方アラブ世界はアラビア語を中心と" +
+    "するセム語系の伝統です。イランは7世紀のサーサーン朝の敗北以後に" +
+    "イスラム教を受け入れましたが、アラビア語話者にはならず自らの言語と" +
+    "文化的遺産の多くを保持しました。これが今日まで両者が文化的に" +
+    "異なり続けている理由の一つです。後世のシーア派・スンニ派の区別も" +
+    "もう一つの層を成しますが、イラン/アラブの区分ときれいに重なる" +
+    "わけではありません。\n\n" +
+    "4) ゾロアスター教とその影響について——留保付きで。\n" +
+    "古代イランで栄えたゾロアスター教には、終末論、天使的な存在、" +
+    "善と悪の宇宙的な闘争という二元論的世界観といった要素があります。" +
+    "これらの観念が、特にバビロン捕囚とペルシャ支配の時期を通じて" +
+    "ユダヤ教の一部の概念に、さらにそれを介してキリスト教に影響を" +
+    "与えたのではないか、と指摘する研究者がいます。これは相応の根拠が" +
+    "ある学説ですが、議論の続いている論点でもあります——影響の方向と" +
+    "程度、関連するゾロアスター教文献の成立年代のいずれについても" +
+    "異論があります。ですので「一部の研究者がそう指摘している」" +
+    "という形でご紹介するにとどめ、確定した事実としては述べません。" +
+    "これらの宗教すべての背後に単一の共通起源がある、といった断定的な" +
+    "言い方も避けます。\n\n" +
+    "さらに深く知りたい場合は、「イスラム以前のアラビア」「ガッサーン朝」" +
+    "「ナジュラーンのキリスト教徒」「サーサーン朝」「ゾロアスター教の歴史」" +
+    "「クルアーン編纂の学術研究」などについて調べてみてください。" +
+    "一般的な歴史百科事典が手がかりとして手頃ですし、1冊だけでなく" +
+    "複数を読み比べるとより確かです。\n\n" +
+    "最後に、言語学習のためのアプリとして一言。言語の壁は、異なる文化や" +
+    "宗教への誤解が生まれ、根付いてしまう一因になり得ます。自動翻訳の" +
+    "技術がさらに発展し、世界中の人々が日常の中で当たり前に多言語で" +
+    "対話・交流できるようになれば、そうした誤解を減らし、相互理解を" +
+    "深め、平和な世界に少しでも近づく助けになるかもしれません。",
+};
+
+// 中立的な歴史解説を返す(現状は英日を併記)。
+function religionHistoryText() {
+  return `📜 ${RELIGION_HISTORY_TEXTS.en}\n\n${RELIGION_HISTORY_TEXTS.ja}`;
+}
+
 formEl.addEventListener("submit", async (e) => {
   e.preventDefault();
   const text = inputEl.value.trim();
@@ -1648,6 +1875,15 @@ formEl.addEventListener("submit", async (e) => {
   // 事実でない答えを作ってしまう)。日次利用回数は消費しない。
   if (isCreatorQuestion(text)) {
     appendMessage("trainer", creatorIntroductionText());
+    return;
+  }
+
+  // イスラム教・イラン(ペルシャ)・アラブの歴史やルーツを尋ねる質問にも、
+  // AI推論を経ずに人手で書いた中立的・事実ベースの解説を返す
+  // (LLMに宗教史を生成させると事実でない内容を作ってしまうため)。
+  // 日次利用回数は消費しない。
+  if (isReligionHistoryQuestion(text)) {
+    appendMessage("trainer", religionHistoryText());
     return;
   }
 
