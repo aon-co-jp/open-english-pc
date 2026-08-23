@@ -4804,6 +4804,7 @@ const TUTOR_SUBJECTS_BY_STAGE = {
     { id: "science", ja: "理科", en: "Science" },
     { id: "social", ja: "社会", en: "Social studies" },
     { id: "english", ja: "英語", en: "English" },
+    { id: "programming", ja: "プログラミング", en: "Programming" },
   ],
   junior: [
     { id: "japanese", ja: "国語", en: "Japanese" },
@@ -4811,6 +4812,7 @@ const TUTOR_SUBJECTS_BY_STAGE = {
     { id: "science", ja: "理科", en: "Science" },
     { id: "social", ja: "社会", en: "Social studies" },
     { id: "english", ja: "英語", en: "English" },
+    { id: "programming", ja: "プログラミング", en: "Programming" },
   ],
   high: [
     { id: "japanese", ja: "国語(現代文・古文)", en: "Japanese (modern & classical)" },
@@ -4818,6 +4820,7 @@ const TUTOR_SUBJECTS_BY_STAGE = {
     { id: "science", ja: "理科(物理・化学・生物)", en: "Science" },
     { id: "social", ja: "地理歴史・公民", en: "Geography, history & civics" },
     { id: "english", ja: "英語", en: "English" },
+    { id: "programming", ja: "プログラミング", en: "Programming" },
   ],
 };
 
@@ -4918,7 +4921,7 @@ const TUTOR_QUESTIONS = {
       q: "8 + 6 は いくつ ですか。",
       choices: ["12", "13", "14", "15"],
       answer: 2,
-      easier: { q: "8 + 2 は いくつ ですか。", choices: ["9", "10", "11", "12"], answer: 1 },
+      easier: { q: "8 + 2 は いくつ ですか。", choices: ["9", "10", "11", "12"], answer: 1, easier: { q: "8 + 1 は いくつ ですか。", choices: ["8", "9", "10", "11"], answer: 1 } },
     },
     {
       q: "いちごが 5こ ずつ はいった おさらが 2まい あります。いちごは ぜんぶで なんこ ですか。",
@@ -4934,7 +4937,7 @@ const TUTOR_QUESTIONS = {
       q: "15 から 8 を ひくと いくつ ですか。",
       choices: ["6", "7", "8", "9"],
       answer: 1,
-      easier: { q: "10 から 8 を ひくと いくつ ですか。", choices: ["1", "2", "3", "4"], answer: 1 },
+      easier: { q: "10 から 8 を ひくと いくつ ですか。", choices: ["1", "2", "3", "4"], answer: 1, easier: { q: "5 から 1 を ひくと いくつ ですか。", choices: ["2", "3", "4", "5"], answer: 2 } },
     },
     { q: "うさぎが 4ひき、ねこが 3びき います。どうぶつは あわせて なんびき ですか。", choices: ["1ぴき", "6ぴき", "7ひき", "12ひき"], answer: 2 },
   ],
@@ -4961,16 +4964,23 @@ const TUTOR_QUESTIONS = {
   ],
   "e3:math": [
     {
+      // 5段階ラダー完成例その1(2026-08-23)。誤答のたびに1段ずつ易しくなる。
       q: "7 × 8 はいくつですか。",
       choices: ["48", "54", "56", "63"],
       answer: 2,
-      easier: { q: "7 × 2 はいくつですか。", choices: ["9", "12", "14", "16"], answer: 2 },
+      ladder: [
+        { q: "7 × 4 はいくつですか。", choices: ["21", "24", "28", "32"], answer: 2 },
+        { q: "7 × 2 はいくつですか。", choices: ["9", "12", "14", "16"], answer: 2 },
+        { q: "2 × 3 はいくつですか。", choices: ["5", "6", "8", "9"], answer: 1 },
+        { q: "3 + 3 はいくつですか(3が2つ分)。", choices: ["5", "6", "7", "9"], answer: 1 },
+        { q: "かけ算「2 × 3」は、どの足し算と同じ意味ですか。", choices: ["2 + 3", "2 + 2 + 2", "3 + 3 + 3", "2 × 2"], answer: 1 },
+      ],
     },
     {
       q: "36 ÷ 4 はいくつですか。",
       choices: ["6", "8", "9", "12"],
       answer: 2,
-      easier: { q: "8 ÷ 4 はいくつですか。", choices: ["1", "2", "3", "4"], answer: 1 },
+      easier: { q: "8 ÷ 4 はいくつですか。", choices: ["1", "2", "3", "4"], answer: 1, easier: { q: "4 ÷ 2 はいくつですか。", choices: ["1", "2", "3", "4"], answer: 1 } },
     },
     {
       q: "1000 - 458 はいくつですか。",
@@ -4987,6 +4997,46 @@ const TUTOR_QUESTIONS = {
       easier: { q: "分数 1/5 と 1/5 をたすといくつですか。", choices: ["1/10", "2/10", "2/5", "1/25"], answer: 2 },
     },
   ],
+  // 小学3年生の英語(ユーザー指示、2026-08-23「英語は小3から対応可能で
+  // あることを明記」への対応)。学習指導要領上も小3から外国語活動が
+  // 始まることに合わせ、あいさつ・色・数・曜日といった入門レベルに絞った
+  // オリジナル問題を用意している。
+  "e3:english": [
+    {
+      q: "「こんにちは」を英語で言うとどれですか。",
+      choices: ["Hello.", "Goodbye.", "Thank you.", "Sorry."],
+      answer: 0,
+      ladder: [
+        { q: "英語の「Hello.」はどんなときに使いますか。", choices: ["あいさつのとき", "あやまるとき", "お礼を言うとき", "別れるとき"], answer: 0 },
+      ],
+    },
+    {
+      q: "\"red\" はどの色ですか。",
+      choices: ["あか", "あお", "きいろ", "みどり"],
+      answer: 0,
+      ladder: [
+        { q: "「あお」を英語で言うとどれですか。", choices: ["blue", "red", "green", "black"], answer: 0 },
+      ],
+    },
+    {
+      q: "\"three\" はいくつですか。",
+      choices: ["2", "3", "4", "5"],
+      answer: 1,
+      ladder: [
+        { q: "\"one, two, ___\" の空いているところに入るのはどれですか。", choices: ["three", "ten", "five", "four"], answer: 0 },
+      ],
+    },
+    {
+      q: "「ありがとう」を英語で言うとどれですか。",
+      choices: ["Thank you.", "Good morning.", "See you.", "I'm sorry."],
+      answer: 0,
+    },
+    {
+      q: "\"How are you?\" と聞かれたときの答え方として合っているのはどれですか。",
+      choices: ["I'm fine, thank you.", "It's a dog.", "Yes, three.", "Good night, apple."],
+      answer: 0,
+    },
+  ],
   "e3:japanese": [
     {
       q: "「話す」の読み方として正しいものはどれですか。",
@@ -4998,7 +5048,7 @@ const TUTOR_QUESTIONS = {
       q: "「明るい」の送りがなとして正しいものはどれですか。",
       choices: ["明い", "明るい", "明かるい", "明かい"],
       answer: 1,
-      easier: { q: "「たのしい」を漢字と送りがなで書くとどれですか。", choices: ["楽い", "楽しい", "楽のしい", "楽たしい"], answer: 1 },
+      easier: { q: "「たのしい」を漢字と送りがなで書くとどれですか。", choices: ["楽い", "楽しい", "楽のしい", "楽たしい"], answer: 1, easier: { q: "「あかるい」を漢字と送りがなで書くとどれですか。", choices: ["明るい", "明かるい", "明い", "明あかるい"], answer: 0 } },
     },
     { q: "「ふりかえる」の意味に最も近いものはどれですか。", choices: ["うしろを見る", "とびこえる", "ねむる", "はしる"], answer: 0 },
     {
@@ -5018,13 +5068,18 @@ const TUTOR_QUESTIONS = {
         q: "円の面積を求める式はどれですか。",
         choices: ["半径 × 2 × 円周率", "半径 × 半径 × 円周率", "直径 × 円周率", "半径 × 円周率 ÷ 2"],
         answer: 1,
+        easier: {
+          q: "半径3cmの円の直径は何cmですか。",
+          choices: ["1.5cm", "3cm", "6cm", "9cm"],
+          answer: 2,
+        },
       },
     },
     {
       q: "定価800円の品物を25%引きで買うと、代金はいくらですか。",
       choices: ["560円", "600円", "640円", "775円"],
       answer: 1,
-      easier: { q: "800円の10%はいくらですか。", choices: ["8円", "80円", "180円", "800円"], answer: 1 },
+      easier: { q: "800円の10%はいくらですか。", choices: ["8円", "80円", "180円", "800円"], answer: 1, easier: { q: "100円の10%はいくらですか。", choices: ["1円", "10円", "50円", "100円"], answer: 1 } },
     },
     {
       q: "2:3 と等しい比はどれですか。",
@@ -5095,7 +5150,7 @@ const TUTOR_QUESTIONS = {
       choices: ["-10", "-4", "4", "10"],
       answer: 1,
       svg: TUTOR_FIGURES.numberLineNegative,
-      easier: { q: "(-2) + 1 を計算すると?", choices: ["-3", "-1", "1", "3"], answer: 1 },
+      easier: { q: "(-2) + 1 を計算すると?", choices: ["-3", "-1", "1", "3"], answer: 1, easier: { q: "(-1) + 1 を計算すると?", choices: ["-2", "-1", "0", "2"], answer: 2 } },
     },
     {
       q: "(-4) × (-5) を計算すると?",
@@ -5104,10 +5159,17 @@ const TUTOR_QUESTIONS = {
       easier: { q: "(-2) × (-3) を計算すると?", choices: ["-6", "-5", "5", "6"], answer: 3 },
     },
     {
+      // 5段階ラダー完成例その2(2026-08-23)。
       q: "方程式 3x - 5 = 16 を解くと?",
       choices: ["x = 3", "x = 7", "x = 11/3", "x = 21"],
       answer: 1,
-      easier: { q: "方程式 x + 4 = 9 を解くと?", choices: ["x = 3", "x = 4", "x = 5", "x = 13"], answer: 2 },
+      ladder: [
+        { q: "方程式 3x = 21 を解くと?", choices: ["x = 3", "x = 7", "x = 18", "x = 63"], answer: 1 },
+        { q: "方程式 2x = 10 を解くと?", choices: ["x = 2", "x = 5", "x = 8", "x = 20"], answer: 1 },
+        { q: "方程式 x + 4 = 9 を解くと?", choices: ["x = 3", "x = 4", "x = 5", "x = 13"], answer: 2 },
+        { q: "方程式 x + 1 = 3 を解くと?", choices: ["x = 1", "x = 2", "x = 3", "x = 4"], answer: 1 },
+        { q: "「x + 1 = 3」の x を求めるには、両辺から何を引けばよいですか。", choices: ["1", "2", "3", "x"], answer: 0 },
+      ],
     },
     {
       q: "a = 3 のとき、5a - 2 の値は?",
@@ -5122,7 +5184,7 @@ const TUTOR_QUESTIONS = {
       q: "空所に入る語は? \"My sister ___ tennis every Sunday.\"",
       choices: ["play", "plays", "playing", "to play"],
       answer: 1,
-      easier: { q: "空所に入る語は? \"He ___ soccer every day.\"", choices: ["play", "plays", "playing", "played to"], answer: 1 },
+      easier: { q: "空所に入る語は? \"He ___ soccer every day.\"", choices: ["play", "plays", "playing", "played to"], answer: 1, easier: { q: "主語が he / she / it のとき、現在形の動詞の終わりに付くのはどれですか。", choices: ["-s", "-ing", "-ed", "何も付かない"], answer: 0 } },
     },
     {
       q: "空所に入る語は? \"___ they students? — Yes, they are.\"",
@@ -5159,13 +5221,13 @@ const TUTOR_QUESTIONS = {
       q: "(x + 3)(x - 5) を展開すると?",
       choices: ["x² - 2x - 15", "x² + 2x - 15", "x² - 8x + 15", "x² - 15"],
       answer: 0,
-      easier: { q: "(x + 1)(x + 2) を展開すると?", choices: ["x² + 3x + 2", "x² + 2x + 2", "x² + 3x + 3", "x² + 2"], answer: 0 },
+      easier: { q: "(x + 1)(x + 2) を展開すると?", choices: ["x² + 3x + 2", "x² + 2x + 2", "x² + 3x + 3", "x² + 2"], answer: 0, easier: { q: "x(x + 2) を展開すると?", choices: ["x² + 2x", "x² + 2", "2x² ", "x + 2x"], answer: 0 } },
     },
     {
       q: "x² - 9x + 20 を因数分解すると?",
       choices: ["(x - 4)(x - 5)", "(x + 4)(x + 5)", "(x - 2)(x - 10)", "(x - 1)(x - 20)"],
       answer: 0,
-      easier: { q: "x² + 5x + 6 を因数分解すると?", choices: ["(x + 2)(x + 3)", "(x + 1)(x + 6)", "(x - 2)(x - 3)", "(x + 5)(x + 1)"], answer: 0 },
+      easier: { q: "x² + 5x + 6 を因数分解すると?", choices: ["(x + 2)(x + 3)", "(x + 1)(x + 6)", "(x - 2)(x - 3)", "(x + 5)(x + 1)"], answer: 0, easier: { q: "x² + 2x を因数分解すると?", choices: ["x(x + 2)", "(x + 1)(x + 2)", "2x(x + 1)", "x²(1 + 2)"], answer: 0 } },
     },
     {
       q: "√48 を簡単にすると?",
@@ -5177,14 +5239,14 @@ const TUTOR_QUESTIONS = {
       q: "二次方程式 x² - 6x + 8 = 0 の解は?",
       choices: ["x = 2, 4", "x = -2, -4", "x = 1, 8", "x = 3 のみ"],
       answer: 0,
-      easier: { q: "二次方程式 x² - 3x + 2 = 0 の解は?", choices: ["x = 1, 2", "x = -1, -2", "x = 2, 3", "x = 0, 3"], answer: 0 },
+      easier: { q: "二次方程式 x² - 3x + 2 = 0 の解は?", choices: ["x = 1, 2", "x = -1, -2", "x = 2, 3", "x = 0, 3"], answer: 0, easier: { q: "二次方程式 (x - 1)(x - 2) = 0 の解は?", choices: ["x = 1, 2", "x = -1, -2", "x = 0, 3", "x = 3"], answer: 0 } },
     },
     {
       q: "直角三角形の直角をはさむ2辺が5cmと12cmのとき、斜辺の長さは?",
       choices: ["13cm", "15cm", "17cm", "60cm"],
       answer: 0,
       svg: TUTOR_FIGURES.rightTriangle512,
-      easier: { q: "直角三角形の直角をはさむ2辺が3cmと4cmのとき、斜辺の長さは?", choices: ["5cm", "6cm", "7cm", "12cm"], answer: 0 },
+      easier: { q: "直角三角形の直角をはさむ2辺が3cmと4cmのとき、斜辺の長さは?", choices: ["5cm", "6cm", "7cm", "12cm"], answer: 0, easier: { q: "三平方の定理の式はどれですか(cが斜辺)。", choices: ["a² + b² = c²", "a + b = c", "a² - b² = c²", "a × b = c"], answer: 0 } },
     },
   ],
   "j3:english": [
@@ -5192,7 +5254,7 @@ const TUTOR_QUESTIONS = {
       q: "空所に入る語句は? \"I ___ in this town since 2015.\"",
       choices: ["live", "lived", "have lived", "am living"],
       answer: 2,
-      easier: { q: "空所に入る語句は? \"She ___ just finished her homework.\"", choices: ["have", "has", "is", "does"], answer: 1 },
+      easier: { q: "空所に入る語句は? \"She ___ just finished her homework.\"", choices: ["have", "has", "is", "does"], answer: 1, easier: { q: "現在完了形は「have / has + ___」の形です。空所に入るのはどれですか。", choices: ["過去分詞", "原形", "-ing形", "名詞"], answer: 0 } },
     },
     {
       q: "\"This letter was written by Ken.\" と同じ意味の文は?",
@@ -5204,7 +5266,7 @@ const TUTOR_QUESTIONS = {
       q: "空所に入る語は? \"The book ___ I bought yesterday is interesting.\"",
       choices: ["who", "which", "whose", "what"],
       answer: 1,
-      easier: { q: "空所に入る語は? \"I have a friend ___ lives in Osaka.\"", choices: ["which", "who", "whose", "what"], answer: 1 },
+      easier: { q: "空所に入る語は? \"I have a friend ___ lives in Osaka.\"", choices: ["which", "who", "whose", "what"], answer: 1, easier: { q: "人を説明するときに使う関係代名詞はどれですか。", choices: ["who", "which", "what", "where"], answer: 0 } },
     },
     { q: "\"She is too tired to walk.\" に近い意味の文は?", choices: ["She is so tired that she cannot walk.", "She is tired but she can walk.", "She walks because she is tired.", "She is tired enough to walk."], answer: 0 },
   ],
@@ -5214,7 +5276,7 @@ const TUTOR_QUESTIONS = {
       choices: ["(2, -3)", "(-2, -3)", "(2, 1)", "(4, 1)"],
       answer: 0,
       svg: TUTOR_FIGURES.parabolaVertex,
-      easier: { q: "二次関数 y = (x - 2)² + 5 の頂点の座標は?", choices: ["(2, 5)", "(-2, 5)", "(2, -5)", "(5, 2)"], answer: 0 },
+      easier: { q: "二次関数 y = (x - 2)² + 5 の頂点の座標は?", choices: ["(2, 5)", "(-2, 5)", "(2, -5)", "(5, 2)"], answer: 0, easier: { q: "二次関数 y = x² + 3 の頂点の座標は?", choices: ["(0, 3)", "(3, 0)", "(0, -3)", "(-3, 0)"], answer: 0 } },
     },
     {
       q: "二次方程式 x² - 4x + 5 = 0 の実数解の個数は?(判別式で判断)",
@@ -5241,7 +5303,16 @@ const TUTOR_QUESTIONS = {
       q: "空所に入る語句は? \"If I ___ more time, I would travel abroad.\"",
       choices: ["have", "had", "will have", "am having"],
       answer: 1,
-      easier: { q: "空所に入る語句は? \"If it ___ tomorrow, I will stay home.\"", choices: ["rains", "rained", "will rain", "raining"], answer: 0 },
+      easier: {
+        q: "空所に入る語句は? \"If it ___ tomorrow, I will stay home.\"",
+        choices: ["rains", "rained", "will rain", "raining"],
+        answer: 0,
+        easier: {
+          q: "\"if\" のあとの文が未来のことを表すとき、動詞はどちらの形を使いますか。",
+          choices: ["現在形", "未来形(will)", "過去形", "-ing形"],
+          answer: 0,
+        },
+      },
     },
     {
       q: "\"Because it was raining, we stayed home.\" を分詞構文にすると?",
@@ -5279,6 +5350,34 @@ const TUTOR_QUESTIONS = {
   ],
 };
 
+// 練習問題の代わりに「案内文」を表示する教科(ユーザー指示、2026-08-23)。
+// **プログラミングは練習問題を用意していない**——open-englishのAIエンジン
+// (aruaru-llm、GPT-2系)単体ではプログラミング指導の対応力が弱いという
+// 実情をそのまま伝え、外部の有料サービスの併用を案内する。
+// 誇張して「対応済み」に見せないための、意図的な設計。
+const TUTOR_NOTICE_SUBJECTS = {
+  programming: {
+    ja:
+      "プログラミングの授業については、open-englishのAIエンジン(aruaru-llm)単体では" +
+      "対応力が弱いため、CLAUDE CODE DESKTOPの有料版を合わせてお申し込みいただくことを" +
+      "お勧めします。ご利用可能時間はご契約のプランによって変動いたします。",
+    en:
+      "For programming lessons, open-english's own AI engine (aruaru-llm) is not strong " +
+      "enough on its own, so we recommend subscribing to the paid version of Claude Code " +
+      "Desktop alongside it. Available usage time depends on the plan you sign up for.",
+  },
+};
+
+function tutorIsNoticeSubject(subjectId) {
+  return Object.prototype.hasOwnProperty.call(TUTOR_NOTICE_SUBJECTS, subjectId);
+}
+
+function tutorNoticeText(subjectId) {
+  const n = TUTOR_NOTICE_SUBJECTS[subjectId];
+  return n ? `${n.ja}
+${n.en}` : "";
+}
+
 function tutorHasQuestions(gradeId, subjectId) {
   const list = TUTOR_QUESTIONS[`${gradeId}:${subjectId}`];
   return Array.isArray(list) && list.length > 0;
@@ -5299,6 +5398,7 @@ const tutorPracticeSubjectEl = document.getElementById("tutor-practice-subject")
 const tutorStartBtn = document.getElementById("tutor-start");
 const tutorSubmitBtn = document.getElementById("tutor-submit");
 const tutorQuizEl = document.getElementById("tutor-quiz");
+const tutorNoticeEl = document.getElementById("tutor-subject-notice");
 const tutorResultEl = document.getElementById("tutor-result");
 const tutorEasierBtn = document.getElementById("tutor-easier-btn");
 const tutorPracticeBtn = document.getElementById("tutor-practice-btn");
@@ -5308,10 +5408,13 @@ let tutorSelectedGrade = null;
 let tutorInstalledSubjects = [];
 let tutorCurrentQuiz = [];
 let tutorMissedQuestions = [];
-// 間違えた問題のうち、1段階易しい類題(`easier`)を持つものの控え。
-let tutorEasierQueue = [];
-// いま出題しているのが「易しい類題」かどうか(結果表示の文言を変えるだけ)。
-let tutorShowingEasier = false;
+// 落ちこぼれ防止の段階ラダー(ユーザー指示、2026-08-23「最大5段階まで」)。
+// `tutorLadder`は易しい順に並んだ類題の配列、`tutorStage`は現在の段階
+// (0 = もとの問題、1 = 1段階易しい類題、… 最大`TUTOR_MAX_EASIER_STAGES`)。
+const TUTOR_MAX_EASIER_STAGES = 5;
+let tutorSourceItem = null;
+let tutorLadder = [];
+let tutorStage = 0;
 
 function loadTutorSettings() {
   try {
@@ -5375,7 +5478,9 @@ function selectTutorGrade(gradeId) {
     // 学年を変えたら、前の学年のインストール状態・出題はいったん破棄する。
     tutorInstalledSubjects = [];
     tutorCurrentQuiz = [];
-    tutorEasierQueue = [];
+    tutorLadder = [];
+    tutorStage = 0;
+    tutorSourceItem = null;
     tutorQuizEl.innerHTML = "";
     tutorResultEl.textContent = "";
     tutorInstallStatusEl.textContent = "";
@@ -5396,7 +5501,10 @@ function renderTutorSubjects() {
   tutorSelectedGradeEl.textContent = `選択中の学年 / Selected grade: ${grade.ja} / ${grade.en}`;
   tutorSubjectListEl.innerHTML = "";
   tutorSubjectsFor(tutorSelectedGrade).forEach((subject) => {
-    const available = tutorHasQuestions(tutorSelectedGrade, subject.id);
+    // 「案内のみ」の教科(プログラミング)は、問題が無くてもインストール
+    // できる——選ぶと練習問題の代わりに案内文を表示する。
+    const noticeOnly = tutorIsNoticeSubject(subject.id);
+    const available = noticeOnly || tutorHasQuestions(tutorSelectedGrade, subject.id);
     const label = document.createElement("label");
     label.className = "tutor-subject-choice" + (available ? "" : " unavailable");
     const box = document.createElement("input");
@@ -5405,10 +5513,15 @@ function renderTutorSubjects() {
     box.checked = tutorInstalledSubjects.includes(subject.id);
     label.appendChild(box);
     const span = document.createElement("span");
-    const count = available ? TUTOR_QUESTIONS[`${tutorSelectedGrade}:${subject.id}`].length : 0;
-    span.textContent = available
-      ? `${subject.ja} / ${subject.en}(${count}問 / ${count} questions)`
-      : `${subject.ja} / ${subject.en}(準備中 / not ready yet)`;
+    const list = TUTOR_QUESTIONS[`${tutorSelectedGrade}:${subject.id}`];
+    const count = list ? list.length : 0;
+    if (noticeOnly) {
+      span.textContent = `${subject.ja} / ${subject.en}(練習問題なし・案内のみ / guidance only, no practice questions)`;
+    } else {
+      span.textContent = available
+        ? `${subject.ja} / ${subject.en}(${count}問 / ${count} questions)`
+        : `${subject.ja} / ${subject.en}(準備中 / not ready yet)`;
+    }
     label.appendChild(span);
     tutorSubjectListEl.appendChild(label);
   });
@@ -5417,8 +5530,9 @@ function renderTutorSubjects() {
 }
 
 function installTutorSubjects(subjectIds) {
-  const available = subjectIds.filter((id) => tutorHasQuestions(tutorSelectedGrade, id));
-  const missing = subjectIds.filter((id) => !tutorHasQuestions(tutorSelectedGrade, id));
+  const installable = (id) => tutorIsNoticeSubject(id) || tutorHasQuestions(tutorSelectedGrade, id);
+  const available = subjectIds.filter(installable);
+  const missing = subjectIds.filter((id) => !installable(id));
   tutorInstalledSubjects = available;
   saveTutorSettings();
 
@@ -5463,27 +5577,38 @@ function refreshTutorPracticeSection() {
 }
 
 /**
- * 与えられた問題リストから**ランダムに1問だけ**選んで描画する
- * (ユーザー指示、2026-08-23「順番通りではなくランダムに1問ずつ」)。
- * 選択肢の並びも毎回シャッフルするので、正解の位置は予測できない。
- * 易しい類題の回(`isEasier`)は、控えてある類題をそのまま出す。
+ * 段階ラダー(易しさの順に並んだ類題のリスト)を取り出す。
+ * ユーザー指示(2026-08-23)により、各問題は`ladder: [1段階目, 2段階目, ...]`
+ * という**配列**で段階を持てる。従来の`easier`(1段階だけの入れ子)も
+ * そのまま使えるよう、入れ子チェーンを辿って配列へ正規化する
+ * ——既存データを書き換えずに済ませるための後方互換。
+ * 段階数は`TUTOR_MAX_EASIER_STAGES`(5)で頭打ちにする。
  */
-function renderTutorQuizFromPool(pool, isEasier) {
-  tutorShowingEasier = Boolean(isEasier);
-  const picked = isEasier ? pool.slice(0, 1) : shuffledCopy(pool).slice(0, 1);
-  tutorCurrentQuiz = picked.map((item) => {
-    const order = shuffledCopy(item.choices.map((_, ci) => ci));
-    return {
+function tutorLadderOf(item) {
+  if (Array.isArray(item.ladder)) return item.ladder.slice(0, TUTOR_MAX_EASIER_STAGES);
+  const stages = [];
+  let cur = item.easier;
+  while (cur && stages.length < TUTOR_MAX_EASIER_STAGES) {
+    stages.push(cur);
+    cur = cur.easier;
+  }
+  return stages;
+}
+
+/** 1問を描画する(選択肢の並びは毎回シャッフル)。 */
+function renderTutorSingleQuestion(item) {
+  const order = shuffledCopy(item.choices.map((_, ci) => ci));
+  tutorCurrentQuiz = [
+    {
       q: item.q,
       choices: order.map((ci) => item.choices[ci]),
       answer: order.indexOf(item.answer),
-      easier: item.easier || null,
       svg: item.svg || null,
-    };
-  });
+    },
+  ];
   tutorQuizEl.innerHTML = tutorCurrentQuiz
-    .map((item, qi) => {
-      const choices = item.choices
+    .map((q, qi) => {
+      const choices = q.choices
         .map(
           (choice, ci) =>
             `<label class="exam-prep-choice"><input type="radio" name="tutor-q${qi}" value="${ci}" /> ${choice}</label>`
@@ -5491,22 +5616,56 @@ function renderTutorQuizFromPool(pool, isEasier) {
         .join("");
       // 図解(インラインSVG)。**このアプリ自身が書いた固定文字列のみ**を
       // 埋め込む(利用者入力や外部データは決してここへ入れないこと)。
-      const figure = item.svg ? `<div class="tutor-figure">${item.svg}</div>` : "";
-      return `<div class="exam-prep-question"><p>${qi + 1}. ${item.q}</p>${figure}${choices}</div>`;
+      const figure = q.svg ? `<div class="tutor-figure">${q.svg}</div>` : "";
+      return `<div class="exam-prep-question"><p>${q.q}</p>${figure}${choices}</div>`;
     })
     .join("");
-  tutorResultEl.textContent = tutorShowingEasier
-    ? "もう少し易しい類題です。落ち着いて解いてみましょう。 / Here are easier versions of the same ideas. Take your time."
-    : "";
+  tutorResultEl.textContent =
+    tutorStage > 0
+      ? `もう少し易しい類題です(第${tutorStage}段階 / ${tutorLadder.length}段階中)。落ち着いて解いてみましょう。 / ` +
+        `An easier version (step ${tutorStage} of ${tutorLadder.length}). Take your time.`
+      : "";
   tutorSubmitBtn.classList.remove("hidden");
   tutorEasierBtn.classList.add("hidden");
   tutorPracticeBtn.classList.add("hidden");
   tutorMissedQuestions = [];
-  tutorEasierQueue = [];
 }
 
+/**
+ * インストール済み教科のプールから**ランダムに1問**選んで出題する
+ * (ユーザー指示、2026-08-23「順番通りではなくランダムに1問ずつ」)。
+ * 段階ラダーは0段階目(元の問題)から始める。
+ */
 function renderTutorQuiz() {
   const subjectId = tutorPracticeSubjectEl.value;
+  const materialsEl = document.getElementById("tutor-programming-materials");
+  if (subjectId === "programming") {
+    // プログラミング: (1) 有料版併用のご案内(ユーザー指示で維持)、
+    // (2) 人手で書いたサンプル教材+改造課題、(3) 基礎の4択練習問題、
+    // の3段構え。**AIにゼロからコードを生成させてはいない**。
+    tutorNoticeEl.textContent = tutorNoticeText(subjectId);
+    tutorNoticeEl.classList.remove("hidden");
+    renderTutorProgrammingMaterials();
+    tutorSourceItem = shuffledCopy(TUTOR_PROGRAMMING_QUESTIONS)[0];
+    tutorLadder = tutorLadderOf(tutorSourceItem);
+    tutorStage = 0;
+    renderTutorSingleQuestion(tutorSourceItem);
+    return;
+  }
+  tutorNoticeEl.classList.add("hidden");
+  if (materialsEl) materialsEl.classList.add("hidden");
+  if (tutorIsNoticeSubject(subjectId)) {
+    // 練習問題も教材も用意していない「案内のみ」の教科。正直に案内文だけ出す。
+    tutorQuizEl.innerHTML = "";
+    tutorCurrentQuiz = [];
+    tutorLadder = [];
+    tutorStage = 0;
+    tutorResultEl.textContent = tutorNoticeText(subjectId);
+    tutorSubmitBtn.classList.add("hidden");
+    tutorEasierBtn.classList.add("hidden");
+    tutorPracticeBtn.classList.add("hidden");
+    return;
+  }
   const pool = TUTOR_QUESTIONS[`${tutorSelectedGrade}:${subjectId}`] || [];
   if (pool.length === 0) {
     tutorQuizEl.innerHTML = "";
@@ -5516,46 +5675,66 @@ function renderTutorQuiz() {
     tutorEasierBtn.classList.add("hidden");
     return;
   }
-  renderTutorQuizFromPool(pool, false);
+  tutorSourceItem = shuffledCopy(pool)[0];
+  tutorLadder = tutorLadderOf(tutorSourceItem);
+  tutorStage = 0;
+  renderTutorSingleQuestion(tutorSourceItem);
 }
 
 function scoreTutorQuiz() {
-  let correct = 0;
-  tutorMissedQuestions = [];
-  tutorEasierQueue = [];
-  tutorCurrentQuiz.forEach((item, qi) => {
-    const selected = tutorQuizEl.querySelector(`input[name="tutor-q${qi}"]:checked`);
-    if (selected && Number(selected.value) === item.answer) {
-      correct += 1;
-    } else {
-      tutorMissedQuestions.push({ q: item.q, correctChoice: item.choices[item.answer] });
-      if (item.easier) tutorEasierQueue.push(item.easier);
-    }
-  });
-  const total = tutorCurrentQuiz.length;
+  const item = tutorCurrentQuiz[0];
+  if (!item) return;
+  const selected = tutorQuizEl.querySelector('input[name="tutor-q0"]:checked');
+  const isCorrect = Boolean(selected) && Number(selected.value) === item.answer;
+  tutorMissedQuestions = isCorrect
+    ? []
+    : [{ q: item.q, correctChoice: item.choices[item.answer] }];
+
   const lines = [
-    `得点 / Score: ${correct} / ${total} — ` +
+    `得点 / Score: ${isCorrect ? 1 : 0} / 1 — ` +
       "本アプリのオリジナル練習問題です。学校の成績や入試の合否を予測するものではありません。 / " +
       "These are original practice questions; the score does not predict school grades or exam results.",
   ];
-  if (tutorEasierQueue.length > 0) {
-    // 落ちこぼれ防止(2026-08-23): 間違えた問題に易しい類題があれば案内する。
+
+  // 落ちこぼれ防止(2026-08-23、最大5段階): 誤答なら次の段階の類題へ
+  // 進める。段階を使い切ったら、無理に段階を増やさず**正解と解き方の
+  // 説明を丁寧に提示して終了**し、トレーナーとの復習へつなぐ。
+  const hasNextStage = !isCorrect && tutorStage < tutorLadder.length;
+  if (isCorrect) {
     lines.push(
-      `間違えた問題のうち${tutorEasierQueue.length}問には、もう少し易しい類題があります。` +
-        "「もう少し易しい問題に挑戦」ボタンから続けてみましょう。 / " +
-        `${tutorEasierQueue.length} of the questions you missed ` +
-        `${tutorEasierQueue.length === 1 ? "has" : "have"} an easier version — try it next.`
+      tutorStage > 0
+        ? "正解です。ここまで戻って解けたので、もう一度もとの問題に挑戦してみましょう。 / " +
+            "Correct. Now try the original question again."
+        : "正解です。よくできました。 / Correct — nicely done."
     );
-  } else if (correct < total && !tutorShowingEasier) {
-    // 易しい類題がまだ用意できていない問題もある、と正直に伝える。
+  } else if (hasNextStage) {
     lines.push(
-      "間違えた問題の易しい類題は、まだ用意できていません(準備中です)。 / " +
-        "Easier versions of the questions you missed are not ready yet."
+      `もう少し易しい類題があります(次は第${tutorStage + 1}段階 / 全${tutorLadder.length}段階)。` +
+        "「もう少し易しい問題に挑戦」ボタンから続けてみましょう。 / " +
+        `An easier version is available (step ${tutorStage + 1} of ${tutorLadder.length}) — try it next.`
+    );
+  } else {
+    // 最終段階(またはそもそも類題が無い問題)での誤答。
+    lines.push(
+      `正解は「${item.choices[item.answer]}」です。 / The correct answer is "${item.choices[item.answer]}".`
+    );
+    lines.push(
+      tutorLadder.length > 0
+        ? `易しい類題は全${tutorLadder.length}段階まで用意しており、ここが最後の段階です。` +
+            "ここから先は、下のボタンでトレーナーと一緒に解き方を復習しましょう。 / " +
+            `This was the last of ${tutorLadder.length} easier steps — review it with your trainer using the button below.`
+        : "この問題の易しい類題はまだ用意できていません(準備中です)。" +
+            "下のボタンでトレーナーと一緒に解き方を復習しましょう。 / " +
+            "Easier versions of this question are not ready yet — review it with your trainer using the button below."
     );
   }
+
   tutorResultEl.textContent = lines.join("\n");
-  tutorEasierBtn.classList.toggle("hidden", tutorEasierQueue.length === 0);
-  tutorPracticeBtn.classList.toggle("hidden", total === 0);
+  tutorEasierBtn.textContent = hasNextStage
+    ? `🌱 もう少し易しい問題に挑戦(第${tutorStage + 1}段階) / Try an easier version (step ${tutorStage + 1})`
+    : "🌱 もう少し易しい問題に挑戦 / Try an easier version";
+  tutorEasierBtn.classList.toggle("hidden", !hasNextStage);
+  tutorPracticeBtn.classList.remove("hidden");
 
   const grade = TUTOR_GRADES.find((g) => g.id === tutorSelectedGrade);
   const subjects = tutorSubjectsFor(tutorSelectedGrade);
@@ -5563,13 +5742,16 @@ function scoreTutorQuiz() {
   recordTutorHistory(
     `[tutor-course] grade=${grade ? grade.en : tutorSelectedGrade} subject=${
       subject ? subject.en : ""
-    } score=${correct}/${total} easier_round=${tutorShowingEasier}`
+    } score=${isCorrect ? 1 : 0}/1 easier_stage=${tutorStage}/${tutorLadder.length}`
   );
 }
 
+/** 次の段階(1段階易しい類題)へ進む。最大`TUTOR_MAX_EASIER_STAGES`段階。 */
 function startTutorEasierRound() {
-  if (tutorEasierQueue.length === 0) return;
-  renderTutorQuizFromPool(tutorEasierQueue.slice(), true);
+  if (tutorStage >= tutorLadder.length) return;
+  const next = tutorLadder[tutorStage];
+  tutorStage += 1;
+  renderTutorSingleQuestion(next);
 }
 
 function practiceTutorWithTrainer() {
@@ -5623,5 +5805,234 @@ if (tutorCourseBtn && tutorCourseModal) {
   tutorSubmitBtn.addEventListener("click", scoreTutorQuiz);
   tutorEasierBtn.addEventListener("click", startTutorEasierRound);
   tutorPracticeBtn.addEventListener("click", practiceTutorWithTrainer);
+}
+
+
+// ============================================================================
+// プログラミング教科の基礎教材(ユーザー指示、2026-08-23)
+// ----------------------------------------------------------------------------
+// 「CLAUDE CODE DESKTOP有料版のご案内は維持しつつ、aruaru-llm単体でも
+// ゲーム作成・WEBサイト作成の授業にできるだけ対応できるよう努力してほしい」
+// への対応。**誇張しないための設計方針(絶対に弱めないこと)**:
+//  - aruaru-llm(小規模なGPT-2系)に**ゼロからコードを生成させない**。
+//    ここで提供するのは、あらかじめ人手で書いた**固定のサンプルコードと
+//    改造課題**、および固定の4択練習問題だけ。
+//  - したがって「フルスクラッチで複雑なゲーム・WEBサイトを作れる」とは
+//    一切主張しない。扱うのはHTML/CSS/JavaScriptの入門レベルに限る。
+//  - 上位の案内(有料版の併用推奨)は引き続き先頭に表示する。
+// ============================================================================
+
+// 基礎練習問題(学年を問わず共通。プログラミングは学年別カリキュラムが
+// 定まっていないため、あえて学年で分けていない)。
+const TUTOR_PROGRAMMING_QUESTIONS = [
+  {
+    q: "HTMLで「一番大きな見出し」を表すタグはどれですか。",
+    choices: ["<h1>", "<p>", "<div>", "<br>"],
+    answer: 0,
+    ladder: [
+      { q: "HTMLの「段落(ふつうの文章のかたまり)」を表すタグはどれですか。", choices: ["<p>", "<h1>", "<img>", "<ul>"], answer: 0 },
+    ],
+  },
+  {
+    q: "ボタンを画面に出すHTMLのタグはどれですか。",
+    choices: ["<button>ボタン</button>", "<click>ボタン</click>", "<input-button>", "<press>ボタン</press>"],
+    answer: 0,
+  },
+  {
+    q: "CSSで文字の色を赤にする書き方はどれですか。",
+    choices: ["color: red;", "text-color: red;", "font: red;", "colour = red;"],
+    answer: 0,
+    ladder: [
+      { q: "CSSで背景の色を指定するプロパティはどれですか。", choices: ["background-color", "back-color", "bgcolor-style", "color-back"], answer: 0 },
+    ],
+  },
+  {
+    q: "JavaScriptで画面に小さなお知らせ窓を出す命令はどれですか。",
+    choices: ["alert(\"こんにちは\");", "print(\"こんにちは\");", "echo \"こんにちは\";", "show(\"こんにちは\");"],
+    answer: 0,
+  },
+  {
+    q: "JavaScriptで0以上1未満のランダムな数を作る書き方はどれですか(じゃんけんの手を決めるときなどに使います)。",
+    choices: ["Math.random()", "Math.rand()", "random.next()", "Math.dice()"],
+    answer: 0,
+    ladder: [
+      { q: "「ランダム」とは、どういう意味ですか。", choices: ["毎回でたらめに(偶然で)決まること", "いつも同じになること", "小さい順に並ぶこと", "文字を数に変えること"], answer: 0 },
+    ],
+  },
+  {
+    q: "ボタンが押されたときに何かをさせたいとき、JavaScriptで使うのはどれですか。",
+    choices: ["addEventListener(\"click\", ...)", "addColor(\"click\", ...)", "onPressStart(...)", "waitForClick = true"],
+    answer: 0,
+  },
+];
+
+// サンプル教材(ゼロから生成させず、動く完成品を配ってから改造させる方式)。
+// 現在2本のみ。増やす場合はこの配列に足せばUIは自動で追従する。
+const TUTOR_PROGRAMMING_SAMPLES = [
+  {
+    title: "サンプル1: じゃんけんゲーム / Sample 1: rock-paper-scissors game",
+    intro:
+      "下のコードをメモ帳などに貼り付けて「janken.html」という名前で保存し、" +
+      "ダブルクリックでブラウザで開くと、そのまま遊べます。まずは動かしてみましょう。",
+    code:
+      '<!doctype html>\n' +
+      '<html lang="ja">\n' +
+      '<head><meta charset="utf-8" /><title>じゃんけんゲーム</title></head>\n' +
+      '<body>\n' +
+      '  <h1>じゃんけんゲーム</h1>\n' +
+      '  <button id="gu">グー</button>\n' +
+      '  <button id="choki">チョキ</button>\n' +
+      '  <button id="pa">パー</button>\n' +
+      '  <p id="result">ボタンを押してね</p>\n' +
+      '  <script>\n' +
+      '    const TE = ["グー", "チョキ", "パー"];\n' +
+      '    function play(myIndex) {\n' +
+      '      const cpuIndex = Math.floor(Math.random() * 3);\n' +
+      '      let msg;\n' +
+      '      if (myIndex === cpuIndex) msg = "あいこ";\n' +
+      '      else if ((myIndex + 1) % 3 === cpuIndex) msg = "きみの勝ち!";\n' +
+      '      else msg = "きみの負け…";\n' +
+      '      document.getElementById("result").textContent =\n' +
+      '        "きみ: " + TE[myIndex] + " / コンピューター: " + TE[cpuIndex] + " → " + msg;\n' +
+      '    }\n' +
+      '    document.getElementById("gu").addEventListener("click", () => play(0));\n' +
+      '    document.getElementById("choki").addEventListener("click", () => play(1));\n' +
+      '    document.getElementById("pa").addEventListener("click", () => play(2));\n' +
+      '  <\/script>\n' +
+      '</body>\n' +
+      '</html>',
+    challenges: [
+      "「ボタンを押してね」の文字を、自分の好きな言葉に変えてみよう。",
+      "勝ったときのメッセージを「やったね!」など好きな言葉に変えてみよう。",
+      "勝った回数を数えて画面に出してみよう(ヒント: let win = 0; を作って、勝つたびに win = win + 1 する)。",
+      "ボタンに色を付けてみよう(ヒント: <style> button { background-color: pink; } </style> をheadに足す)。",
+    ],
+  },
+  {
+    title: "サンプル2: 自己紹介ページ / Sample 2: a self-introduction web page",
+    intro:
+      "こちらは「jikoshoukai.html」という名前で保存して開いてみましょう。" +
+      "文章を自分のことに書き換えるのが最初の練習です。",
+    code:
+      '<!doctype html>\n' +
+      '<html lang="ja">\n' +
+      '<head>\n' +
+      '  <meta charset="utf-8" />\n' +
+      '  <title>わたしの自己紹介</title>\n' +
+      '  <style>\n' +
+      '    body { font-family: sans-serif; background-color: #fff7fb; }\n' +
+      '    h1 { color: #cc3377; }\n' +
+      '    li { margin: 4px 0; }\n' +
+      '  </style>\n' +
+      '</head>\n' +
+      '<body>\n' +
+      '  <h1>わたしの自己紹介</h1>\n' +
+      '  <p>はじめまして。わたしの名前は「ここに名前」です。</p>\n' +
+      '  <h2>好きなもの</h2>\n' +
+      '  <ul>\n' +
+      '    <li>すきな食べもの: ここに書く</li>\n' +
+      '    <li>すきな教科: ここに書く</li>\n' +
+      '    <li>すきな動物: ここに書く</li>\n' +
+      '  </ul>\n' +
+      '  <p>よろしくおねがいします。</p>\n' +
+      '</body>\n' +
+      '</html>',
+    challenges: [
+      "「ここに名前」を自分の名前に書き換えてみよう。",
+      "リスト(<li>)を1つ増やして、すきな色を書いてみよう。",
+      "h1 の color を好きな色の名前(blue, green など)に変えてみよう。",
+      "背景色(background-color)を変えて、自分だけの色にしてみよう。",
+    ],
+  },
+];
+
+/**
+ * プログラミング教材エリアを組み立てる。
+ * **コード文字列は`textContent`で入れる**(HTMLタグを含むため、
+ * `innerHTML`で入れると画面が壊れる——自作の固定文字列であっても
+ * ここは必ずテキストとして扱うこと)。
+ */
+function renderTutorProgrammingMaterials() {
+  const root = document.getElementById("tutor-programming-materials");
+  if (!root) return;
+  root.innerHTML = "";
+
+  const lead = document.createElement("p");
+  lead.className = "setup-note";
+  lead.textContent =
+    "上のご案内(CLAUDE CODE DESKTOP有料版の併用推奨)はそのまま有効です。" +
+    "そのうえで、open-english単体でも取り組める基礎教材をご用意しました。" +
+    "ここにあるのは、あらかじめ人手で書いた動くサンプルと改造課題・基礎の練習問題だけで、" +
+    "AIがゼロから複雑なゲームやWEBサイトを作るわけではありません(正直な開示)。 / " +
+    "The recommendation above still stands. In addition, here are hand-written, ready-to-run " +
+    "samples and basic questions you can work on with open-english alone — the AI does not " +
+    "generate complex games or websites from scratch.";
+  root.appendChild(lead);
+
+  TUTOR_PROGRAMMING_SAMPLES.forEach((sample) => {
+    const box = document.createElement("div");
+    box.className = "exam-prep-question";
+
+    const h = document.createElement("h4");
+    h.textContent = sample.title;
+    box.appendChild(h);
+
+    const intro = document.createElement("p");
+    intro.textContent = sample.intro;
+    box.appendChild(intro);
+
+    const pre = document.createElement("pre");
+    pre.className = "tutor-code";
+    const code = document.createElement("code");
+    code.textContent = sample.code;
+    pre.appendChild(code);
+    box.appendChild(pre);
+
+    const copyBtn = document.createElement("button");
+    copyBtn.type = "button";
+    copyBtn.className = "setup-btn";
+    copyBtn.textContent = "📋 コードをコピー / Copy code";
+    copyBtn.addEventListener("click", () => {
+      // クリップボードAPIが使えない環境(古いブラウザ・非セキュアな配信元)
+      // でも、コードは画面上で選択してコピーできるので致命的ではない。
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard
+          .writeText(sample.code)
+          .then(() => {
+            copyBtn.textContent = "✅ コピーしました / Copied";
+          })
+          .catch(() => {
+            copyBtn.textContent = "コピーできませんでした(手で選択してください) / Copy failed";
+          });
+      } else {
+        copyBtn.textContent = "この環境では自動コピーできません(手で選択してください)";
+      }
+    });
+    box.appendChild(copyBtn);
+
+    const chTitle = document.createElement("p");
+    chTitle.textContent = "改造してみよう / Try changing it:";
+    box.appendChild(chTitle);
+
+    const ul = document.createElement("ul");
+    sample.challenges.forEach((c) => {
+      const li = document.createElement("li");
+      li.textContent = c;
+      ul.appendChild(li);
+    });
+    box.appendChild(ul);
+
+    root.appendChild(box);
+  });
+
+  const quizLead = document.createElement("p");
+  quizLead.className = "setup-note";
+  quizLead.textContent =
+    "下は、HTML・CSS・JavaScriptの基礎の練習問題です(他の教科と同じく、" +
+    "まちがえると易しい類題が出ることがあります)。 / " +
+    "Below are basic HTML/CSS/JavaScript practice questions.";
+  root.appendChild(quizLead);
+
+  root.classList.remove("hidden");
 }
 

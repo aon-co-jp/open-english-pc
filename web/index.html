@@ -600,9 +600,32 @@ cd aruaru-db
       </p>
       <p class="setup-note">
         まちがえた問題に「もう少し易しい類題」が用意されている場合は、採点のあとに続けて挑戦できます(落ちこぼれ防止)。
+        類題は<strong>最大5段階</strong>まで段階的に易しくなります——ただし用意できている段階数は問題ごとに異なり、
+        現在は<strong>5段階が2問・2段階が16問・1段階が33問・類題なしが20問(教科の練習問題71問)</strong>です(このほかプログラミングの基礎問題6問には1段階が3問)。
+        最終段階でもまちがえた場合は、正解を提示して「トレーナーと復習」へご案内します。
         図解(イラスト)は、図があると分かりやすい問題にだけ付いています——<strong>全問には付いていません</strong>。<br />
-        When a question you missed has an easier version, you can try it right after scoring. Diagrams are
+        When a question you missed has an easier version, you can try it right after scoring — up to
+        <strong>five progressively easier steps</strong>. How many steps exist differs per question:
+        currently <strong>2 questions have all 5 steps, 16 have 2, 33 have 1, and 20 have none (71 subject questions)</strong>, plus 6 programming basics questions of which 3 have one step.
+        Miss the last step and the app shows the correct answer and points you to the trainer review. Diagrams are
         included only for questions where a picture helps — <strong>not for every question</strong>.
+      </p>
+
+      <p class="setup-note">
+        <strong>英語は小学3年生から</strong>ご利用いただけます(学習指導要領でも小3から外国語活動が始まります)。
+        小1・小2でも国語・算数の練習問題はご利用いただけます。<br />
+        <strong>English is available from elementary grade 3</strong> (matching when foreign-language
+        activities start in the Japanese curriculum); grades 1–2 can still practise Japanese and arithmetic.
+      </p>
+      <p class="setup-note">
+        <strong>プログラミングの授業について</strong>: プログラミングの授業については、open-englishのAIエンジン
+        (aruaru-llm)単体では対応力が弱いため、CLAUDE CODE DESKTOPの有料版を合わせてお申し込みいただくことを
+        お勧めします。ご利用可能時間はご契約のプランによって変動いたします。
+        (そのため本コースの「プログラミング」は練習問題ではなく、この案内の表示のみとなります。)<br />
+        <strong>About programming lessons</strong>: open-english's own AI engine (aruaru-llm) is not strong
+        enough on its own for programming tuition, so we recommend subscribing to the paid version of Claude
+        Code Desktop alongside it; available usage time depends on your plan. The "Programming" subject here
+        therefore shows this guidance instead of practice questions.
       </p>
 
       <h3>1. あなたの学年は? / Which grade are you in?</h3>
@@ -629,6 +652,13 @@ cd aruaru-db
           <button type="button" id="tutor-start" class="setup-btn">▶ 開始 / Start</button>
           <button type="button" id="tutor-submit" class="setup-btn hidden">✅ 採点 / Submit</button>
         </div>
+        <!-- 教科ごとの案内文(現在はプログラミングのみ)。 -->
+        <p id="tutor-subject-notice" class="setup-honest hidden"></p>
+        <!--
+          プログラミング教科を選んだときだけ表示する教材エリア
+          (サンプルコード+改造課題)。中身は app.js が組み立てる。
+        -->
+        <div id="tutor-programming-materials" class="hidden"></div>
         <div id="tutor-quiz"></div>
         <p id="tutor-result" class="setup-note"></p>
         <button type="button" id="tutor-easier-btn" class="setup-btn hidden">

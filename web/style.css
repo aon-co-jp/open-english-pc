@@ -594,6 +594,18 @@ body {
 .tutor-subject-choice.unavailable {
   opacity: 0.65;
 }
+/* プログラミング教材のサンプルコード。長い行は横スクロールさせる。 */
+.tutor-code {
+  margin: 8px 0;
+  padding: 10px 12px;
+  background: #1b1219;
+  border-radius: 8px;
+  overflow-x: auto;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  white-space: pre;
+}
+
 /* 問題に添える図解(インラインSVG)。 */
 .tutor-figure {
   margin: 8px 0 10px;
