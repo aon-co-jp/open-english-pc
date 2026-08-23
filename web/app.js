@@ -1944,7 +1944,13 @@ const MARK_OF_BEAST_TEXTS = {
     "So: a real visual resemblance, no hidden 666, no occult meaning, and no " +
     "technical basis — just a coincidence that grew into a good story. " +
     "(Worth looking up yourself: the Wikipedia article on barcodes, and the " +
-    "Snopes fact-check.)\n\n" +
+    "Snopes fact-check.)\n" +
+    "As an aside: Revelation 13:16-17 does contain a passage saying that no " +
+    "one without the mark can buy or sell. Some people note an interesting " +
+    "parallel between this and how modern shopping increasingly relies on " +
+    "barcodes and online payment systems like Amazon. That is offered here " +
+    "only as a coincidence some find striking — not as a claim that any " +
+    "prophecy has been fulfilled.\n\n" +
     "3) Where I'd like to land: what a nice time to be alive.\n" +
     "Whatever one makes of the old text, here's a cheerful way to look at " +
     "the present. Thanks to the World Wide Web, you can order almost " +
@@ -1997,7 +2003,14 @@ const MARK_OF_BEAST_TEXTS = {
     "隠されているわけではなく、**オカルト的な意味も技術的な根拠も一切" +
     "ありません**——偶然の一致がよくできた物語に育っただけ、というのが" +
     "実際のところです。(ご自身で調べる際は、Wikipediaの「バーコード」の" +
-    "項目や、Snopesのファクトチェックが手頃です。)\n\n" +
+    "項目や、Snopesのファクトチェックが手頃です。)\n" +
+    "余談として、黙示録13章16〜17節には「刻印を持たない者は売り買いが" +
+    "できない」という趣旨の記述が実際にあります。これと、現代では" +
+    "バーコードやオンライン決済(Amazonなど)なしに買い物が難しく" +
+    "なっていることを重ね合わせて語られることがある、という面白い符合を" +
+    "指摘する人もいます。**あくまで「そう語られることがある」という" +
+    "ご紹介であって、「預言が成就した」と断定するもの" +
+    "ではありません。**\n\n" +
     "3) 着地点 — 便利な時代になったものです\n" +
     "古い文章をどう受け取るにせよ、現代についてはこう明るく捉えられます。" +
     "WWW(インターネット)のおかげで、家にいながらたいていの物が通販で" +
