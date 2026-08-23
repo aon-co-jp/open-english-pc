@@ -1883,6 +1883,15 @@ function religionHistoryText() {
 //     明記すること**。意味のある繋がりがあるかのように書いてはならない。
 //
 // 全体のトーンは、宗教的な断定を避けた軽妙な豆知識として書く。
+//
+// 【2026-08-23 追記: 言い回しのみ調整】ユーザー指示により、「WWW=666」・
+// バーコードの都市伝説・黙示録13:16-17と現代の買い物の符合、の3点について
+// 「〜と断定するものではありません」「not as a claim that any prophecy has
+// been fulfilled」といった硬い否定表現を、「話のタネとして」「真偽のほどは
+// 分かりませんが」"take this as a fun bit of trivia rather than solid proof"
+// のような柔らかく親しみやすい言い回しへ置き換えた。**制約自体は不変**——
+// 断定していないこと・都市伝説を都市伝説と明記していること・偶然の一致を
+// 偶然と明記していることは、表現を柔らかくしても必ず維持すること。
 
 // 話題語(666・獣の数字・悪魔の数字・mark of the beast 等)。
 const MARK_OF_BEAST_KEYWORDS_JA = [
@@ -1922,11 +1931,12 @@ const MARK_OF_BEAST_TEXTS = {
     "a row would read as 6-6-6. And since vav is also commonly used to " +
     "transliterate the W sound, some people since the 1990s have pointed out " +
     "that \"666\" can be read as WWW — as in World Wide Web, the string you " +
-    "find in web addresses and HTTP headers. This has circulated in pop " +
-    "culture for decades. To be clear: this is a modern piece of wordplay " +
-    "that some people find striking, not an official or scholarly " +
-    "interpretation of scripture. I'm passing it along as \"here's a reading " +
-    "some people enjoy\", nothing more.\n\n" +
+    "find in web addresses and HTTP headers. It's the kind of thing that " +
+    "makes people go \"huh!\" at a dinner table, and it has been doing the " +
+    "rounds in pop culture for decades. Take it as a fun bit of trivia " +
+    "rather than solid proof — it's modern wordplay, not an official or " +
+    "scholarly reading of scripture. Still, it's a neat one to have in your " +
+    "pocket.\n\n" +
     "2) The barcode story — an urban legend, and here's the actual " +
     "engineering behind it.\n" +
     "You may also hear that a hidden 666 is built into the barcodes on the " +
@@ -1941,16 +1951,17 @@ const MARK_OF_BEAST_TEXTS = {
     "But technically the two are not the same encoding at all: a guard bar " +
     "is three modules wide while a digit is seven modules wide, and their " +
     "bit patterns differ. Fact-checkers such as Snopes rate this claim FALSE. " +
-    "So: a real visual resemblance, no hidden 666, no occult meaning, and no " +
-    "technical basis — just a coincidence that grew into a good story. " +
+    "So the resemblance is real, but the hidden 666 isn't: no occult meaning, " +
+    "no technical basis — just a happy accident of ink that grew into a " +
+    "wonderfully persistent story. Honestly, that's the best part. " +
     "(Worth looking up yourself: the Wikipedia article on barcodes, and the " +
     "Snopes fact-check.)\n" +
-    "As an aside: Revelation 13:16-17 does contain a passage saying that no " +
-    "one without the mark can buy or sell. Some people note an interesting " +
-    "parallel between this and how modern shopping increasingly relies on " +
-    "barcodes and online payment systems like Amazon. That is offered here " +
-    "only as a coincidence some find striking — not as a claim that any " +
-    "prophecy has been fulfilled.\n\n" +
+    "One more thing while we're here. Revelation 13:16-17 really does say " +
+    "that no one without the mark can buy or sell — and people love to hold " +
+    "that line up next to a world where shopping runs on barcodes and " +
+    "Amazon checkouts. Who knows what to make of it! Nobody's proving " +
+    "anything here, but it's the sort of coincidence that makes an " +
+    "ancient text feel a little closer to home than you'd expect.\n\n" +
     "3) Where I'd like to land: what a nice time to be alive.\n" +
     "Whatever one makes of the old text, here's a cheerful way to look at " +
     "the present. Thanks to the World Wide Web, you can order almost " +
@@ -1982,9 +1993,9 @@ const MARK_OF_BEAST_TEXTS = {
     "使われるため、「666はWWWと読めるのではないか」——つまりWorld Wide Web、" +
     "ウェブアドレスやHTTPヘッダーに出てくるあのWWWではないか、という見方を" +
     "する人たちが1990年代以降に現れ、ポップカルチャーの中で語られてきました。" +
-    "念のためはっきりさせておくと、**これは現代の語呂合わせ**であって、" +
-    "聖書の正式な教義的解釈でも学術的な定説でもありません。「そういう解釈を" +
-    "して面白がる人たちがいる」というご紹介にとどめます。\n\n" +
+    "言われてみると「おっ」と思ってしまう話ですよね。もちろん科学的な証明では" +
+    "なく、あくまで**現代の語呂合わせ**——聖書の正式な教義的解釈でも学術的な" +
+    "定説でもありません。話のタネとして、飲み会や雑談でどうぞ。\n\n" +
     "2) バーコードの話 — 都市伝説です(技術的な種明かし付き)\n" +
     "「商品のバーコードには666が隠されている」という話を聞くことも" +
     "あるかもしれません。その出どころはこうです。JANコード(UPC)の" +
@@ -1999,18 +2010,18 @@ const MARK_OF_BEAST_TEXTS = {
     "しかし技術的には、両者は**まったく異なるエンコード方式**です。" +
     "ガードバーは3モジュール幅、数字は7モジュール幅で、ビットパターンも" +
     "異なります。Snopes等のファクトチェックでもこの説は「FALSE(誤り)」と" +
-    "判定されています。つまり、見た目が似ているのは本当ですが、666が" +
+    "判定されています。つまり、見た目が似ているのは本当。でも666が" +
     "隠されているわけではなく、**オカルト的な意味も技術的な根拠も一切" +
-    "ありません**——偶然の一致がよくできた物語に育っただけ、というのが" +
-    "実際のところです。(ご自身で調べる際は、Wikipediaの「バーコード」の" +
+    "ありません**——ちょっとした偶然の一致が、これほどよくできた物語に" +
+    "育ってしまった。むしろそこが面白いところだと思います。" +
+    "(ご自身で調べる際は、Wikipediaの「バーコード」の" +
     "項目や、Snopesのファクトチェックが手頃です。)\n" +
-    "余談として、黙示録13章16〜17節には「刻印を持たない者は売り買いが" +
-    "できない」という趣旨の記述が実際にあります。これと、現代では" +
-    "バーコードやオンライン決済(Amazonなど)なしに買い物が難しく" +
-    "なっていることを重ね合わせて語られることがある、という面白い符合を" +
-    "指摘する人もいます。**あくまで「そう語られることがある」という" +
-    "ご紹介であって、「預言が成就した」と断定するもの" +
-    "ではありません。**\n\n" +
+    "ついでにもう一つ。黙示録13章16〜17節には「刻印を持たない者は売り買いが" +
+    "できない」という趣旨の記述が実際にあります。これを、バーコードや" +
+    "Amazonの決済なしでは買い物もままならない現代と並べて眺めてみる人が" +
+    "いるわけです。真偽のほどは分かりませんが、こういう見方をすると" +
+    "聖書の世界も少し身近に感じられるかもしれません。" +
+    "**もちろん、何かが証明されたという話ではありません。**\n\n" +
     "3) 着地点 — 便利な時代になったものです\n" +
     "古い文章をどう受け取るにせよ、現代についてはこう明るく捉えられます。" +
     "WWW(インターネット)のおかげで、家にいながらたいていの物が通販で" +
