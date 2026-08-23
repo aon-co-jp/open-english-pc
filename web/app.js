@@ -2132,7 +2132,7 @@ let quizAwaitingAnswer = false;
 // **既定は日本語と英語**、主要な数言語のみ翻訳を用意する。
 // 未収録の言語を選んでいる利用者には、正直に日英併記で出題する
 // (全130言語ぶんの翻訳を機械翻訳で埋めて「対応済み」に見せることはしない)。
-const QUIZ_TEXTS = {
+const QUIZ_TEXTS_FOUR_NINES = {
   en: {
     intro:
       "Here is an original puzzle from the creator of this app, Masahiro Ishizuka.",
@@ -2276,6 +2276,144 @@ const QUIZ_TEXTS = {
   },
 };
 
+// 問題2: カタツムリと井戸(2026-08-23追加)。
+// **答えは8日目**。7日目の終わりで9m(1日あたり正味1m)、8日目の昼に3m
+// 登ると10mに到達して井戸の外へ出るため、その夜は滑り落ちない。
+// 「1日1mずつだから10日目」と考えると誤る、というのがこの問題の要点。
+// 訳文は日英のみ(他言語は未作成——`QUIZ_TEXTS_FOUR_NINES`と違い
+// es/fr/de/zh/koは用意していない。無い言語は日英併記で出題される)。
+const QUIZ_TEXTS_SNAIL = {
+  // 図解(インラインSVG、2026-08-23追加)。井戸の深さとカタツムリの
+  // 「昼に3m登り、夜に2m滑り落ちる」動きを図示する。**このアプリ自身が
+  // 書いた固定文字列**であり、利用者入力は一切含まない(そのまま
+  // `innerHTML`へ入れてよい理由)。言語に依存しない図なので、言語コード
+  // ごとの訳文とは別に問題オブジェクト直下に置いている。
+  figure:
+    '<svg viewBox="0 0 260 200" role="img" aria-label="深さ10mの井戸と、昼に3m登り夜に2m滑り落ちるカタツムリ" width="100%" style="max-width:280px">' +
+    '<rect x="70" y="20" width="80" height="160" fill="#241925" stroke="#f4e6f0" stroke-width="2"/>' +
+    '<line x1="60" y1="20" x2="160" y2="20" stroke="#ff9ecb" stroke-width="3"/>' +
+    '<text x="163" y="18" fill="#ff9ecb" font-size="12">出口 10m</text>' +
+    '<text x="163" y="184" fill="#f4e6f0" font-size="12">底 0m</text>' +
+    '<circle cx="110" cy="168" r="9" fill="none" stroke="#ffd27f" stroke-width="3"/>' +
+    '<path d="M100 172 h-8" stroke="#ffd27f" stroke-width="3"/>' +
+    '<path d="M185 150 v-40" stroke="#8ee6a1" stroke-width="2" fill="none"/>' +
+    '<path d="M185 110 l-5 8 h10 z" fill="#8ee6a1"/>' +
+    '<text x="192" y="128" fill="#8ee6a1" font-size="12">昼 +3m</text>' +
+    '<text x="192" y="142" fill="#8ee6a1" font-size="12">day +3m</text>' +
+    '<path d="M225 110 v30" stroke="#ff9ecb" stroke-width="2" fill="none"/>' +
+    '<path d="M225 140 l-5 -8 h10 z" fill="#ff9ecb"/>' +
+    '<text x="150" y="196" fill="#ff9ecb" font-size="12">夜 -2m / night -2m</text></svg>',
+  en: {
+    intro: "Here is another original puzzle from the creator of this app, Masahiro Ishizuka.",
+    question:
+      "A snail is at the bottom of a well that is 10 metres deep.\n" +
+      "    During the day it climbs up 3 metres.\n" +
+      "    During the night it slides back down 2 metres.\n" +
+      "On which day does the snail get out of the well?",
+    fair:
+      "This is not a trick question or a play on words. Just follow the snail " +
+      "day by day and write down how high it is each evening.",
+    episode:
+      "Many people answer \"the 10th day\" straight away, because the snail seems " +
+      "to gain only 1 metre a day. Take your time — the last day is special.",
+    prompt: "When you would like the answer, just say \"I don't know\" or \"Tell me the answer\".",
+    answerTitle: "Here is the answer.",
+    answer:
+      "    The 8th day.\n" +
+      "The snail gains 1 metre of height per full day, so at the end of day 7 it " +
+      "is 7 metres up. On day 8 it climbs 3 more metres and reaches 10 metres — " +
+      "it is already out of the well, so it never slides back that night.",
+    closing: "Nicely done. The trick is that the final climb is not followed by a slide.",
+  },
+  ja: {
+    intro: "このアプリの作者・石塚正浩さんのオリジナル問題、その2です。",
+    question:
+      "深さ10mの井戸の底に、カタツムリが1匹います。\n" +
+      "    昼間のあいだに3m登ります。\n" +
+      "    夜のあいだに2m滑り落ちます。\n" +
+      "このカタツムリが井戸の外に出るのは何日目でしょうか?",
+    fair:
+      "トンチやひっかけではありません。1日ずつ順番に追いかけて、" +
+      "毎晩の高さを書き出していけば必ず解けます。",
+    episode:
+      "「1日で正味1mしか進まないから10日目」と即答してしまう方が多い問題です。" +
+      "最後の1日だけ事情が違うので、じっくり考えてみてください。",
+    prompt: "答えが知りたくなったら「わからない」「答えを教えて」と送ってください。",
+    answerTitle: "答えはこちらです。",
+    answer:
+      "    8日目です。\n" +
+      "1日で正味1m進むので、7日目の終わりには7mの高さにいます。8日目の昼に" +
+      "さらに3m登ると10mに到達し、すでに井戸の外へ出ているので、" +
+      "その夜は滑り落ちません。",
+    closing: "お見事です。最後の1回だけ「滑り落ちない」ところがポイントでした。",
+  },
+};
+
+// 問題3: ニワトリと卵(2026-08-23追加)。**答えは1日**。
+// 「1羽半・1個半・1日半」はいずれも「1羽・1個・1日」をそろって1.5倍した
+// ものなので、3つとも1.5で割れば「1羽が1個を1日で産む」という文にそのまま
+// 戻る、という対称性で読むのがこの問題の要点。
+// (よくある誤答は「1日半」。改変時もこの答えを変えないこと。)
+const QUIZ_TEXTS_HEN = {
+  en: {
+    intro: "And here is a third original puzzle from the creator of this app, Masahiro Ishizuka.",
+    question:
+      "If one and a half hens lay one and a half eggs in one and a half days,\n" +
+      "how many days does it take one hen to lay one egg?",
+    fair:
+      "This is not a trick question or a play on words. It is pure arithmetic — " +
+      "look carefully at the three numbers in the sentence.",
+    episode:
+      "The popular wrong answer is \"one and a half days\". Read the sentence once more " +
+      "before you decide!",
+    prompt: "When you would like the answer, just say \"I don't know\" or \"Tell me the answer\".",
+    answerTitle: "Here is the answer.",
+    answer:
+      "    One day.\n" +
+      "\"One and a half hens\", \"one and a half eggs\" and \"one and a half days\" are all " +
+      "the same multiple of \"one hen\", \"one egg\" and \"one day\". Scale all three down " +
+      "by the same factor of 1.5 and the sentence becomes: one hen lays one egg in one day.",
+    closing: "Well spotted. The three \"and a half\"s cancel each other out.",
+  },
+  ja: {
+    intro: "このアプリの作者・石塚正浩さんのオリジナル問題、その3です。",
+    question:
+      "ニワトリ1羽半が、卵1個半を、1日半で産むとしたら、\n" +
+      "ニワトリ1羽が卵1個を産むのにかかる日数は何日でしょうか?",
+    fair:
+      "トンチやひっかけではありません。純粋な算数の問題です。" +
+      "問題文に出てくる3つの数をよく見比べてみてください。",
+    episode:
+      "「1日半」と答えてしまう方がとても多い問題です。答える前に、" +
+      "もう一度問題文を読んでみてください。",
+    prompt: "答えが知りたくなったら「わからない」「答えを教えて」と送ってください。",
+    answerTitle: "答えはこちらです。",
+    answer:
+      "    1日です。\n" +
+      "「1羽半」「1個半」「1日半」は、どれも「1羽」「1個」「1日」の同じ倍率" +
+      "(1.5倍)になっています。3つとも同じ1.5で割れば、そのまま" +
+      "「ニワトリ1羽が、卵1個を、1日で産む」という文になります。",
+    closing: "お見事です。3つの「半」がきれいに打ち消し合うところがポイントでした。",
+  },
+};
+
+// 出題する問題の一覧(ユーザー指示、2026-08-23「クイズを3問に拡張」)。
+// 依頼のたびにこの配列からランダムに1問選ぶ。**言語別の訳文の有無は
+// 問題ごとに異なる**——問題1は ja/en/es/fr/de/zh/ko、問題2・3は ja/en のみ。
+// 訳文が無い言語の利用者には従来どおり日英併記で出題する(正直な扱い)。
+const QUIZ_SETS = [QUIZ_TEXTS_FOUR_NINES, QUIZ_TEXTS_SNAIL, QUIZ_TEXTS_HEN];
+
+// 直近に出題した問題(解答待ちのあいだ、どの問題の答えを返すかを覚えておく)。
+let currentQuizTexts = QUIZ_SETS[0];
+
+function pickQuizTexts() {
+  // 同じ問題が連続しにくいよう、直前と違う問題を優先して選ぶ
+  // (問題が1問しか無い状況でも無限ループしない単純な実装)。
+  const candidates = QUIZ_SETS.filter((set) => set !== currentQuizTexts);
+  const pool = candidates.length > 0 ? candidates : QUIZ_SETS;
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
 /**
  * 出題に使う言語コードを決める。
  * 「学びたい言語」(`world:<code>`/`english`/`japanese`)を最優先し、
@@ -2298,17 +2436,18 @@ function quizPreferredLangCode() {
   }
   if (!code) return null;
   // "zh-Hant"等の派生コードは基底コード(zh)の訳文を流用する。
-  if (!QUIZ_TEXTS[code] && code.includes("-")) code = code.split("-")[0];
-  return QUIZ_TEXTS[code] ? code : null;
+  const texts = currentQuizTexts;
+  if (!texts[code] && code.includes("-")) code = code.split("-")[0];
+  return texts[code] ? code : null;
 }
 
 function quizBlock(code) {
-  const t = QUIZ_TEXTS[code];
+  const t = currentQuizTexts[code];
   return `${t.intro}\n\n${t.question}\n\n${t.fair}\n${t.episode}\n\n${t.prompt}`;
 }
 
 function quizAnswerBlock(code) {
-  const t = QUIZ_TEXTS[code];
+  const t = currentQuizTexts[code];
   return `${t.answerTitle}\n\n${t.answer}\n\n${t.closing}`;
 }
 
@@ -2383,8 +2522,20 @@ formEl.addEventListener("submit", async (e) => {
   // 「何か問題を出して」「クイズ出して」への対応(作者のオリジナル問題)。
   // AI推論を経ずに固定文で出題する。日次利用回数は消費しない。
   if (isQuizRequest(text)) {
+    // 3問の中からランダムに1問選ぶ(直前と同じ問題は避ける)。
+    currentQuizTexts = pickQuizTexts();
     quizAwaitingAnswer = true;
-    appendMessage("trainer", quizQuestionText());
+    const quizNode = appendMessage("trainer", quizQuestionText());
+    // 図解が用意されている問題(カタツムリの井戸)は、本文の下にSVGを添える。
+    // `appendMessage`は`textContent`で安全に本文を入れる設計なので、図だけを
+    // 別要素として追加する(挿入するのはこのファイル内の固定文字列のみ)。
+    if (currentQuizTexts.figure && quizNode) {
+      const fig = document.createElement("div");
+      fig.className = "tutor-figure";
+      fig.innerHTML = currentQuizTexts.figure;
+      quizNode.appendChild(fig);
+      logEl.scrollTop = logEl.scrollHeight;
+    }
     return;
   }
 
@@ -4600,3 +4751,877 @@ if (aiCodingToolLinkBtn) {
       `デスクトップアプリを起動することはできません。`;
   });
 }
+
+// ============================================================================
+// 学年別・家庭教師コース(ユーザー指示、2026-08-23)
+// ----------------------------------------------------------------------------
+// 「学生向け家庭教師コースをインストールしたい」という利用者の操作に応えて、
+// (1) 学年(小1〜高3の12学年)を尋ね、(2) その学年で一般的な教科を選ばせ、
+// (3) 選んだ教科の練習問題を出題・採点する機能。UIと採点の作りは既存の
+// 資格試験対策コーナー(#exam-prep-modal / renderExamPrepQuiz)を踏襲し、
+// 新しい仕組みは増やしていない。
+//
+// **正直な開示(改変時も弱めないこと)**: 収録している問題はすべて本アプリ用に
+// 書き下ろしたオリジナルで、教科書・問題集・実際の入試問題の転載は一切無い。
+// また**全学年×全教科は揃っていない**(下記TUTOR_QUESTIONSに実際に存在する
+// 組み合わせのみ)。未収録の組み合わせは「準備中」と正直に表示し、
+// 「対応済み」に見せかけない。
+//
+// 落ちこぼれ防止(2026-08-23追加): 各問題は任意で`easier`フィールド
+// (同じ単元・同じ考え方のまま難易度を1段階下げた類題)を持てる。採点で
+// 間違えた問題のうち`easier`を持つものがあれば、「もう少し易しい問題に
+// 挑戦してみましょう」という導線でその類題を出題する。**AI生成ではなく
+// 人手で書いた静的なペア**であり、多段階(2段階以上易しく)は未実装。
+// ============================================================================
+
+const TUTOR_GRADES = [
+  { id: "e1", ja: "小学1年生", en: "Elementary 1" },
+  { id: "e2", ja: "小学2年生", en: "Elementary 2" },
+  { id: "e3", ja: "小学3年生", en: "Elementary 3" },
+  { id: "e4", ja: "小学4年生", en: "Elementary 4" },
+  { id: "e5", ja: "小学5年生", en: "Elementary 5" },
+  { id: "e6", ja: "小学6年生", en: "Elementary 6" },
+  { id: "j1", ja: "中学1年生", en: "Junior high 1" },
+  { id: "j2", ja: "中学2年生", en: "Junior high 2" },
+  { id: "j3", ja: "中学3年生", en: "Junior high 3" },
+  { id: "h1", ja: "高校1年生", en: "High school 1" },
+  { id: "h2", ja: "高校2年生", en: "High school 2" },
+  { id: "h3", ja: "高校3年生", en: "High school 3" },
+];
+
+// 学年ごとの一般的な教科(日本の一般的なカリキュラムを目安にしたおおまかな
+// 分類。高校の理科・社会は科目名を細分化しすぎず「理科」「地理歴史・公民」
+// 程度の粒度にとどめている)。
+const TUTOR_SUBJECTS_BY_STAGE = {
+  elementaryLower: [
+    { id: "japanese", ja: "国語", en: "Japanese" },
+    { id: "math", ja: "算数", en: "Arithmetic" },
+    { id: "life", ja: "生活", en: "Life studies" },
+  ],
+  elementaryUpper: [
+    { id: "japanese", ja: "国語", en: "Japanese" },
+    { id: "math", ja: "算数", en: "Arithmetic" },
+    { id: "science", ja: "理科", en: "Science" },
+    { id: "social", ja: "社会", en: "Social studies" },
+    { id: "english", ja: "英語", en: "English" },
+  ],
+  junior: [
+    { id: "japanese", ja: "国語", en: "Japanese" },
+    { id: "math", ja: "数学", en: "Mathematics" },
+    { id: "science", ja: "理科", en: "Science" },
+    { id: "social", ja: "社会", en: "Social studies" },
+    { id: "english", ja: "英語", en: "English" },
+  ],
+  high: [
+    { id: "japanese", ja: "国語(現代文・古文)", en: "Japanese (modern & classical)" },
+    { id: "math", ja: "数学", en: "Mathematics" },
+    { id: "science", ja: "理科(物理・化学・生物)", en: "Science" },
+    { id: "social", ja: "地理歴史・公民", en: "Geography, history & civics" },
+    { id: "english", ja: "英語", en: "English" },
+  ],
+};
+
+function tutorStageOf(gradeId) {
+  if (gradeId.startsWith("h")) return "high";
+  if (gradeId.startsWith("j")) return "junior";
+  const year = Number(gradeId.slice(1));
+  return year <= 2 ? "elementaryLower" : "elementaryUpper";
+}
+
+function tutorSubjectsFor(gradeId) {
+  return TUTOR_SUBJECTS_BY_STAGE[tutorStageOf(gradeId)];
+}
+
+// 図解(インラインSVG、2026-08-23追加)。追加のアセットファイルを持たずに
+// 済むよう、すべてこのファイル内の固定文字列として持つ。**図解が有効な問題
+// にだけ付けており、全問には付いていない**(単純な計算・語句の問題には
+// 不要なため)。図解の有無はUI上でも「図解つき」バッジで区別できる。
+// 色は`currentColor`ではなく既存のダーク配色に合わせた固定色を使う。
+const TUTOR_FIGURES = {
+  candies7minus3:
+    '<svg viewBox="0 0 300 70" role="img" aria-label="あめが7こ、そのうち3こに×印" width="100%" style="max-width:320px">' +
+    '<circle cx="20" cy="35" r="12" fill="#ff9ecb"/><circle cx="55" cy="35" r="12" fill="#ff9ecb"/>' +
+    '<circle cx="90" cy="35" r="12" fill="#ff9ecb"/><circle cx="125" cy="35" r="12" fill="#ff9ecb"/>' +
+    '<circle cx="160" cy="35" r="12" fill="#7a6a76"/><circle cx="195" cy="35" r="12" fill="#7a6a76"/>' +
+    '<circle cx="230" cy="35" r="12" fill="#7a6a76"/>' +
+    '<g stroke="#fff" stroke-width="3"><path d="M152 27 l16 16 M168 27 l-16 16"/>' +
+    '<path d="M187 27 l16 16 M203 27 l-16 16"/><path d="M222 27 l16 16 M238 27 l-16 16"/></g>' +
+    '<text x="255" y="40" fill="#f4e6f0" font-size="13">たべた3こ</text></svg>',
+  fractionFifths:
+    '<svg viewBox="0 0 320 70" role="img" aria-label="5等分したテープのうち3つ分と1つ分" width="100%" style="max-width:340px">' +
+    '<g stroke="#f4e6f0" stroke-width="2" fill="none"><rect x="10" y="10" width="150" height="24"/>' +
+    '<rect x="10" y="40" width="150" height="24"/></g>' +
+    '<g fill="#ff9ecb"><rect x="11" y="11" width="89" height="22"/><rect x="11" y="41" width="29" height="22"/></g>' +
+    '<g stroke="#f4e6f0" stroke-width="1">' +
+    '<path d="M40 10v24 M70 10v24 M100 10v24 M130 10v24 M40 40v24 M70 40v24 M100 40v24 M130 40v24"/></g>' +
+    '<text x="170" y="28" fill="#f4e6f0" font-size="14">3/5</text>' +
+    '<text x="170" y="58" fill="#f4e6f0" font-size="14">1/5</text></svg>',
+  circleRadius3:
+    '<svg viewBox="0 0 200 130" role="img" aria-label="半径3cmの円" width="100%" style="max-width:220px">' +
+    '<circle cx="80" cy="65" r="50" fill="#3a2740" stroke="#ff9ecb" stroke-width="2"/>' +
+    '<line x1="80" y1="65" x2="130" y2="65" stroke="#f4e6f0" stroke-width="2"/>' +
+    '<circle cx="80" cy="65" r="3" fill="#f4e6f0"/>' +
+    '<text x="95" y="58" fill="#f4e6f0" font-size="13">3cm</text></svg>',
+  boxVolume:
+    '<svg viewBox="0 0 220 140" role="img" aria-label="縦4cm横5cm高さ3cmの直方体" width="100%" style="max-width:240px">' +
+    '<g fill="none" stroke="#ff9ecb" stroke-width="2">' +
+    '<rect x="30" y="45" width="110" height="65"/><path d="M30 45 l35-28 h110 l-35 28 M140 45 l35-28 M140 110 l35-28 v-56"/></g>' +
+    '<text x="70" y="128" fill="#f4e6f0" font-size="13">横5cm</text>' +
+    '<text x="0" y="82" fill="#f4e6f0" font-size="13">高さ3cm</text>' +
+    '<text x="150" y="26" fill="#f4e6f0" font-size="13">縦4cm</text></svg>',
+  rightTriangle512:
+    '<svg viewBox="0 0 220 150" role="img" aria-label="直角をはさむ2辺が5cmと12cmの直角三角形" width="100%" style="max-width:240px">' +
+    '<polygon points="30,120 30,30 170,120" fill="#3a2740" stroke="#ff9ecb" stroke-width="2"/>' +
+    '<rect x="30" y="106" width="14" height="14" fill="none" stroke="#f4e6f0"/>' +
+    '<text x="0" y="78" fill="#f4e6f0" font-size="13">5cm</text>' +
+    '<text x="85" y="138" fill="#f4e6f0" font-size="13">12cm</text>' +
+    '<text x="105" y="66" fill="#f4e6f0" font-size="13">?</text></svg>',
+  numberLineNegative:
+    '<svg viewBox="0 0 320 80" role="img" aria-label="-7から右へ3進む数直線" width="100%" style="max-width:340px">' +
+    '<line x1="10" y1="50" x2="310" y2="50" stroke="#f4e6f0" stroke-width="2"/>' +
+    '<g stroke="#f4e6f0" stroke-width="1">' +
+    '<path d="M30 44v12 M60 44v12 M90 44v12 M120 44v12 M150 44v12 M180 44v12 M210 44v12 M240 44v12"/></g>' +
+    '<text x="22" y="72" fill="#f4e6f0" font-size="12">-8</text>' +
+    '<text x="112" y="72" fill="#f4e6f0" font-size="12">-4</text>' +
+    '<text x="234" y="72" fill="#f4e6f0" font-size="12">0</text>' +
+    '<circle cx="60" cy="50" r="5" fill="#ff9ecb"/>' +
+    '<path d="M60 34 h90" stroke="#ff9ecb" stroke-width="2" fill="none"/>' +
+    '<path d="M150 34 l-8 -5 v10 z" fill="#ff9ecb"/>' +
+    '<text x="80" y="26" fill="#ff9ecb" font-size="12">+3</text></svg>',
+  parabolaVertex:
+    '<svg viewBox="0 0 220 150" role="img" aria-label="下に凸の放物線と頂点" width="100%" style="max-width:240px">' +
+    '<line x1="20" y1="120" x2="200" y2="120" stroke="#f4e6f0" stroke-width="1"/>' +
+    '<line x1="40" y1="10" x2="40" y2="140" stroke="#f4e6f0" stroke-width="1"/>' +
+    '<path d="M60 20 Q110 170 170 20" fill="none" stroke="#ff9ecb" stroke-width="2" transform="scale(1,-1) translate(0,-150)"/>' +
+    '<circle cx="115" cy="103" r="4" fill="#f4e6f0"/>' +
+    '<text x="122" y="106" fill="#f4e6f0" font-size="12">頂点 / vertex</text></svg>',
+};
+
+// 練習問題本体。キーは `<学年ID>:<教科ID>`。**ここに無い組み合わせは
+// 「準備中」と表示する**(嘘の「対応済み」を作らないこと)。
+// すべて本アプリ用に書き下ろしたオリジナル問題。`answer`は`choices`の添字。
+// `easier`があるものは、間違えたときに出題する1段階易しい類題。
+const TUTOR_QUESTIONS = {
+  "e1:math": [
+    {
+      q: "あめが 7こ あります。3こ たべました。のこりは なんこ ですか。",
+      choices: ["3こ", "4こ", "5こ", "10こ"],
+      answer: 1,
+      svg: TUTOR_FIGURES.candies7minus3,
+      easier: {
+        q: "あめが 5こ あります。1こ たべました。のこりは なんこ ですか。",
+        choices: ["3こ", "4こ", "5こ", "6こ"],
+        answer: 1,
+      },
+    },
+    {
+      q: "8 + 6 は いくつ ですか。",
+      choices: ["12", "13", "14", "15"],
+      answer: 2,
+      easier: { q: "8 + 2 は いくつ ですか。", choices: ["9", "10", "11", "12"], answer: 1 },
+    },
+    {
+      q: "いちごが 5こ ずつ はいった おさらが 2まい あります。いちごは ぜんぶで なんこ ですか。",
+      choices: ["7こ", "10こ", "12こ", "25こ"],
+      answer: 1,
+      easier: {
+        q: "いちごが 2こ ずつ はいった おさらが 2まい あります。ぜんぶで なんこ ですか。",
+        choices: ["2こ", "3こ", "4こ", "5こ"],
+        answer: 2,
+      },
+    },
+    {
+      q: "15 から 8 を ひくと いくつ ですか。",
+      choices: ["6", "7", "8", "9"],
+      answer: 1,
+      easier: { q: "10 から 8 を ひくと いくつ ですか。", choices: ["1", "2", "3", "4"], answer: 1 },
+    },
+    { q: "うさぎが 4ひき、ねこが 3びき います。どうぶつは あわせて なんびき ですか。", choices: ["1ぴき", "6ぴき", "7ひき", "12ひき"], answer: 2 },
+  ],
+  "e1:japanese": [
+    {
+      q: "「ねこ」を かたかなで かくと どれ ですか。",
+      choices: ["ネコ", "ヌコ", "ネヨ", "メコ"],
+      answer: 0,
+      easier: { q: "「か」を かたかなで かくと どれ ですか。", choices: ["カ", "ヤ", "セ", "タ"], answer: 0 },
+    },
+    {
+      q: "えんぴつを かぞえる ときの かぞえかたは どれ ですか。",
+      choices: ["1まい", "1ぽん", "1ひき", "1こう"],
+      answer: 1,
+      easier: { q: "かみを かぞえる ときの かぞえかたは どれ ですか。", choices: ["1まい", "1ぴき", "1けん", "1だい"], answer: 0 },
+    },
+    {
+      q: "「あさ」の はんたいの ことばは どれ ですか。",
+      choices: ["ひる", "よる", "ゆう", "そら"],
+      answer: 1,
+      easier: { q: "「おおきい」の はんたいの ことばは どれ ですか。", choices: ["ちいさい", "たかい", "ながい", "あかい"], answer: 0 },
+    },
+    { q: "つぎの うち、のばす おと(ちょうおん)が ある ことばは どれ ですか。", choices: ["いぬ", "おかあさん", "とり", "はな"], answer: 1 },
+  ],
+  "e3:math": [
+    {
+      q: "7 × 8 はいくつですか。",
+      choices: ["48", "54", "56", "63"],
+      answer: 2,
+      easier: { q: "7 × 2 はいくつですか。", choices: ["9", "12", "14", "16"], answer: 2 },
+    },
+    {
+      q: "36 ÷ 4 はいくつですか。",
+      choices: ["6", "8", "9", "12"],
+      answer: 2,
+      easier: { q: "8 ÷ 4 はいくつですか。", choices: ["1", "2", "3", "4"], answer: 1 },
+    },
+    {
+      q: "1000 - 458 はいくつですか。",
+      choices: ["542", "552", "642", "458"],
+      answer: 0,
+      easier: { q: "100 - 40 はいくつですか。", choices: ["40", "50", "60", "70"], answer: 2 },
+    },
+    { q: "1mは何cmですか。", choices: ["10cm", "100cm", "1000cm", "12cm"], answer: 1 },
+    {
+      q: "分数 3/5 と 1/5 をたすといくつですか。",
+      choices: ["4/10", "4/5", "3/25", "2/5"],
+      answer: 1,
+      svg: TUTOR_FIGURES.fractionFifths,
+      easier: { q: "分数 1/5 と 1/5 をたすといくつですか。", choices: ["1/10", "2/10", "2/5", "1/25"], answer: 2 },
+    },
+  ],
+  "e3:japanese": [
+    {
+      q: "「話す」の読み方として正しいものはどれですか。",
+      choices: ["はなす", "わす", "はす", "かす"],
+      answer: 0,
+      easier: { q: "「山」の読み方として正しいものはどれですか。", choices: ["やま", "かわ", "そら", "うみ"], answer: 0 },
+    },
+    {
+      q: "「明るい」の送りがなとして正しいものはどれですか。",
+      choices: ["明い", "明るい", "明かるい", "明かい"],
+      answer: 1,
+      easier: { q: "「たのしい」を漢字と送りがなで書くとどれですか。", choices: ["楽い", "楽しい", "楽のしい", "楽たしい"], answer: 1 },
+    },
+    { q: "「ふりかえる」の意味に最も近いものはどれですか。", choices: ["うしろを見る", "とびこえる", "ねむる", "はしる"], answer: 0 },
+    {
+      q: "つぎの文の主語はどれですか。「弟が 大きな 声で 歌う。」",
+      choices: ["弟が", "大きな", "声で", "歌う"],
+      answer: 0,
+      easier: { q: "つぎの文の主語はどれですか。「犬が 走る。」", choices: ["犬が", "走る", "が", "犬走"], answer: 0 },
+    },
+  ],
+  "e6:math": [
+    {
+      q: "半径3cmの円の面積はおよそいくらですか。円周率は3.14とします。",
+      choices: ["9.42cm²", "18.84cm²", "28.26cm²", "56.52cm²"],
+      answer: 2,
+      svg: TUTOR_FIGURES.circleRadius3,
+      easier: {
+        q: "円の面積を求める式はどれですか。",
+        choices: ["半径 × 2 × 円周率", "半径 × 半径 × 円周率", "直径 × 円周率", "半径 × 円周率 ÷ 2"],
+        answer: 1,
+      },
+    },
+    {
+      q: "定価800円の品物を25%引きで買うと、代金はいくらですか。",
+      choices: ["560円", "600円", "640円", "775円"],
+      answer: 1,
+      easier: { q: "800円の10%はいくらですか。", choices: ["8円", "80円", "180円", "800円"], answer: 1 },
+    },
+    {
+      q: "2:3 と等しい比はどれですか。",
+      choices: ["3:2", "4:9", "6:9", "5:6"],
+      answer: 2,
+      easier: { q: "1:2 と等しい比はどれですか。", choices: ["2:1", "2:4", "3:4", "1:3"], answer: 1 },
+    },
+    {
+      q: "縦4cm、横5cm、高さ3cmの直方体の体積はいくらですか。",
+      choices: ["12cm³", "27cm³", "60cm³", "94cm³"],
+      answer: 2,
+      svg: TUTOR_FIGURES.boxVolume,
+    },
+    {
+      q: "時速60kmで走る車が45分間に進む道のりはどれだけですか。",
+      choices: ["30km", "40km", "45km", "50km"],
+      answer: 2,
+      easier: { q: "時速60kmで走る車が30分間に進む道のりはどれだけですか。", choices: ["20km", "30km", "60km", "120km"], answer: 1 },
+    },
+  ],
+  "e6:japanese": [
+    {
+      q: "意味が似た漢字を重ねてできた熟語はどれですか。",
+      choices: ["高低", "岩石", "着席", "非常"],
+      answer: 1,
+      easier: { q: "反対の意味の漢字を重ねてできた熟語はどれですか。", choices: ["岩石", "大小", "読書", "green国語"], answer: 1 },
+    },
+    {
+      q: "先生に対して使う言い方として正しいものはどれですか。",
+      choices: ["先生が申しました", "先生がおっしゃいました", "先生が拝見しました", "先生がいたしました"],
+      answer: 1,
+      easier: {
+        q: "自分の動作をへりくだって言う言い方はどれですか。",
+        choices: ["おっしゃる", "申す", "召し上がる", "いらっしゃる"],
+        answer: 1,
+      },
+    },
+    { q: "「気が短い」に近い意味の言い方はどれですか。", choices: ["腹を立てるのが早い", "耳が痛い", "手をぬく", "顔が広い"], answer: 0 },
+    { q: "次の文の述語はどれですか。「校庭の桜が とても きれいに 咲いた。」", choices: ["校庭の", "桜が", "きれいに", "咲いた"], answer: 3 },
+  ],
+  "e6:english": [
+    {
+      q: "「わたしは毎朝6時に起きます。」を英語にすると?",
+      choices: ["I get up at six every morning.", "I get up six every morning.", "I am get up at six.", "I getting up at six."],
+      answer: 0,
+      easier: {
+        q: "「わたしは毎日走ります。」を英語にすると?",
+        choices: ["I run every day.", "I running every day.", "I am run every day.", "I runs every day."],
+        answer: 0,
+      },
+    },
+    {
+      q: "\"How many books do you have?\" への答えとして自然なものはどれですか。",
+      choices: ["Yes, I do.", "I have twenty books.", "It is a book.", "I am fine."],
+      answer: 1,
+      easier: {
+        q: "\"How are you?\" への答えとして自然なものはどれですか。",
+        choices: ["I'm fine, thank you.", "It is a pen.", "Yes, I am book.", "I have three."],
+        answer: 0,
+      },
+    },
+    { q: "\"Tuesday\" の次の曜日はどれですか。", choices: ["Monday", "Wednesday", "Thursday", "Sunday"], answer: 1 },
+    { q: "「あなたの好きな食べ物は何ですか?」を英語にすると?", choices: ["What is your favorite food?", "What you like food?", "Which food you favorite?", "How your favorite food?"], answer: 0 },
+  ],
+  "j1:math": [
+    {
+      q: "(-7) + 3 を計算すると?",
+      choices: ["-10", "-4", "4", "10"],
+      answer: 1,
+      svg: TUTOR_FIGURES.numberLineNegative,
+      easier: { q: "(-2) + 1 を計算すると?", choices: ["-3", "-1", "1", "3"], answer: 1 },
+    },
+    {
+      q: "(-4) × (-5) を計算すると?",
+      choices: ["-20", "-9", "9", "20"],
+      answer: 3,
+      easier: { q: "(-2) × (-3) を計算すると?", choices: ["-6", "-5", "5", "6"], answer: 3 },
+    },
+    {
+      q: "方程式 3x - 5 = 16 を解くと?",
+      choices: ["x = 3", "x = 7", "x = 11/3", "x = 21"],
+      answer: 1,
+      easier: { q: "方程式 x + 4 = 9 を解くと?", choices: ["x = 3", "x = 4", "x = 5", "x = 13"], answer: 2 },
+    },
+    {
+      q: "a = 3 のとき、5a - 2 の値は?",
+      choices: ["10", "13", "15", "17"],
+      answer: 1,
+      easier: { q: "a = 3 のとき、2a の値は?", choices: ["3", "5", "6", "9"], answer: 2 },
+    },
+    { q: "「1個x円のパンを4個買って500円出したときのおつり」を式にすると?", choices: ["4x - 500", "500 - 4x", "500 - x + 4", "x - 500"], answer: 1 },
+  ],
+  "j1:english": [
+    {
+      q: "空所に入る語は? \"My sister ___ tennis every Sunday.\"",
+      choices: ["play", "plays", "playing", "to play"],
+      answer: 1,
+      easier: { q: "空所に入る語は? \"He ___ soccer every day.\"", choices: ["play", "plays", "playing", "played to"], answer: 1 },
+    },
+    {
+      q: "空所に入る語は? \"___ they students? — Yes, they are.\"",
+      choices: ["Is", "Am", "Are", "Do"],
+      answer: 2,
+      easier: { q: "空所に入る語は? \"___ you a student? — Yes, I am.\"", choices: ["Is", "Am", "Are", "Do"], answer: 2 },
+    },
+    {
+      q: "\"He doesn't like natto.\" を疑問文にすると?",
+      choices: ["Does he like natto?", "Do he likes natto?", "Is he like natto?", "He does like natto?"],
+      answer: 0,
+      easier: { q: "\"You like music.\" を疑問文にすると?", choices: ["Do you like music?", "Does you like music?", "Are you like music?", "You do like music?"], answer: 0 },
+    },
+    { q: "「机の上に本が1冊あります。」を英語にすると?", choices: ["There is a book on the desk.", "There are a book on the desk.", "It has a book on the desk.", "A book there is on the desk."], answer: 0 },
+  ],
+  "j1:japanese": [
+    {
+      q: "次の語のうち、動詞はどれですか。",
+      choices: ["静かだ", "美しい", "走る", "とても"],
+      answer: 2,
+      easier: { q: "次の語のうち、動詞はどれですか。", choices: ["book本", "食べる", "赤い", "ゆっくり"], answer: 1 },
+    },
+    { q: "「きれいな花」の「きれいな」の品詞は何ですか。", choices: ["名詞", "形容詞", "形容動詞", "副詞"], answer: 2 },
+    {
+      q: "「ゆっくり歩く」の「ゆっくり」の品詞は何ですか。",
+      choices: ["副詞", "連体詞", "助詞", "接続詞"],
+      answer: 0,
+      easier: { q: "「とても寒い」の「とても」は、あとの語をくわしく説明しています。この働きの品詞はどれですか。", choices: ["副詞", "名詞", "動詞", "助動詞"], answer: 0 },
+    },
+    { q: "次の文の主語はどれですか。「昨日、友人の兄が 荷物を 届けてくれた。」", choices: ["昨日", "友人の", "兄が", "荷物を"], answer: 2 },
+  ],
+  "j3:math": [
+    {
+      q: "(x + 3)(x - 5) を展開すると?",
+      choices: ["x² - 2x - 15", "x² + 2x - 15", "x² - 8x + 15", "x² - 15"],
+      answer: 0,
+      easier: { q: "(x + 1)(x + 2) を展開すると?", choices: ["x² + 3x + 2", "x² + 2x + 2", "x² + 3x + 3", "x² + 2"], answer: 0 },
+    },
+    {
+      q: "x² - 9x + 20 を因数分解すると?",
+      choices: ["(x - 4)(x - 5)", "(x + 4)(x + 5)", "(x - 2)(x - 10)", "(x - 1)(x - 20)"],
+      answer: 0,
+      easier: { q: "x² + 5x + 6 を因数分解すると?", choices: ["(x + 2)(x + 3)", "(x + 1)(x + 6)", "(x - 2)(x - 3)", "(x + 5)(x + 1)"], answer: 0 },
+    },
+    {
+      q: "√48 を簡単にすると?",
+      choices: ["2√12", "4√3", "3√4", "6√2"],
+      answer: 1,
+      easier: { q: "√12 を簡単にすると?", choices: ["2√3", "3√2", "4√3", "6"], answer: 0 },
+    },
+    {
+      q: "二次方程式 x² - 6x + 8 = 0 の解は?",
+      choices: ["x = 2, 4", "x = -2, -4", "x = 1, 8", "x = 3 のみ"],
+      answer: 0,
+      easier: { q: "二次方程式 x² - 3x + 2 = 0 の解は?", choices: ["x = 1, 2", "x = -1, -2", "x = 2, 3", "x = 0, 3"], answer: 0 },
+    },
+    {
+      q: "直角三角形の直角をはさむ2辺が5cmと12cmのとき、斜辺の長さは?",
+      choices: ["13cm", "15cm", "17cm", "60cm"],
+      answer: 0,
+      svg: TUTOR_FIGURES.rightTriangle512,
+      easier: { q: "直角三角形の直角をはさむ2辺が3cmと4cmのとき、斜辺の長さは?", choices: ["5cm", "6cm", "7cm", "12cm"], answer: 0 },
+    },
+  ],
+  "j3:english": [
+    {
+      q: "空所に入る語句は? \"I ___ in this town since 2015.\"",
+      choices: ["live", "lived", "have lived", "am living"],
+      answer: 2,
+      easier: { q: "空所に入る語句は? \"She ___ just finished her homework.\"", choices: ["have", "has", "is", "does"], answer: 1 },
+    },
+    {
+      q: "\"This letter was written by Ken.\" と同じ意味の文は?",
+      choices: ["Ken wrote this letter.", "Ken has written by this letter.", "This letter wrote Ken.", "Ken is writing this letter."],
+      answer: 0,
+      easier: { q: "\"The window was broken by Tom.\" と同じ意味の文は?", choices: ["Tom broke the window.", "Tom is broken the window.", "The window broke Tom.", "Tom was broken."], answer: 0 },
+    },
+    {
+      q: "空所に入る語は? \"The book ___ I bought yesterday is interesting.\"",
+      choices: ["who", "which", "whose", "what"],
+      answer: 1,
+      easier: { q: "空所に入る語は? \"I have a friend ___ lives in Osaka.\"", choices: ["which", "who", "whose", "what"], answer: 1 },
+    },
+    { q: "\"She is too tired to walk.\" に近い意味の文は?", choices: ["She is so tired that she cannot walk.", "She is tired but she can walk.", "She walks because she is tired.", "She is tired enough to walk."], answer: 0 },
+  ],
+  "h1:math": [
+    {
+      q: "二次関数 y = x² - 4x + 1 の頂点の座標は?",
+      choices: ["(2, -3)", "(-2, -3)", "(2, 1)", "(4, 1)"],
+      answer: 0,
+      svg: TUTOR_FIGURES.parabolaVertex,
+      easier: { q: "二次関数 y = (x - 2)² + 5 の頂点の座標は?", choices: ["(2, 5)", "(-2, 5)", "(2, -5)", "(5, 2)"], answer: 0 },
+    },
+    {
+      q: "二次方程式 x² - 4x + 5 = 0 の実数解の個数は?(判別式で判断)",
+      choices: ["2個", "1個", "0個", "3個"],
+      answer: 2,
+      easier: { q: "二次方程式 ax² + bx + c = 0 の判別式Dはどれですか。", choices: ["b² - 4ac", "b² + 4ac", "4ac - b²", "2a - b"], answer: 0 },
+    },
+    {
+      q: "sin30° の値は?",
+      choices: ["1/2", "√2/2", "√3/2", "1"],
+      answer: 0,
+      easier: { q: "cos60° の値は?", choices: ["1/2", "√3/2", "1", "0"], answer: 0 },
+    },
+    {
+      q: "|x - 3| < 2 を満たす x の範囲は?",
+      choices: ["1 < x < 5", "x < 1 または x > 5", "-5 < x < -1", "x > 5"],
+      answer: 0,
+      easier: { q: "|x| < 2 を満たす x の範囲は?", choices: ["-2 < x < 2", "x < 2", "x > -2", "x > 2"], answer: 0 },
+    },
+    { q: "2つのサイコロを同時に投げたとき、出た目の和が7になる確率は?", choices: ["1/12", "1/6", "5/36", "7/36"], answer: 1 },
+  ],
+  "h1:english": [
+    {
+      q: "空所に入る語句は? \"If I ___ more time, I would travel abroad.\"",
+      choices: ["have", "had", "will have", "am having"],
+      answer: 1,
+      easier: { q: "空所に入る語句は? \"If it ___ tomorrow, I will stay home.\"", choices: ["rains", "rained", "will rain", "raining"], answer: 0 },
+    },
+    {
+      q: "\"Because it was raining, we stayed home.\" を分詞構文にすると?",
+      choices: ["Raining, we stayed home.", "It raining, we stayed home.", "To rain, we stayed home.", "Rained, we stayed home."],
+      answer: 1,
+      easier: {
+        q: "\"When she saw me, she smiled.\" を分詞構文にすると?",
+        choices: ["Seeing me, she smiled.", "Saw me, she smiled.", "To see me, she smiled.", "Seen me, she smiled."],
+        answer: 0,
+      },
+    },
+    {
+      q: "空所に入る語句は? \"He is used ___ early in the morning.\"",
+      choices: ["to get up", "to getting up", "get up", "got up"],
+      answer: 1,
+      easier: { q: "空所に入る語句は? \"I look forward ___ you again.\"", choices: ["to see", "to seeing", "see", "saw"], answer: 1 },
+    },
+    { q: "\"I wish I could speak French.\" の意味に最も近いものは?", choices: ["フランス語を話せたらいいのにと思う", "フランス語を話せるようになった", "フランス語を話すつもりだ", "フランス語を話せと言われた"], answer: 0 },
+  ],
+  "h1:japanese": [
+    {
+      q: "古文の「うつくし」の、古語としての主な意味はどれですか。",
+      choices: ["かわいらしい", "きれいだ", "正しい", "めずらしい"],
+      answer: 0,
+      easier: { q: "古文の「あはれなり」の主な意味はどれですか。", choices: ["しみじみと心を動かされる", "こっけいだ", "うるさい", "новый新しい"], answer: 0 },
+    },
+    {
+      q: "古文の助動詞「けり」の主な意味はどれですか。",
+      choices: ["過去・詠嘆", "推量", "打消", "使役"],
+      answer: 0,
+      easier: { q: "古文の助動詞「ず」の意味はどれですか。", choices: ["打消", "過去", "希望", "尊敬"], answer: 0 },
+    },
+    { q: "「いと をかし」の「をかし」の意味に最も近いものはどれですか。", choices: ["趣がある", "おかしくて笑える", "気の毒だ", "恐ろしい"], answer: 0 },
+    { q: "評論文で、筆者の主張を読み取る手がかりとして最も適切なものはどれですか。", choices: ["具体例の細かい数字", "「つまり」「このように」などの後の一文", "登場人物の会話", "本文中の固有名詞の数"], answer: 1 },
+  ],
+};
+
+function tutorHasQuestions(gradeId, subjectId) {
+  const list = TUTOR_QUESTIONS[`${gradeId}:${subjectId}`];
+  return Array.isArray(list) && list.length > 0;
+}
+
+const tutorCourseBtn = document.getElementById("tutor-course-btn");
+const tutorCourseModal = document.getElementById("tutor-course-modal");
+const tutorCourseClose = document.getElementById("tutor-course-close");
+const tutorGradeListEl = document.getElementById("tutor-grade-list");
+const tutorSubjectSectionEl = document.getElementById("tutor-subject-section");
+const tutorSelectedGradeEl = document.getElementById("tutor-selected-grade");
+const tutorSubjectListEl = document.getElementById("tutor-subject-list");
+const tutorInstallSelectedBtn = document.getElementById("tutor-install-selected");
+const tutorInstallAllBtn = document.getElementById("tutor-install-all");
+const tutorInstallStatusEl = document.getElementById("tutor-install-status");
+const tutorPracticeSectionEl = document.getElementById("tutor-practice-section");
+const tutorPracticeSubjectEl = document.getElementById("tutor-practice-subject");
+const tutorStartBtn = document.getElementById("tutor-start");
+const tutorSubmitBtn = document.getElementById("tutor-submit");
+const tutorQuizEl = document.getElementById("tutor-quiz");
+const tutorResultEl = document.getElementById("tutor-result");
+const tutorEasierBtn = document.getElementById("tutor-easier-btn");
+const tutorPracticeBtn = document.getElementById("tutor-practice-btn");
+
+const TUTOR_SETTINGS_KEY = "open-english.tutorCourse";
+let tutorSelectedGrade = null;
+let tutorInstalledSubjects = [];
+let tutorCurrentQuiz = [];
+let tutorMissedQuestions = [];
+// 間違えた問題のうち、1段階易しい類題(`easier`)を持つものの控え。
+let tutorEasierQueue = [];
+// いま出題しているのが「易しい類題」かどうか(結果表示の文言を変えるだけ)。
+let tutorShowingEasier = false;
+
+function loadTutorSettings() {
+  try {
+    const raw = localStorage.getItem(TUTOR_SETTINGS_KEY);
+    if (!raw) return;
+    const saved = JSON.parse(raw);
+    if (saved && typeof saved.grade === "string") tutorSelectedGrade = saved.grade;
+    if (saved && Array.isArray(saved.subjects)) tutorInstalledSubjects = saved.subjects;
+  } catch (_) {
+    /* 壊れた保存値は無視して初期状態から始める(サービスを止めない) */
+  }
+}
+
+function saveTutorSettings() {
+  try {
+    localStorage.setItem(
+      TUTOR_SETTINGS_KEY,
+      JSON.stringify({ grade: tutorSelectedGrade, subjects: tutorInstalledSubjects })
+    );
+  } catch (_) {
+    /* 保存できなくても機能自体は使えるので握りつぶす */
+  }
+}
+
+/**
+ * 学習履歴(採点結果)の保存。既存の`POST /v1/db/history`をそのまま使う
+ * ——このエンドポイントはサーバー側でローカルSQLiteへ保存し、
+ * `OPEN_ENGLISH_DATABASE_URL`が設定されていれば**aruaru-db/PostgreSQLへも
+ * ベストエフォートでミラー**する(2026-08-18実装、`server/src/db.rs`参照)。
+ * つまりaruaru-dbが動いていれば履歴はそちらにも入り、動いていなければ
+ * SQLiteのみで完結する——新しい仕組みは作っていない。
+ * 失敗しても学習の進行は止めない(握りつぶす)。
+ */
+function recordTutorHistory(text) {
+  try {
+    const base = typeof apiBaseEl !== "undefined" && apiBaseEl ? "" : "";
+    fetch(`${base}/v1/db/history`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ role: "tutor-course-result", content: text }),
+    }).catch(() => {});
+  } catch (_) {
+    /* 保存できなくても採点・出題は続ける */
+  }
+}
+
+function renderTutorGrades() {
+  tutorGradeListEl.innerHTML = "";
+  TUTOR_GRADES.forEach((grade) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "setup-btn" + (grade.id === tutorSelectedGrade ? " selected" : "");
+    btn.textContent = `${grade.ja} / ${grade.en}`;
+    btn.addEventListener("click", () => selectTutorGrade(grade.id));
+    tutorGradeListEl.appendChild(btn);
+  });
+}
+
+function selectTutorGrade(gradeId) {
+  if (gradeId !== tutorSelectedGrade) {
+    // 学年を変えたら、前の学年のインストール状態・出題はいったん破棄する。
+    tutorInstalledSubjects = [];
+    tutorCurrentQuiz = [];
+    tutorEasierQueue = [];
+    tutorQuizEl.innerHTML = "";
+    tutorResultEl.textContent = "";
+    tutorInstallStatusEl.textContent = "";
+    tutorPracticeSectionEl.classList.add("hidden");
+    tutorSubmitBtn.classList.add("hidden");
+    tutorEasierBtn.classList.add("hidden");
+    tutorPracticeBtn.classList.add("hidden");
+  }
+  tutorSelectedGrade = gradeId;
+  saveTutorSettings();
+  renderTutorGrades();
+  renderTutorSubjects();
+}
+
+function renderTutorSubjects() {
+  if (!tutorSelectedGrade) return;
+  const grade = TUTOR_GRADES.find((g) => g.id === tutorSelectedGrade);
+  tutorSelectedGradeEl.textContent = `選択中の学年 / Selected grade: ${grade.ja} / ${grade.en}`;
+  tutorSubjectListEl.innerHTML = "";
+  tutorSubjectsFor(tutorSelectedGrade).forEach((subject) => {
+    const available = tutorHasQuestions(tutorSelectedGrade, subject.id);
+    const label = document.createElement("label");
+    label.className = "tutor-subject-choice" + (available ? "" : " unavailable");
+    const box = document.createElement("input");
+    box.type = "checkbox";
+    box.value = subject.id;
+    box.checked = tutorInstalledSubjects.includes(subject.id);
+    label.appendChild(box);
+    const span = document.createElement("span");
+    const count = available ? TUTOR_QUESTIONS[`${tutorSelectedGrade}:${subject.id}`].length : 0;
+    span.textContent = available
+      ? `${subject.ja} / ${subject.en}(${count}問 / ${count} questions)`
+      : `${subject.ja} / ${subject.en}(準備中 / not ready yet)`;
+    label.appendChild(span);
+    tutorSubjectListEl.appendChild(label);
+  });
+  tutorSubjectSectionEl.classList.remove("hidden");
+  if (tutorInstalledSubjects.length > 0) refreshTutorPracticeSection();
+}
+
+function installTutorSubjects(subjectIds) {
+  const available = subjectIds.filter((id) => tutorHasQuestions(tutorSelectedGrade, id));
+  const missing = subjectIds.filter((id) => !tutorHasQuestions(tutorSelectedGrade, id));
+  tutorInstalledSubjects = available;
+  saveTutorSettings();
+
+  const subjects = tutorSubjectsFor(tutorSelectedGrade);
+  const nameOf = (id) => {
+    const s = subjects.find((x) => x.id === id);
+    return s ? `${s.ja} / ${s.en}` : id;
+  };
+  const lines = [];
+  if (available.length > 0) {
+    lines.push(`インストールしました / Installed: ${available.map(nameOf).join("、")}`);
+  } else {
+    lines.push("インストールできる教科がありませんでした。 / No subject could be installed.");
+  }
+  if (missing.length > 0) {
+    // **嘘の「対応済み」を出さないこと**——未収録は未収録と正直に伝える。
+    lines.push(
+      `現在この学年の次の教科の問題は準備中です(インストールしていません): ${missing
+        .map(nameOf)
+        .join("、")} / Questions for these subjects are not ready yet, so they were not installed.`
+    );
+  }
+  tutorInstallStatusEl.textContent = lines.join("\n");
+  renderTutorSubjects();
+  refreshTutorPracticeSection();
+}
+
+function refreshTutorPracticeSection() {
+  if (tutorInstalledSubjects.length === 0) {
+    tutorPracticeSectionEl.classList.add("hidden");
+    return;
+  }
+  const subjects = tutorSubjectsFor(tutorSelectedGrade);
+  tutorPracticeSubjectEl.innerHTML = tutorInstalledSubjects
+    .map((id) => {
+      const s = subjects.find((x) => x.id === id);
+      const label = s ? `${s.ja} / ${s.en}` : id;
+      return `<option value="${id}">${label}</option>`;
+    })
+    .join("");
+  tutorPracticeSectionEl.classList.remove("hidden");
+}
+
+/**
+ * 与えられた問題リストから**ランダムに1問だけ**選んで描画する
+ * (ユーザー指示、2026-08-23「順番通りではなくランダムに1問ずつ」)。
+ * 選択肢の並びも毎回シャッフルするので、正解の位置は予測できない。
+ * 易しい類題の回(`isEasier`)は、控えてある類題をそのまま出す。
+ */
+function renderTutorQuizFromPool(pool, isEasier) {
+  tutorShowingEasier = Boolean(isEasier);
+  const picked = isEasier ? pool.slice(0, 1) : shuffledCopy(pool).slice(0, 1);
+  tutorCurrentQuiz = picked.map((item) => {
+    const order = shuffledCopy(item.choices.map((_, ci) => ci));
+    return {
+      q: item.q,
+      choices: order.map((ci) => item.choices[ci]),
+      answer: order.indexOf(item.answer),
+      easier: item.easier || null,
+      svg: item.svg || null,
+    };
+  });
+  tutorQuizEl.innerHTML = tutorCurrentQuiz
+    .map((item, qi) => {
+      const choices = item.choices
+        .map(
+          (choice, ci) =>
+            `<label class="exam-prep-choice"><input type="radio" name="tutor-q${qi}" value="${ci}" /> ${choice}</label>`
+        )
+        .join("");
+      // 図解(インラインSVG)。**このアプリ自身が書いた固定文字列のみ**を
+      // 埋め込む(利用者入力や外部データは決してここへ入れないこと)。
+      const figure = item.svg ? `<div class="tutor-figure">${item.svg}</div>` : "";
+      return `<div class="exam-prep-question"><p>${qi + 1}. ${item.q}</p>${figure}${choices}</div>`;
+    })
+    .join("");
+  tutorResultEl.textContent = tutorShowingEasier
+    ? "もう少し易しい類題です。落ち着いて解いてみましょう。 / Here are easier versions of the same ideas. Take your time."
+    : "";
+  tutorSubmitBtn.classList.remove("hidden");
+  tutorEasierBtn.classList.add("hidden");
+  tutorPracticeBtn.classList.add("hidden");
+  tutorMissedQuestions = [];
+  tutorEasierQueue = [];
+}
+
+function renderTutorQuiz() {
+  const subjectId = tutorPracticeSubjectEl.value;
+  const pool = TUTOR_QUESTIONS[`${tutorSelectedGrade}:${subjectId}`] || [];
+  if (pool.length === 0) {
+    tutorQuizEl.innerHTML = "";
+    tutorResultEl.textContent =
+      "現在この学年・教科の問題は準備中です。 / Questions for this grade and subject are not ready yet.";
+    tutorSubmitBtn.classList.add("hidden");
+    tutorEasierBtn.classList.add("hidden");
+    return;
+  }
+  renderTutorQuizFromPool(pool, false);
+}
+
+function scoreTutorQuiz() {
+  let correct = 0;
+  tutorMissedQuestions = [];
+  tutorEasierQueue = [];
+  tutorCurrentQuiz.forEach((item, qi) => {
+    const selected = tutorQuizEl.querySelector(`input[name="tutor-q${qi}"]:checked`);
+    if (selected && Number(selected.value) === item.answer) {
+      correct += 1;
+    } else {
+      tutorMissedQuestions.push({ q: item.q, correctChoice: item.choices[item.answer] });
+      if (item.easier) tutorEasierQueue.push(item.easier);
+    }
+  });
+  const total = tutorCurrentQuiz.length;
+  const lines = [
+    `得点 / Score: ${correct} / ${total} — ` +
+      "本アプリのオリジナル練習問題です。学校の成績や入試の合否を予測するものではありません。 / " +
+      "These are original practice questions; the score does not predict school grades or exam results.",
+  ];
+  if (tutorEasierQueue.length > 0) {
+    // 落ちこぼれ防止(2026-08-23): 間違えた問題に易しい類題があれば案内する。
+    lines.push(
+      `間違えた問題のうち${tutorEasierQueue.length}問には、もう少し易しい類題があります。` +
+        "「もう少し易しい問題に挑戦」ボタンから続けてみましょう。 / " +
+        `${tutorEasierQueue.length} of the questions you missed ` +
+        `${tutorEasierQueue.length === 1 ? "has" : "have"} an easier version — try it next.`
+    );
+  } else if (correct < total && !tutorShowingEasier) {
+    // 易しい類題がまだ用意できていない問題もある、と正直に伝える。
+    lines.push(
+      "間違えた問題の易しい類題は、まだ用意できていません(準備中です)。 / " +
+        "Easier versions of the questions you missed are not ready yet."
+    );
+  }
+  tutorResultEl.textContent = lines.join("\n");
+  tutorEasierBtn.classList.toggle("hidden", tutorEasierQueue.length === 0);
+  tutorPracticeBtn.classList.toggle("hidden", total === 0);
+
+  const grade = TUTOR_GRADES.find((g) => g.id === tutorSelectedGrade);
+  const subjects = tutorSubjectsFor(tutorSelectedGrade);
+  const subject = subjects.find((s) => s.id === tutorPracticeSubjectEl.value);
+  recordTutorHistory(
+    `[tutor-course] grade=${grade ? grade.en : tutorSelectedGrade} subject=${
+      subject ? subject.en : ""
+    } score=${correct}/${total} easier_round=${tutorShowingEasier}`
+  );
+}
+
+function startTutorEasierRound() {
+  if (tutorEasierQueue.length === 0) return;
+  renderTutorQuizFromPool(tutorEasierQueue.slice(), true);
+}
+
+function practiceTutorWithTrainer() {
+  const grade = TUTOR_GRADES.find((g) => g.id === tutorSelectedGrade);
+  const subjects = tutorSubjectsFor(tutorSelectedGrade);
+  const subject = subjects.find((s) => s.id === tutorPracticeSubjectEl.value);
+  const targets =
+    tutorMissedQuestions.length > 0
+      ? tutorMissedQuestions
+      : tutorCurrentQuiz.map((item) => ({ q: item.q, correctChoice: item.choices[item.answer] }));
+  if (targets.length === 0) return;
+  const body = targets
+    .map((item, i) => `${i + 1}. ${item.q} (正解 / correct answer: ${item.correctChoice})`)
+    .join("\n");
+  const requestText =
+    `家庭教師として、${grade ? grade.ja : ""}の${subject ? subject.ja : ""}の次の問題を、` +
+    "解き方から一緒に復習してください。\n" +
+    `Please act as my tutor and review these questions with me step by step.\n\n${body}`;
+  tutorCourseModal.classList.add("hidden");
+  inputEl.value = requestText;
+  formEl.dispatchEvent(new Event("submit", { cancelable: true }));
+}
+
+if (tutorCourseBtn && tutorCourseModal) {
+  loadTutorSettings();
+  renderTutorGrades();
+  if (tutorSelectedGrade) renderTutorSubjects();
+
+  tutorCourseBtn.addEventListener("click", () => {
+    tutorCourseModal.classList.remove("hidden");
+  });
+  tutorCourseClose.addEventListener("click", () => tutorCourseModal.classList.add("hidden"));
+  tutorCourseModal.addEventListener("click", (e) => {
+    if (e.target === tutorCourseModal) tutorCourseModal.classList.add("hidden");
+  });
+  tutorInstallSelectedBtn.addEventListener("click", () => {
+    const chosen = Array.from(tutorSubjectListEl.querySelectorAll("input[type=checkbox]:checked")).map(
+      (box) => box.value
+    );
+    if (chosen.length === 0) {
+      tutorInstallStatusEl.textContent =
+        "教科を1つ以上選んでください。 / Please choose at least one subject.";
+      return;
+    }
+    installTutorSubjects(chosen);
+  });
+  tutorInstallAllBtn.addEventListener("click", () => {
+    installTutorSubjects(tutorSubjectsFor(tutorSelectedGrade).map((s) => s.id));
+  });
+  tutorStartBtn.addEventListener("click", renderTutorQuiz);
+  tutorSubmitBtn.addEventListener("click", scoreTutorQuiz);
+  tutorEasierBtn.addEventListener("click", startTutorEasierRound);
+  tutorPracticeBtn.addEventListener("click", practiceTutorWithTrainer);
+}
+

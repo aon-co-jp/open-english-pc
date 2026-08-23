@@ -572,6 +572,37 @@ body {
   font-size: 0.95rem;
 }
 
+/* 学年別・家庭教師コース(2026-08-23新設)。学年ボタン・教科チェックの並び。 */
+.tutor-choice-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 0 12px;
+}
+.tutor-choice-grid .setup-btn.selected {
+  outline: 2px solid #ffb3d9;
+}
+.tutor-subject-choice {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background: #241925;
+  border-radius: 8px;
+  font-size: 0.95rem;
+}
+.tutor-subject-choice.unavailable {
+  opacity: 0.65;
+}
+/* 問題に添える図解(インラインSVG)。 */
+.tutor-figure {
+  margin: 8px 0 10px;
+}
+.tutor-figure svg {
+  max-width: 100%;
+  height: auto;
+}
+
 /* 汎用の非表示クラス(exam-prep-submit等、モーダル本体以外の要素にも使う)。 */
 .hidden {
   display: none !important;

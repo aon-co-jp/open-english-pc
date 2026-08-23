@@ -105,6 +105,7 @@
     <button type="button" id="setup-btn" class="setup-btn">⚙ Setup aruaru-llm</button>
     <button type="button" id="exam-prep-btn" class="setup-btn">📝 Exam Prep / 資格対策</button>
     <button type="button" id="language-pack-btn" class="setup-btn">🌐 Languages / 言語のインストール</button>
+    <button type="button" id="tutor-course-btn" class="setup-btn">🎓 Install the student tutor course / 学生向け家庭教師コースをインストール</button>
     <button type="button" id="briefing-btn" class="setup-btn">🗞 話題ブリーフィング / Topic briefing</button>
     <button type="button" id="aruaru-db-setup-btn" class="setup-btn">🗄 Setup aruaru-db</button>
     <button type="button" id="llm-recommend-btn" class="setup-btn">🧠 Recommend LLM / おすすめLLM</button>
@@ -562,6 +563,81 @@ cd aruaru-db
       <button type="button" id="exam-prep-practice-btn" class="setup-btn hidden">
         💬 Practice these with your trainer / トレーナーと練習する
       </button>
+    </div>
+  </div>
+  <!--
+    学年別・家庭教師コース(ユーザー指示、2026-08-23「学生向け家庭教師
+    コースをインストールしたい、学年を尋ねて学年別・教科別に練習問題を」
+    への対応)。UI・採点の作りは既存の資格試験対策コーナー
+    (#exam-prep-modal)を踏襲している。
+  -->
+  <div id="tutor-course-modal" class="setup-modal hidden">
+    <div class="setup-panel">
+      <button type="button" id="tutor-course-close" class="setup-close">✕</button>
+      <h2>🎓 学生向け家庭教師コース / Student tutor course</h2>
+      <p class="setup-honest">
+        <strong>正直な開示:</strong> ここに収録している問題は、すべて本アプリ用に書き下ろした
+        <strong>オリジナルの練習問題</strong>です。市販の教科書・問題集・実際の入学試験の問題は
+        一切転載していません(いずれも著作権保護の対象です)。学年・教科の区分は日本の一般的な
+        カリキュラムを目安にした<strong>おおまかな分類</strong>であり、特定の教科書や指導要領に
+        準拠したものではありません。<strong>現時点で問題を用意できているのは一部の学年・教科だけ</strong>で、
+        それ以外を選んだ場合は「準備中」と正直に表示します(用意できていないものを
+        「対応済み」に見せることはしません)。<br /><br />
+        <strong>Honest disclosure:</strong> every question here is an <strong>original practice
+        question written for this app</strong>. Nothing is copied from textbooks, workbooks, or real
+        entrance exams. The grade/subject split follows the usual Japanese school curriculum only as a
+        rough guide. <strong>Only some grade/subject combinations have questions so far</strong>; for the
+        rest the app honestly says "not ready yet" rather than pretending to be complete.
+      </p>
+
+      <p class="setup-note">
+        本機能をより快適にご利用いただくには、<strong>Google検索</strong>(上部の「🔎 Google Search Setup」)と
+        <strong>aruaru-db(学習履歴データベース)</strong>(上部の「🗄 Setup aruaru-db」)を併せてセットアップして
+        ご利用いただくことを推奨します。どちらも未設定のままでも本コースは動作します(採点結果はローカルに保存されます)。<br />
+        For the best experience with this feature, we recommend also setting up <strong>Google Search</strong>
+        (see "🔎 Google Search Setup" above) and <strong>aruaru-db</strong>, the learning-history database
+        (see "🗄 Setup aruaru-db"). The course works without either of them; scores are then kept locally.
+      </p>
+      <p class="setup-note">
+        まちがえた問題に「もう少し易しい類題」が用意されている場合は、採点のあとに続けて挑戦できます(落ちこぼれ防止)。
+        図解(イラスト)は、図があると分かりやすい問題にだけ付いています——<strong>全問には付いていません</strong>。<br />
+        When a question you missed has an easier version, you can try it right after scoring. Diagrams are
+        included only for questions where a picture helps — <strong>not for every question</strong>.
+      </p>
+
+      <h3>1. あなたの学年は? / Which grade are you in?</h3>
+      <div id="tutor-grade-list" class="tutor-choice-grid"></div>
+
+      <div id="tutor-subject-section" class="hidden">
+        <h3>2. 教科を選んでください / Choose your subjects</h3>
+        <p class="setup-note" id="tutor-selected-grade"></p>
+        <div id="tutor-subject-list" class="tutor-choice-grid"></div>
+        <div class="settings-buttons">
+          <button type="button" id="tutor-install-selected" class="setup-btn">⬇ 選んだ教科をインストール / Install selected subjects</button>
+          <button type="button" id="tutor-install-all" class="setup-btn">⬇ 全教科をインストール / Install all subjects</button>
+        </div>
+        <p class="setup-note" id="tutor-install-status"></p>
+      </div>
+
+      <div id="tutor-practice-section" class="hidden">
+        <h3>3. 練習問題 / Practice questions</h3>
+        <label class="settings-field">
+          出題する教科 / Subject to practise
+          <select id="tutor-practice-subject"></select>
+        </label>
+        <div class="settings-buttons">
+          <button type="button" id="tutor-start" class="setup-btn">▶ 開始 / Start</button>
+          <button type="button" id="tutor-submit" class="setup-btn hidden">✅ 採点 / Submit</button>
+        </div>
+        <div id="tutor-quiz"></div>
+        <p id="tutor-result" class="setup-note"></p>
+        <button type="button" id="tutor-easier-btn" class="setup-btn hidden">
+          🌱 もう少し易しい問題に挑戦 / Try an easier version
+        </button>
+        <button type="button" id="tutor-practice-btn" class="setup-btn hidden">
+          💬 この結果をトレーナーと復習する / Review these with your trainer
+        </button>
+      </div>
     </div>
   </div>
   <!--
