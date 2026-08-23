@@ -590,6 +590,98 @@ cd aruaru-db
         rest the app honestly says "not ready yet" rather than pretending to be complete.
       </p>
 
+      <p class="setup-honest">
+        <strong>ご利用の前に: 学習履歴データベースのセットアップをおすすめします。</strong>
+        家庭教師コースをご利用の前に、<strong>aruaru-db</strong>(上部の「🗄 Setup aruaru-db」)、
+        または<strong>標準的なPostgreSQL</strong>のセットアップをおすすめします。どの学年・どの教科を学んだか、
+        どの問題が解けたか、テストの結果はどうだったかを記録として蓄積でき、後から自分の学習の積み重ねを
+        振り返ることができます。<br />
+        <strong>セットアップしない場合に起きること(正直な開示)</strong>: 採点結果はアプリ内蔵のローカルDB
+        (SQLite)にのみ保存されます。手元で見る分には十分ですが、アプリを入れ直したり別の端末へ移ったりすると
+        引き継げず、長期的な振り返りには向きません。選んだ学年・インストール済み教科もブラウザの
+        localStorageに保存されるだけで、ブラウザのデータを消すと失われます。
+        <strong>どちらを選んでも構いません</strong>——保存先は環境変数
+        <code>OPEN_ENGLISH_DATABASE_URL</code>にPostgreSQL接続文字列を設定するだけで、aruaru-dbは
+        PostgreSQLワイヤプロトコル互換(pgwire)のため同じ設定で使えます。
+        <strong>ただし正直な但し書き</strong>: サーバー側の接続は平文接続(TLS非対応)の実装のため、
+        SSL必須のマネージドPostgreSQLサービスへは現状つながりません。また、標準PostgreSQL単体での
+        実接続はこの開発環境では未検証です(実装上は同じクライアントライブラリで接続します)。<br /><br />
+        <strong>Before you start: we recommend setting up a learning-history database.</strong>
+        Set up either <strong>aruaru-db</strong> (see "🗄 Setup aruaru-db" above) or a
+        <strong>standard PostgreSQL</strong> server, and the course can keep a record of which grades and
+        subjects you studied, which questions you got right, and how your tests went — so you can look back
+        on what you have built up over time. <strong>Without it</strong>, scores are stored only in the
+        app's built-in local SQLite database (fine day to day, but it does not follow you to another device
+        or survive a reinstall), and your grade/subject choices live only in browser localStorage.
+        Either database works: point <code>OPEN_ENGLISH_DATABASE_URL</code> at a PostgreSQL connection
+        string — aruaru-db speaks the same PostgreSQL wire protocol. <strong>Honest caveats</strong>: the
+        server connects without TLS, so managed PostgreSQL services that require SSL will not connect yet,
+        and a plain PostgreSQL server has not been tested end to end in our development environment.
+      </p>
+      <p class="setup-honest">
+        <strong>より安全にしたい方へ: aruaru-db と PostgreSQL の二重(DUAL)構成</strong><br />
+        aruaru-db と PostgreSQL の<strong>両方</strong>を用意し、互いに写しを持たせておくと、片方が壊れても
+        もう片方から学習履歴を復元できます。<strong>正直な実装状況</strong>: open-english 自身が一度に接続できる
+        保存先は「内蔵SQLite + <code>OPEN_ENGLISH_DATABASE_URL</code> で指定した1つ」だけで、
+        <strong>open-english から2つのデータベースへ同時に書き込む機能は未実装(今後の課題)</strong>です。
+        現状でDUAL構成にする方法は、aruaru-db 側の <code>DUAL_DATABASE_URL</code>(aruaru-db が持つ
+        PostgreSQLへのミラー機能)を使い、open-english → aruaru-db → PostgreSQL という形で写しを作る運用です
+        (aruaru-db 側のドキュメントをご確認ください)。<br />
+        <strong>バックアップ(rsync)について</strong>: 学習履歴DBは、open-english の
+        「💾 Data &amp; Model Storage」パネルにある rsync バックアップ機能で、外付けドライブ・別PC・VPS等へ
+        コピー対象として<strong>加えることができます</strong>(自動で常時バックアップされるわけではありません。
+        rsync が入っていない環境では、同パネルからインストールを案内します)。
+        <strong>正直な調査結果</strong>: 「open-easy-web で管理されている rsync の仕組み」を実際に
+        <code>F:\runo\open-easy-web</code> のドキュメント・ソースで探しましたが、rsync に関する記述・実装は
+        見つかりませんでした。したがって、現時点で使えるのは上記の open-english 内蔵の rsync 機能です。<br /><br />
+        <strong>For extra safety: a dual aruaru-db + PostgreSQL setup.</strong> Running <strong>both</strong> and
+        keeping one as a copy of the other means a failure on one side does not lose your learning history.
+        <strong>Honest implementation status</strong>: open-english itself writes to its built-in SQLite plus the
+        <em>single</em> database named by <code>OPEN_ENGLISH_DATABASE_URL</code> —
+        <strong>writing to two databases at once from open-english is not implemented yet</strong>. Today the way to
+        get a dual setup is aruaru-db's own <code>DUAL_DATABASE_URL</code> mirroring to PostgreSQL, i.e.
+        open-english → aruaru-db → PostgreSQL. <strong>Backups (rsync)</strong>: the learning-history database
+        <em>can be added</em> to an rsync backup to an external drive, another PC, or a VPS from the
+        "💾 Data &amp; Model Storage" panel (it is not backed up automatically). <strong>Honest finding</strong>: we
+        looked for the "rsync mechanism managed by open-easy-web" in that repository's docs and sources and found no
+        rsync feature there, so the built-in rsync backup above is what is actually available today.
+      </p>
+      <p class="setup-honest">
+        <strong>Googleドライブへの同期もできます(要セットアップ)</strong><br />
+        rsync でローカルフォルダへバックアップしたあと、<a href="https://rclone.org/drive/" target="_blank"
+        rel="noopener noreferrer">rclone</a> のような一般的なツールを使えば、そのフォルダをGoogleドライブへ同期できます。
+        手順は (1) rclone をインストール、(2) <code>rclone config</code> で Google Drive のリモート(例: <code>gdrive</code>)を作成、
+        (3) 同期コマンドを実行、の3つだけです:<br />
+        <code>rclone sync /path/to/backup gdrive:open-english-backup</code><br />
+        定期実行したい場合は、このコマンドをOSのタスクスケジューラ(Windowsのタスク スケジューラ、Linux/macOSのcron)に
+        登録してください。<strong>正直な但し書き</strong>: open-english にGoogleドライブ連携は実装していません
+        ——<strong>自動的にGoogleドライブへ同期されるわけではなく</strong>、上記のセットアップをご自身で行えば
+        同期も可能、という案内です。<br /><br />
+        <strong>You can also sync to Google Drive (with a little setup).</strong> After the rsync backup has written to a
+        local folder, a general-purpose tool such as <a href="https://rclone.org/drive/" target="_blank"
+        rel="noopener noreferrer">rclone</a> can sync that folder to Google Drive: install rclone, run
+        <code>rclone config</code> to add a Google Drive remote (say <code>gdrive</code>), then run
+        <code>rclone sync /path/to/backup gdrive:open-english-backup</code>. Schedule it with Task Scheduler or cron if
+        you want it to repeat. <strong>Honest caveat</strong>: open-english has no Google Drive integration —
+        <strong>nothing is synced to Google Drive automatically</strong>; this is simply a setup you can choose to do.
+      </p>
+      <p class="setup-honest">
+        <strong>レンタルサーバー・VPSへの同期もできます(要セットアップ)</strong><br />
+        SSHが使えるレンタルサーバー(ロリポップ、さくらインターネット等のSSH対応プラン)やVPS
+        (ConoHa、さくらのVPS等)であれば、rsync でそのまま同期できます:<br />
+        <code>rsync -avz /path/to/backup user@your-vps-host:/backup/open-english/</code><br />
+        SSH鍵を設定しておけばパスワード入力なしで実行でき、cron やタスク スケジューラに登録すれば定期実行もできます。
+        SSHが使えない共有レンタルサーバーの場合は、FTPS/SFTP に対応した rclone のリモート設定を使う方法もあります。
+        <strong>正直な但し書き</strong>: 接続先の設定・SSH鍵の配置はご自身で行っていただく必要があります
+        ——<strong>このアプリが自動的にレンタルサーバーやVPSを設定することはありません</strong>。
+        セットアップすれば同期先として使えます、というご案内です。<br /><br />
+        <strong>You can also sync to shared hosting or a VPS (with setup).</strong> Any host you can reach over SSH —
+        shared hosting plans with SSH access (Lolipop, Sakura Internet, …) or a VPS (ConoHa, Sakura VPS, …) — works
+        directly with rsync: <code>rsync -avz /path/to/backup user@your-vps-host:/backup/open-english/</code>. Add an SSH
+        key to avoid password prompts, and schedule it with cron or Task Scheduler for regular runs; for shared hosting
+        without SSH, an rclone remote over FTPS/SFTP is an alternative. <strong>Honest caveat</strong>: you configure the
+        destination and SSH keys yourself — <strong>the app never sets up a host or VPS for you</strong>.
+      </p>
       <p class="setup-note">
         本機能をより快適にご利用いただくには、<strong>Google検索</strong>(上部の「🔎 Google Search Setup」)と
         <strong>aruaru-db(学習履歴データベース)</strong>(上部の「🗄 Setup aruaru-db」)を併せてセットアップして
@@ -599,16 +691,24 @@ cd aruaru-db
         (see "🗄 Setup aruaru-db"). The course works without either of them; scores are then kept locally.
       </p>
       <p class="setup-note">
-        まちがえた問題に「もう少し易しい類題」が用意されている場合は、採点のあとに続けて挑戦できます(落ちこぼれ防止)。
-        類題は<strong>最大5段階</strong>まで段階的に易しくなります——ただし用意できている段階数は問題ごとに異なり、
-        現在は<strong>5段階が2問・2段階が16問・1段階が33問・類題なしが20問(教科の練習問題71問)</strong>です(このほかプログラミングの基礎問題6問には1段階が3問)。
-        最終段階でもまちがえた場合は、正解を提示して「トレーナーと復習」へご案内します。
+        まちがえたときは、採点のあとに続けてもっと易しい問題へ進めます(落ちこぼれ防止)。仕組みは<strong>2段構え</strong>です:
+        まず<strong>同じ学年の中で</strong>用意されている易しい類題へ順に下がり、その学年ぶんを使い切ったら
+        <strong>1つ下の学年</strong>の同じ教科の問題へ切り替わります(問題が用意されていない学年は飛ばします)。
+        <strong>下げられる回数に上限は設けていません</strong>——用意されているデータがある限り何度でも下がり続け、
+        <strong>保育園児・幼稚園児レベルが下限</strong>です。そこでも解けない場合は、それ以上は下げずに正解を示して
+        「トレーナーと復習」へご案内します。「🍼 もっとずっと易しい問題」を押せば、一気に一番下の学年まで下げることもできます。
+        学年内の類題の数は問題ごとに異なり、現在は<strong>5段階が2問・2段階が16問・1段階が33問・類題なしが20問
+        (教科の練習問題71問、ほかに保育園児・幼稚園児向け14問)</strong>です(このほかプログラミングの基礎問題6問には1段階が3問)。
         図解(イラスト)は、図があると分かりやすい問題にだけ付いています——<strong>全問には付いていません</strong>。<br />
-        When a question you missed has an easier version, you can try it right after scoring — up to
-        <strong>five progressively easier steps</strong>. How many steps exist differs per question:
-        currently <strong>2 questions have all 5 steps, 16 have 2, 33 have 1, and 20 have none (71 subject questions)</strong>, plus 6 programming basics questions of which 3 have one step.
-        Miss the last step and the app shows the correct answer and points you to the trainer review. Diagrams are
-        included only for questions where a picture helps — <strong>not for every question</strong>.
+        When you miss a question you can keep going easier, in <strong>two tiers</strong>: first through the easier
+        versions available <strong>within the same grade</strong>, and once those run out, on to the same subject
+        <strong>one grade lower</strong> (grades with no questions are skipped). <strong>There is no fixed limit on
+        how many times you can step down</strong> — it continues for as long as prepared material exists, with
+        <strong>preschool/kindergarten as the floor</strong>, where the app stops, shows the answer, and hands you to
+        the trainer. "🍼 Much easier" jumps straight to the lowest grade available. How many in-grade steps exist
+        differs per question: currently <strong>2 questions have 5, 16 have 2, 33 have 1, and 20 have none
+        (71 subject questions, plus 14 preschool ones)</strong>, and 3 of the 6 programming basics questions have one.
+        Diagrams are included only for questions where a picture helps — <strong>not for every question</strong>.
       </p>
 
       <p class="setup-note">
@@ -663,6 +763,16 @@ cd aruaru-db
         <p id="tutor-result" class="setup-note"></p>
         <button type="button" id="tutor-easier-btn" class="setup-btn hidden">
           🌱 もう少し易しい問題に挑戦 / Try an easier version
+        </button>
+        <button type="button" id="tutor-much-easier-btn" class="setup-btn hidden">
+          🍼 もっとずっと易しい問題 / Much easier
+        </button>
+        <!--
+          いつでも学年を変え直せる導線(ユーザー指示、2026-08-23)。
+          学年選択パネルへスクロールで戻るだけの軽い実装。
+        -->
+        <button type="button" id="tutor-change-grade-btn" class="setup-btn">
+          🔁 学年を変更する / Change grade
         </button>
         <button type="button" id="tutor-practice-btn" class="setup-btn hidden">
           💬 この結果をトレーナーと復習する / Review these with your trainer

@@ -4797,6 +4797,9 @@ if (aiCodingToolLinkBtn) {
 // ============================================================================
 
 const TUTOR_GRADES = [
+  // 最低学年(ユーザー指示、2026-08-23「保育園児・幼稚園児まで拡大」)。
+  // 落ちこぼれ防止で学年を下げていくときの**下限**でもある。
+  { id: "p0", ja: "保育園児・幼稚園児", en: "Preschool / kindergarten" },
   { id: "e1", ja: "小学1年生", en: "Elementary 1" },
   { id: "e2", ja: "小学2年生", en: "Elementary 2" },
   { id: "e3", ja: "小学3年生", en: "Elementary 3" },
@@ -4815,6 +4818,14 @@ const TUTOR_GRADES = [
 // 分類。高校の理科・社会は科目名を細分化しすぎず「理科」「地理歴史・公民」
 // 程度の粒度にとどめている)。
 const TUTOR_SUBJECTS_BY_STAGE = {
+  // 保育園児・幼稚園児(小学校の教科名ではなく、その年齢で親しみやすい
+  // 呼び方にしている。教科IDは小学校以上と共通にしてあるので、
+  // 学年を下げていく仕組みが同じ教科として繋がる)。
+  preschool: [
+    { id: "japanese", ja: "ことば(ひらがな)", en: "Words (hiragana)" },
+    { id: "math", ja: "かず(すうじ)", en: "Numbers" },
+    { id: "life", ja: "かたち・いろ", en: "Shapes & colours" },
+  ],
   elementaryLower: [
     { id: "japanese", ja: "国語", en: "Japanese" },
     { id: "math", ja: "算数", en: "Arithmetic" },
@@ -4847,6 +4858,7 @@ const TUTOR_SUBJECTS_BY_STAGE = {
 };
 
 function tutorStageOf(gradeId) {
+  if (gradeId === "p0") return "preschool";
   if (gradeId.startsWith("h")) return "high";
   if (gradeId.startsWith("j")) return "junior";
   const year = Number(gradeId.slice(1));
@@ -4927,6 +4939,29 @@ const TUTOR_FIGURES = {
 // すべて本アプリ用に書き下ろしたオリジナル問題。`answer`は`choices`の添字。
 // `easier`があるものは、間違えたときに出題する1段階易しい類題。
 const TUTOR_QUESTIONS = {
+  // 保育園児・幼稚園児向け(ユーザー指示、2026-08-23)。まだ文字が読めない
+  // 子もいるため、保護者の方に読み上げてもらう前提のやさしい問題にしている。
+  // 学年を下げていく仕組みの**最下段**でもある(ここより下は無い)。
+  "p0:japanese": [
+    { q: "「あ」と おなじ もじは どれかな?", choices: ["あ", "お", "ぬ", "め"], answer: 0 },
+    { q: "「りんご」の さいしょの もじは どれかな?", choices: ["り", "ん", "ご", "る"], answer: 0 },
+    { q: "「ねこ」は なんもじ かな?", choices: ["1もじ", "2もじ", "3もじ", "4もじ"], answer: 1 },
+    { q: "あさ おきたら なんて いうかな?", choices: ["おはよう", "おやすみ", "いただきます", "さようなら"], answer: 0 },
+    { q: "「くま」と「くも」、ちがう もじは どこかな?", choices: ["さいしょの もじ", "2ばんめの もじ", "おなじ ことば", "もじが ない"], answer: 1 },
+  ],
+  "p0:math": [
+    { q: "🍎🍎 りんごは いくつ ある?", choices: ["1つ", "2つ", "3つ", "4つ"], answer: 1 },
+    { q: "1、2、3、つぎは なにかな?", choices: ["4", "5", "1", "0"], answer: 0 },
+    { q: "⭐⭐⭐ ほしは いくつ ある?", choices: ["2つ", "3つ", "4つ", "5つ"], answer: 1 },
+    { q: "🐟🐟 と 🐟 を あわせると いくつ かな?", choices: ["2ひき", "3びき", "4ひき", "5ひき"], answer: 1 },
+    { q: "おおきい かず は どっちかな?", choices: ["5", "2", "おなじ", "わからない"], answer: 0 },
+  ],
+  "p0:life": [
+    { q: "まるい かたち は どれかな?", choices: ["⚪", "▲", "■", "⬟"], answer: 0 },
+    { q: "そらの いろ は なにいろ かな?", choices: ["あお", "あか", "くろ", "ちゃいろ"], answer: 0 },
+    { q: "「さんかく」は どれかな?", choices: ["▲", "⚪", "■", "★"], answer: 0 },
+    { q: "いちごは なにいろ かな?", choices: ["あか", "あお", "みどり", "むらさき"], answer: 0 },
+  ],
   "e1:math": [
     {
       q: "あめが 7こ あります。3こ たべました。のこりは なんこ ですか。",
@@ -5400,6 +5435,22 @@ function tutorNoticeText(subjectId) {
 ${n.en}` : "";
 }
 
+/**
+ * この学年・教科で実際に出題できる学年を返す(無ければ`null`)。
+ * 選んだ学年に問題が無くても、**同じ教科の問題が用意されている下の学年**が
+ * あればそこから出題する(ユーザー指示、2026-08-23「未収録の学年は飛ばして、
+ * その次に問題がある下の学年を使う」)。高3のように上の学年の問題を
+ * まだ用意できていなくても、コース自体は使えるようにするための仕組み。
+ */
+function tutorResolveSourceGrade(gradeId, subjectId) {
+  if (tutorHasQuestions(gradeId, subjectId)) return gradeId;
+  const from = TUTOR_GRADES.findIndex((g) => g.id === gradeId);
+  for (let i = from - 1; i >= 0; i -= 1) {
+    if (tutorHasQuestions(TUTOR_GRADES[i].id, subjectId)) return TUTOR_GRADES[i].id;
+  }
+  return null;
+}
+
 function tutorHasQuestions(gradeId, subjectId) {
   const list = TUTOR_QUESTIONS[`${gradeId}:${subjectId}`];
   return Array.isArray(list) && list.length > 0;
@@ -5423,6 +5474,7 @@ const tutorQuizEl = document.getElementById("tutor-quiz");
 const tutorNoticeEl = document.getElementById("tutor-subject-notice");
 const tutorResultEl = document.getElementById("tutor-result");
 const tutorEasierBtn = document.getElementById("tutor-easier-btn");
+const tutorMuchEasierBtn = document.getElementById("tutor-much-easier-btn");
 const tutorPracticeBtn = document.getElementById("tutor-practice-btn");
 
 const TUTOR_SETTINGS_KEY = "open-english.tutorCourse";
@@ -5430,13 +5482,29 @@ let tutorSelectedGrade = null;
 let tutorInstalledSubjects = [];
 let tutorCurrentQuiz = [];
 let tutorMissedQuestions = [];
-// 落ちこぼれ防止の段階ラダー(ユーザー指示、2026-08-23「最大5段階まで」)。
-// `tutorLadder`は易しい順に並んだ類題の配列、`tutorStage`は現在の段階
-// (0 = もとの問題、1 = 1段階易しい類題、… 最大`TUTOR_MAX_EASIER_STAGES`)。
-const TUTOR_MAX_EASIER_STAGES = 5;
+// 落ちこぼれ防止(ユーザー指示により2026-08-23中に段階的に再設計。
+// 最終形は**2段構え・回数無制限**)。
+//   第1段: **同じ学年の中で**易しくしていく(`ladder`方式。
+//     `tutorLadder`は易しい順の類題配列、`tutorStage`が現在の段階)。
+//     **回数の固定上限は置かない**——用意されている類題がある限り、
+//     何度でも下がり続ける(データが尽きたら第2段へ)。
+//   第2段: その学年の類題を**使い切って初めて**、同じ教科で
+//     **1つ下の学年**の問題へ切り替える(問題が用意されていない
+//     学年は飛ばして、その次に問題がある下の学年を使う)。
+//     学年を下げた先では、またその学年内で易化していける。
+//   下限: **保育園児・幼稚園児(`p0`)**。ここまで来たら学年は下げず、
+//     その学年内の段階調整のみ。そこも尽きたら無理に下げず、正解を
+//     示して「トレーナーと復習」へ優しく案内する。
+// **「5回まで」のような固定回数の上限はコード上に置かないこと**
+// (ユーザー指示、2026-08-23最終仕様)。実際にどこまで下がれるかは
+// 「用意されているデータがあるかどうか」だけで決まる。
 let tutorSourceItem = null;
 let tutorLadder = [];
 let tutorStage = 0;
+// いま出題している学年(選んだ学年から下げていくので、選択学年とは別に持つ)。
+let tutorPracticeGrade = null;
+// この問題で学年を下げた回数(表示用。上限は設けていない)。
+let tutorGradeDrops = 0;
 
 function loadTutorSettings() {
   try {
@@ -5497,18 +5565,25 @@ function renderTutorGrades() {
 
 function selectTutorGrade(gradeId) {
   if (gradeId !== tutorSelectedGrade) {
-    // 学年を変えたら、前の学年のインストール状態・出題はいったん破棄する。
-    tutorInstalledSubjects = [];
+    // 学年を変えたら出題はいったん破棄する。インストール済みの教科は、
+    // 新しい学年でも問題が用意されているものだけ引き継ぐ(出題中に
+    // 学年を変えても、同じ教科をすぐ続けられるようにするため)。
+    tutorInstalledSubjects = tutorInstalledSubjects.filter(
+      (id) => tutorIsNoticeSubject(id) || tutorHasQuestions(gradeId, id)
+    );
     tutorCurrentQuiz = [];
     tutorLadder = [];
     tutorStage = 0;
     tutorSourceItem = null;
+    tutorPracticeGrade = null;
+    tutorGradeDrops = 0;
     tutorQuizEl.innerHTML = "";
     tutorResultEl.textContent = "";
     tutorInstallStatusEl.textContent = "";
     tutorPracticeSectionEl.classList.add("hidden");
     tutorSubmitBtn.classList.add("hidden");
     tutorEasierBtn.classList.add("hidden");
+    tutorMuchEasierBtn.classList.add("hidden");
     tutorPracticeBtn.classList.add("hidden");
   }
   tutorSelectedGrade = gradeId;
@@ -5526,7 +5601,8 @@ function renderTutorSubjects() {
     // 「案内のみ」の教科(プログラミング)は、問題が無くてもインストール
     // できる——選ぶと練習問題の代わりに案内文を表示する。
     const noticeOnly = tutorIsNoticeSubject(subject.id);
-    const available = noticeOnly || tutorHasQuestions(tutorSelectedGrade, subject.id);
+    const sourceGrade = noticeOnly ? null : tutorResolveSourceGrade(tutorSelectedGrade, subject.id);
+    const available = noticeOnly || sourceGrade !== null;
     const label = document.createElement("label");
     label.className = "tutor-subject-choice" + (available ? "" : " unavailable");
     const box = document.createElement("input");
@@ -5539,10 +5615,18 @@ function renderTutorSubjects() {
     const count = list ? list.length : 0;
     if (noticeOnly) {
       span.textContent = `${subject.ja} / ${subject.en}(練習問題なし・案内のみ / guidance only, no practice questions)`;
+    } else if (sourceGrade === tutorSelectedGrade) {
+      span.textContent = `${subject.ja} / ${subject.en}(${count}問 / ${count} questions)`;
+    } else if (sourceGrade) {
+      // この学年の問題はまだ無いが、下の学年の問題で対応できる場合
+      // ——「対応済み」に見せず、どの学年の問題が出るのかを明示する。
+      const from = TUTOR_QUESTIONS[`${sourceGrade}:${subject.id}`].length;
+      span.textContent =
+        `${subject.ja} / ${subject.en}(この学年の問題は準備中——` +
+        `${tutorGradeLabel(sourceGrade)}の${from}問で出題 / not ready for this grade; ` +
+        `uses ${from} questions from ${tutorGradeLabel(sourceGrade)})`;
     } else {
-      span.textContent = available
-        ? `${subject.ja} / ${subject.en}(${count}問 / ${count} questions)`
-        : `${subject.ja} / ${subject.en}(準備中 / not ready yet)`;
+      span.textContent = `${subject.ja} / ${subject.en}(準備中 / not ready yet)`;
     }
     label.appendChild(span);
     tutorSubjectListEl.appendChild(label);
@@ -5552,7 +5636,8 @@ function renderTutorSubjects() {
 }
 
 function installTutorSubjects(subjectIds) {
-  const installable = (id) => tutorIsNoticeSubject(id) || tutorHasQuestions(tutorSelectedGrade, id);
+  const installable = (id) =>
+    tutorIsNoticeSubject(id) || tutorResolveSourceGrade(tutorSelectedGrade, id) !== null;
   const available = subjectIds.filter(installable);
   const missing = subjectIds.filter((id) => !installable(id));
   tutorInstalledSubjects = available;
@@ -5604,13 +5689,19 @@ function refreshTutorPracticeSection() {
  * という**配列**で段階を持てる。従来の`easier`(1段階だけの入れ子)も
  * そのまま使えるよう、入れ子チェーンを辿って配列へ正規化する
  * ——既存データを書き換えずに済ませるための後方互換。
- * 段階数は`TUTOR_MAX_EASIER_STAGES`(5)で頭打ちにする。
+ * **段階数の固定上限は設けない**(用意されているデータの数だけ使う)。
  */
 function tutorLadderOf(item) {
-  if (Array.isArray(item.ladder)) return item.ladder.slice(0, TUTOR_MAX_EASIER_STAGES);
+  // **固定の段階数上限は設けない**(ユーザー指示、2026-08-23最終仕様)。
+  // 用意されている類題の数だけ、そのまま段階として使う。
+  if (Array.isArray(item.ladder)) return item.ladder.slice();
   const stages = [];
   let cur = item.easier;
-  while (cur && stages.length < TUTOR_MAX_EASIER_STAGES) {
+  // 万一データが循環参照していても無限ループしないよう、既に見た
+  // オブジェクトは辿らない(上限回数ではなく循環検出で止める)。
+  const seen = new Set();
+  while (cur && !seen.has(cur)) {
+    seen.add(cur);
     stages.push(cur);
     cur = cur.easier;
   }
@@ -5642,13 +5733,24 @@ function renderTutorSingleQuestion(item) {
       return `<div class="exam-prep-question"><p>${q.q}</p>${figure}${choices}</div>`;
     })
     .join("");
-  tutorResultEl.textContent =
-    tutorStage > 0
-      ? `もう少し易しい類題です(第${tutorStage}段階 / ${tutorLadder.length}段階中)。落ち着いて解いてみましょう。 / ` +
-        `An easier version (step ${tutorStage} of ${tutorLadder.length}). Take your time.`
-      : "";
+  if (tutorStage > 0) {
+    tutorResultEl.textContent =
+      tutorGradeLabel(tutorPracticeGrade) + "の問題を、もう少し易しくしました(第" + tutorStage +
+      "段階 / 全" + tutorLadder.length + "段階)。落ち着いて解いてみましょう。 / " +
+      "An easier version within " + tutorGradeLabelBilingual(tutorPracticeGrade) + " (step " +
+      tutorStage + " of " + tutorLadder.length + "). Take your time.";
+  } else if (tutorGradeDrops > 0) {
+    tutorResultEl.textContent =
+      tutorGradeLabelBilingual(tutorPracticeGrade) + "の問題です(学年を" + tutorGradeDrops +
+      "段階下げました)。ゆっくりで大丈夫です。 / " +
+      "A question from " + tutorGradeLabelBilingual(tutorPracticeGrade) + " (" + tutorGradeDrops +
+      " grade drop(s) so far). Take your time.";
+  } else {
+    tutorResultEl.textContent = "";
+  }
   tutorSubmitBtn.classList.remove("hidden");
   tutorEasierBtn.classList.add("hidden");
+  tutorMuchEasierBtn.classList.add("hidden");
   tutorPracticeBtn.classList.add("hidden");
   tutorMissedQuestions = [];
 }
@@ -5658,16 +5760,65 @@ function renderTutorSingleQuestion(item) {
  * (ユーザー指示、2026-08-23「順番通りではなくランダムに1問ずつ」)。
  * 段階ラダーは0段階目(元の問題)から始める。
  */
+function tutorGradeIndex(gradeId) {
+  return TUTOR_GRADES.findIndex((g) => g.id === gradeId);
+}
+
+function tutorGradeLabel(gradeId) {
+  return (TUTOR_GRADES.find((g) => g.id === gradeId) || { ja: gradeId, en: "" }).ja;
+}
+
+function tutorGradeLabelBilingual(gradeId) {
+  const g = TUTOR_GRADES.find((x) => x.id === gradeId);
+  return g ? g.ja + " / " + g.en : gradeId;
+}
+
+/**
+ * いまの出題学年より下で、同じ教科の問題が実際に用意されている学年を
+ * 「近い順」に返す(問題が無い学年は飛ばす)。最後の要素が、一気に
+ * 大きく下げたときの行き先(通常は保育園児・幼稚園児)になる。
+ */
+function tutorLowerGradeCandidates(subjectId) {
+  const from = tutorGradeIndex(tutorPracticeGrade);
+  const lower = [];
+  for (let i = from - 1; i >= 0; i -= 1) {
+    const id = TUTOR_GRADES[i].id;
+    if (tutorHasQuestions(id, subjectId)) lower.push(id);
+  }
+  return lower;
+}
+
+/** 指定した学年の問題からランダムに1問出し、その学年を現在の出題学年にする。 */
+function askTutorQuestionForGrade(gradeId, subjectId, drops) {
+  const pool = TUTOR_QUESTIONS[gradeId + ":" + subjectId] || [];
+  if (pool.length === 0) return false;
+  tutorPracticeGrade = gradeId;
+  tutorGradeDrops = drops;
+  tutorSourceItem = shuffledCopy(pool)[0];
+  tutorLadder = tutorLadderOf(tutorSourceItem);
+  tutorStage = 0;
+  renderTutorSingleQuestion(tutorSourceItem);
+  return true;
+}
+
+/**
+ * インストール済み教科のプールから**ランダムに1問**出題する。
+ * 選んだ学年に問題が無い場合は、問題が用意されている下の学年まで
+ * 遡って出題し、その旨を正直に表示する。
+ */
 function renderTutorQuiz() {
   const subjectId = tutorPracticeSubjectEl.value;
   const materialsEl = document.getElementById("tutor-programming-materials");
   if (subjectId === "programming") {
     // プログラミング: (1) 有料版併用のご案内(ユーザー指示で維持)、
-    // (2) 人手で書いたサンプル教材+改造課題、(3) 基礎の4択練習問題、
-    // の3段構え。**AIにゼロからコードを生成させてはいない**。
+    // (2) 人手で書いたサンプル教材+改造課題、(3) 基礎の4択練習問題。
+    // 学年別カリキュラムを持たないため、学年は下げない(学年内の
+    // 段階調整のみ)。
     tutorNoticeEl.textContent = tutorNoticeText(subjectId);
     tutorNoticeEl.classList.remove("hidden");
     renderTutorProgrammingMaterials();
+    tutorPracticeGrade = tutorSelectedGrade;
+    tutorGradeDrops = 0;
     tutorSourceItem = shuffledCopy(TUTOR_PROGRAMMING_QUESTIONS)[0];
     tutorLadder = tutorLadderOf(tutorSourceItem);
     tutorStage = 0;
@@ -5677,7 +5828,6 @@ function renderTutorQuiz() {
   tutorNoticeEl.classList.add("hidden");
   if (materialsEl) materialsEl.classList.add("hidden");
   if (tutorIsNoticeSubject(subjectId)) {
-    // 練習問題も教材も用意していない「案内のみ」の教科。正直に案内文だけ出す。
     tutorQuizEl.innerHTML = "";
     tutorCurrentQuiz = [];
     tutorLadder = [];
@@ -5685,27 +5835,38 @@ function renderTutorQuiz() {
     tutorResultEl.textContent = tutorNoticeText(subjectId);
     tutorSubmitBtn.classList.add("hidden");
     tutorEasierBtn.classList.add("hidden");
+    tutorMuchEasierBtn.classList.add("hidden");
     tutorPracticeBtn.classList.add("hidden");
     return;
   }
-  const pool = TUTOR_QUESTIONS[`${tutorSelectedGrade}:${subjectId}`] || [];
-  if (pool.length === 0) {
-    tutorQuizEl.innerHTML = "";
+
+  tutorPracticeGrade = tutorSelectedGrade;
+  tutorGradeDrops = 0;
+  if (askTutorQuestionForGrade(tutorSelectedGrade, subjectId, 0)) return;
+
+  // 選んだ学年には問題が無い——下の学年へ遡れるなら遡り、正直に告げる。
+  const fallback = tutorLowerGradeCandidates(subjectId);
+  if (fallback.length > 0 && askTutorQuestionForGrade(fallback[0], subjectId, 1)) {
     tutorResultEl.textContent =
-      "現在この学年・教科の問題は準備中です。 / Questions for this grade and subject are not ready yet.";
-    tutorSubmitBtn.classList.add("hidden");
-    tutorEasierBtn.classList.add("hidden");
+      "選んだ学年(" + tutorGradeLabelBilingual(tutorSelectedGrade) + ")の問題はまだ準備中のため、" +
+      tutorGradeLabelBilingual(tutorPracticeGrade) + "の問題を出題しています。 / " +
+      "Questions for your grade are not ready yet, so this one comes from " +
+      tutorGradeLabelBilingual(tutorPracticeGrade) + ".";
     return;
   }
-  tutorSourceItem = shuffledCopy(pool)[0];
-  tutorLadder = tutorLadderOf(tutorSourceItem);
-  tutorStage = 0;
-  renderTutorSingleQuestion(tutorSourceItem);
+  tutorQuizEl.innerHTML = "";
+  tutorCurrentQuiz = [];
+  tutorResultEl.textContent =
+    "現在この学年・教科の問題は準備中です。 / Questions for this grade and subject are not ready yet.";
+  tutorSubmitBtn.classList.add("hidden");
+  tutorEasierBtn.classList.add("hidden");
+  tutorMuchEasierBtn.classList.add("hidden");
 }
 
 function scoreTutorQuiz() {
   const item = tutorCurrentQuiz[0];
   if (!item) return;
+  const subjectId = tutorPracticeSubjectEl.value;
   const selected = tutorQuizEl.querySelector('input[name="tutor-q0"]:checked');
   const isCorrect = Boolean(selected) && Number(selected.value) === item.answer;
   tutorMissedQuestions = isCorrect
@@ -5713,67 +5874,132 @@ function scoreTutorQuiz() {
     : [{ q: item.q, correctChoice: item.choices[item.answer] }];
 
   const lines = [
-    `得点 / Score: ${isCorrect ? 1 : 0} / 1 — ` +
+    "得点 / Score: " + (isCorrect ? 1 : 0) + " / 1(" + tutorGradeLabel(tutorPracticeGrade) + "の問題)— " +
       "本アプリのオリジナル練習問題です。学校の成績や入試の合否を予測するものではありません。 / " +
       "These are original practice questions; the score does not predict school grades or exam results.",
   ];
 
-  // 落ちこぼれ防止(2026-08-23、最大5段階): 誤答なら次の段階の類題へ
-  // 進める。段階を使い切ったら、無理に段階を増やさず**正解と解き方の
-  // 説明を丁寧に提示して終了**し、トレーナーとの復習へつなぐ。
+  // **第1段: まず同じ学年の中で最大5段階まで易しくする。**
   const hasNextStage = !isCorrect && tutorStage < tutorLadder.length;
+  // **第2段: 学年内の段階を使い切って初めて、1つ下の学年へ。**
+  const candidates = !isCorrect && !hasNextStage ? tutorLowerGradeCandidates(subjectId) : [];
+
   if (isCorrect) {
-    lines.push(
-      tutorStage > 0
-        ? "正解です。ここまで戻って解けたので、もう一度もとの問題に挑戦してみましょう。 / " +
-            "Correct. Now try the original question again."
-        : "正解です。よくできました。 / Correct — nicely done."
-    );
+    if (tutorStage > 0 || tutorGradeDrops > 0) {
+      lines.push(
+        "正解です。ここまで戻って解けました。もとの学年(" +
+          tutorGradeLabel(tutorSelectedGrade) +
+          ")の問題に、もう一度挑戦してみましょう。 / Correct — now try your own grade again."
+      );
+    } else {
+      lines.push("正解です。よくできました。 / Correct — nicely done.");
+    }
   } else if (hasNextStage) {
     lines.push(
-      `もう少し易しい類題があります(次は第${tutorStage + 1}段階 / 全${tutorLadder.length}段階)。` +
-        "「もう少し易しい問題に挑戦」ボタンから続けてみましょう。 / " +
-        `An easier version is available (step ${tutorStage + 1} of ${tutorLadder.length}) — try it next.`
+      "同じ" + tutorGradeLabel(tutorPracticeGrade) + "の中で、もう少し易しい類題があります" +
+        "(次は第" + (tutorStage + 1) + "段階 / この問題は全" + tutorLadder.length + "段階)。 / " +
+        "An easier version within the same grade is available (step " + (tutorStage + 1) +
+        " of " + tutorLadder.length + ")."
     );
+  } else if (candidates.length > 0) {
+    const one = candidates[0];
+    const far = candidates[candidates.length - 1];
+    lines.push(
+      (tutorLadder.length > 0
+        ? "この学年での" + tutorLadder.length + "段階をすべて使いました。"
+        : "この問題には学年内の易しい類題が用意されていません。") +
+        "ここからは学年を下げます——" + tutorGradeLabel(one) + "の問題に切り替えられます。 / " +
+        "The easier steps within this grade are used up; you can now drop to " +
+        tutorGradeLabelBilingual(one) + "."
+    );
+    if (far !== one) {
+      lines.push(
+        "一気にやさしくしたいときは、" + tutorGradeLabel(far) + "まで下げることもできます。 / " +
+          "If you would like something much easier, you can jump down to " + tutorGradeLabelBilingual(far) + "."
+      );
+    }
   } else {
-    // 最終段階(またはそもそも類題が無い問題)での誤答。
     lines.push(
-      `正解は「${item.choices[item.answer]}」です。 / The correct answer is "${item.choices[item.answer]}".`
+      "正解は「" + item.choices[item.answer] + "」です。 / The correct answer is \"" +
+        item.choices[item.answer] + "\"."
     );
     lines.push(
-      tutorLadder.length > 0
-        ? `易しい類題は全${tutorLadder.length}段階まで用意しており、ここが最後の段階です。` +
-            "ここから先は、下のボタンでトレーナーと一緒に解き方を復習しましょう。 / " +
-            `This was the last of ${tutorLadder.length} easier steps — review it with your trainer using the button below.`
-        : "この問題の易しい類題はまだ用意できていません(準備中です)。" +
-            "下のボタンでトレーナーと一緒に解き方を復習しましょう。 / " +
-            "Easier versions of this question are not ready yet — review it with your trainer using the button below."
+      tutorPracticeGrade === "p0"
+        ? "ここが一番やさしい学年(保育園児・幼稚園児)です。これ以上は学年を下げません。" +
+            "まちがえても大丈夫——下のボタンで、トレーナーと一緒にゆっくり考えてみましょう。 / " +
+            "This is the lowest level we go (preschool). That's perfectly okay — take it slowly with your trainer below."
+        : "これ以上易しくできる問題が用意されていません(学年内の段階も、下の学年の問題も" +
+            "まだありません)。下のボタンで、トレーナーと一緒に解き方を復習しましょう。 / " +
+            "Nothing easier is available yet (no more steps in this grade, and no lower grade has questions " +
+            "for this subject). Review it with your trainer using the button below."
     );
   }
 
   tutorResultEl.textContent = lines.join("\n");
-  tutorEasierBtn.textContent = hasNextStage
-    ? `🌱 もう少し易しい問題に挑戦(第${tutorStage + 1}段階) / Try an easier version (step ${tutorStage + 1})`
-    : "🌱 もう少し易しい問題に挑戦 / Try an easier version";
-  tutorEasierBtn.classList.toggle("hidden", !hasNextStage);
+
+  if (hasNextStage) {
+    tutorEasierBtn.textContent =
+      "\ud83c\udf31 もう少し易しい問題に挑戦(同じ学年・第" + (tutorStage + 1) + "段階) / Easier (step " +
+      (tutorStage + 1) + ")";
+    tutorEasierBtn.classList.remove("hidden");
+  } else if (candidates.length > 0) {
+    tutorEasierBtn.textContent =
+      "\u2b07 1つ下の学年の問題に挑戦(" + tutorGradeLabel(candidates[0]) + ") / Drop one grade";
+    tutorEasierBtn.classList.remove("hidden");
+  } else {
+    tutorEasierBtn.classList.add("hidden");
+  }
+
+  const showFar = candidates.length > 1;
+  if (showFar) {
+    tutorMuchEasierBtn.textContent =
+      "\ud83c\udf7c もっとずっと易しい問題(" + tutorGradeLabel(candidates[candidates.length - 1]) +
+      "まで下げる) / Much easier";
+  }
+  tutorMuchEasierBtn.classList.toggle("hidden", !showFar);
   tutorPracticeBtn.classList.remove("hidden");
 
   const grade = TUTOR_GRADES.find((g) => g.id === tutorSelectedGrade);
   const subjects = tutorSubjectsFor(tutorSelectedGrade);
-  const subject = subjects.find((s) => s.id === tutorPracticeSubjectEl.value);
+  const subject = subjects.find((sub) => sub.id === subjectId);
   recordTutorHistory(
-    `[tutor-course] grade=${grade ? grade.en : tutorSelectedGrade} subject=${
-      subject ? subject.en : ""
-    } score=${isCorrect ? 1 : 0}/1 easier_stage=${tutorStage}/${tutorLadder.length}`
+    "[tutor-course] selected_grade=" + (grade ? grade.en : tutorSelectedGrade) +
+      " asked_grade=" + tutorPracticeGrade +
+      " subject=" + (subject ? subject.en : subjectId) +
+      " score=" + (isCorrect ? 1 : 0) + "/1" +
+      " stage=" + tutorStage + "/" + tutorLadder.length +
+      " grade_drops=" + tutorGradeDrops
   );
 }
 
-/** 次の段階(1段階易しい類題)へ進む。最大`TUTOR_MAX_EASIER_STAGES`段階。 */
+/**
+ * 「もう少し易しく」ボタン。**まず学年内の次の段階**へ進み、
+ * 学年内の段階を使い切っていたら**1つ下の学年**の問題へ切り替える。
+ */
 function startTutorEasierRound() {
-  if (tutorStage >= tutorLadder.length) return;
-  const next = tutorLadder[tutorStage];
-  tutorStage += 1;
-  renderTutorSingleQuestion(next);
+  if (tutorStage < tutorLadder.length) {
+    const next = tutorLadder[tutorStage];
+    tutorStage += 1;
+    renderTutorSingleQuestion(next);
+    return;
+  }
+  const subjectId = tutorPracticeSubjectEl.value;
+  const candidates = tutorLowerGradeCandidates(subjectId);
+  if (candidates.length > 0) {
+    askTutorQuestionForGrade(candidates[0], subjectId, tutorGradeDrops + 1);
+  }
+}
+
+/** 一気に大きく学年を下げる(問題が用意されている一番下の学年へ)。 */
+function startTutorMuchEasierRound() {
+  const subjectId = tutorPracticeSubjectEl.value;
+  const candidates = tutorLowerGradeCandidates(subjectId);
+  if (candidates.length === 0) return;
+  askTutorQuestionForGrade(
+    candidates[candidates.length - 1],
+    subjectId,
+    tutorGradeDrops + candidates.length
+  );
 }
 
 function practiceTutorWithTrainer() {
@@ -5826,6 +6052,19 @@ if (tutorCourseBtn && tutorCourseModal) {
   tutorStartBtn.addEventListener("click", renderTutorQuiz);
   tutorSubmitBtn.addEventListener("click", scoreTutorQuiz);
   tutorEasierBtn.addEventListener("click", startTutorEasierRound);
+  tutorMuchEasierBtn.addEventListener("click", startTutorMuchEasierRound);
+  // 「学年を変更する」——出題中でもいつでも学年選択へ戻れる導線
+  // (ユーザー指示、2026-08-23)。年齢による選択制限は設けていない:
+  // 高校生でも社会人でも、保育園児・幼稚園児レベルを含む全学年を
+  // 最初から自由に選べる(この設計を弱めないこと)。
+  const tutorChangeGradeBtn = document.getElementById("tutor-change-grade-btn");
+  if (tutorChangeGradeBtn) {
+    tutorChangeGradeBtn.addEventListener("click", () => {
+      tutorCourseModal.classList.remove("hidden");
+      renderTutorGrades();
+      tutorGradeListEl.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+  }
   tutorPracticeBtn.addEventListener("click", practiceTutorWithTrainer);
 }
 
