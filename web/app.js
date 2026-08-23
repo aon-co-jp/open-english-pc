@@ -1852,6 +1852,174 @@ function religionHistoryText() {
   return `📜 ${RELIGION_HISTORY_TEXTS.en}\n\n${RELIGION_HISTORY_TEXTS.ja}`;
 }
 
+// ---------------------------------------------------------------------------
+// 「666は悪魔・獣の数字なのか」への軽妙な豆知識応答
+// (2026-08-23新設、ユーザー指示)
+// ---------------------------------------------------------------------------
+// 上の`isReligionHistoryQuestion()`/`RELIGION_HISTORY_TEXTS`と同じ方式
+// (キーワード判定関数+言語コードをキーとするテキスト表+AI推論を通さない
+// 固定文)で実装する。素のGPT-2に聖書解釈を語らせると事実でない内容を
+// 作ってしまい、宗教という主題では特に害が大きいため。日次利用回数は
+// 消費しない。
+//
+// 【内容の扱い方についてユーザーと合意した線引き(改変時は必ず読むこと)】
+// (1) 前提として述べてよい範囲: ヨハネの黙示録に「獣の数字は666」という
+//     記述があり、伝統的に額や右手の「刻印」として解釈されてきたこと。
+//     これは中立的な前提であり、教義上の正否には踏み込まない。
+// (2) 「666=WWW」というゲマトリア(ヘブライ文字への数値割当)の語呂合わせは、
+//     **「そういう解釈をする人たちがいる」という紹介**にとどめること。
+//     聖書の正式な教義的解釈として断定してはならない。ヴァヴ(ו)の数値が
+//     6であること自体はゲマトリアの体系上の事実だが、そこからWWWを導くのは
+//     現代の語呂合わせであり、1990年代以降のポップカルチャーで語られてきた
+//     という事実として紹介する形を保つこと。
+// (3) 「POSレジのシークレットナンバーが666」という話は**裏付けの取れて
+//     いない都市伝説であると明記した上で**紹介すること。事実として断定
+//     してはならない。
+// (4) 着地点は現代の利便性への肯定(WWWやバーコードスキャナーのおかげで
+//     買い物や通販が便利になった/人間の体に刻印を刻む必要はない)。
+// (5) Pythonの豆知識は、ロゴがヘビであることと名前の由来(英BBCのコメディ
+//     番組「空飛ぶモンティ・パイソン」)が聖書と無関係であることを述べ、
+//     **「ヘビ=獣」との関連付けは単なる偶然の一致・言葉遊びであると必ず
+//     明記すること**。意味のある繋がりがあるかのように書いてはならない。
+//
+// 全体のトーンは、宗教的な断定を避けた軽妙な豆知識として書く。
+
+// 話題語(666・獣の数字・悪魔の数字・mark of the beast 等)。
+const MARK_OF_BEAST_KEYWORDS_JA = [
+  "666", "６６６",
+  "獣の数字", "けものの数字", "獣の刻印", "獣の印",
+  "悪魔の数字", "悪魔の刻印", "悪魔の印",
+  "黙示録", "ヨハネの黙示録",
+];
+const MARK_OF_BEAST_KEYWORDS_EN = [
+  "666",
+  "mark of the beast", "number of the beast", "beast's number",
+  "devil's number", "number of the devil", "satanic number",
+  "book of revelation", "revelation 13",
+];
+
+function isMarkOfBeastQuestion(userText) {
+  const lower = userText.toLowerCase();
+  if (MARK_OF_BEAST_KEYWORDS_JA.some((k) => userText.includes(k))) return true;
+  return MARK_OF_BEAST_KEYWORDS_EN.some((k) => lower.includes(k));
+}
+
+// 本文。言語コードをキーにした表(他言語展開を見越した構造)。
+const MARK_OF_BEAST_TEXTS = {
+  en:
+    "[A light note on 666 — offered as trivia, not as doctrine]\n" +
+    "Yes, that part of the Bible is real. In the Book of Revelation the " +
+    "number of the beast is given as 666, and the traditional reading is " +
+    "that it appears as a mark on a person's forehead or right hand. " +
+    "I'm not going to tell you what it \"really\" means — interpretations " +
+    "differ enormously, and I don't take a position for or against any " +
+    "religious reading. But there are a couple of modern takes on it that " +
+    "are genuinely fun to know about.\n\n" +
+    "1) The \"666 = WWW\" wordplay (a newer reading — presented as something " +
+    "some people say, not as fact).\n" +
+    "Hebrew has a system called gematria, in which each letter carries a " +
+    "numeric value. The letter vav (ו) has the value 6. So three of them in " +
+    "a row would read as 6-6-6. And since vav is also commonly used to " +
+    "transliterate the W sound, some people since the 1990s have pointed out " +
+    "that \"666\" can be read as WWW — as in World Wide Web, the string you " +
+    "find in web addresses and HTTP headers. This has circulated in pop " +
+    "culture for decades. To be clear: this is a modern piece of wordplay " +
+    "that some people find striking, not an official or scholarly " +
+    "interpretation of scripture. I'm passing it along as \"here's a reading " +
+    "some people enjoy\", nothing more.\n\n" +
+    "2) The barcode story — an urban legend, and here's the actual " +
+    "engineering behind it.\n" +
+    "You may also hear that a hidden 666 is built into the barcodes on the " +
+    "products you buy. Here is where that comes from. On a UPC/JAN barcode " +
+    "there are three sets of slightly longer bars — one at each end and one " +
+    "in the middle. These are called guard bars, and their job is purely " +
+    "technical: they tell the scanner where the code starts, where it ends, " +
+    "and where the halves divide. Purely by coincidence, a guard bar pattern " +
+    "looks a bit like the bar pattern for the digit 6, so people concluded " +
+    "that every barcode secretly carries 666. In Japan the idea was popular " +
+    "enough that a well-known 1990s manga series ran with it.\n" +
+    "But technically the two are not the same encoding at all: a guard bar " +
+    "is three modules wide while a digit is seven modules wide, and their " +
+    "bit patterns differ. Fact-checkers such as Snopes rate this claim FALSE. " +
+    "So: a real visual resemblance, no hidden 666, no occult meaning, and no " +
+    "technical basis — just a coincidence that grew into a good story. " +
+    "(Worth looking up yourself: the Wikipedia article on barcodes, and the " +
+    "Snopes fact-check.)\n\n" +
+    "3) Where I'd like to land: what a nice time to be alive.\n" +
+    "Whatever one makes of the old text, here's a cheerful way to look at " +
+    "the present. Thanks to the World Wide Web, you can order almost " +
+    "anything from home. Thanks to barcode scanners wired up to POS " +
+    "registers, checking out at a shop takes seconds instead of minutes. " +
+    "Nobody has to have anything stamped onto their body for any of that to " +
+    "work — the convenience arrived without the mark. That seems worth being " +
+    "glad about.\n\n" +
+    "4) A programming footnote — pure coincidence, no hidden meaning.\n" +
+    "Since we're on the subject of beasts: the logo of the programming " +
+    "language Python is a snake. Its name, however, has nothing to do with " +
+    "the Bible at all — Guido van Rossum named it after Monty Python's " +
+    "Flying Circus, the British comedy series. So the snake-and-beast " +
+    "resemblance is a coincidence and a bit of wordplay, and nothing more " +
+    "than that. No meaningful connection exists between the two; I mention " +
+    "it only because it's a fun thing to know.",
+  ja:
+    "【666についての軽い豆知識 — 教義の解説ではありません】\n" +
+    "はい、その記述自体は実際に聖書にあります。ヨハネの黙示録に「獣の数字は" +
+    "666である」という記述があり、伝統的には人間の額または右手に刻まれる" +
+    "「刻印」として解釈されてきました。それが「本当は何を意味するのか」を" +
+    "私が断定することはしません——解釈は非常に多様ですし、私は特定の宗教的" +
+    "解釈を支持も否定もしない立場です。ただ、これにまつわる現代的な見方で、" +
+    "知っておくと面白いものがいくつかあります。\n\n" +
+    "1) 「666=WWW」という語呂合わせ(新しい解釈として、断定ではなく紹介)\n" +
+    "ヘブライ語には「ゲマトリア」という、文字に数値を割り当てる体系が" +
+    "あります。文字ヴァヴ(ו)の数値は6です。ですからこれが3つ並べば" +
+    "6-6-6と読めることになります。そしてヴァヴはWの音を写すのにもよく" +
+    "使われるため、「666はWWWと読めるのではないか」——つまりWorld Wide Web、" +
+    "ウェブアドレスやHTTPヘッダーに出てくるあのWWWではないか、という見方を" +
+    "する人たちが1990年代以降に現れ、ポップカルチャーの中で語られてきました。" +
+    "念のためはっきりさせておくと、**これは現代の語呂合わせ**であって、" +
+    "聖書の正式な教義的解釈でも学術的な定説でもありません。「そういう解釈を" +
+    "して面白がる人たちがいる」というご紹介にとどめます。\n\n" +
+    "2) バーコードの話 — 都市伝説です(技術的な種明かし付き)\n" +
+    "「商品のバーコードには666が隠されている」という話を聞くことも" +
+    "あるかもしれません。その出どころはこうです。JANコード(UPC)の" +
+    "バーコードには、両端と中央の3か所に、他より少し長く伸びた線の" +
+    "組があります。これは**ガードバー**と呼ばれ、その役割は純粋に技術的な" +
+    "もの——スキャナーに対して「ここが読み取りの開始」「ここが終了」" +
+    "「ここが前半と後半の区切り」を示す目印です。ところがこのガードバーの" +
+    "見た目が、**偶然にも**数字「6」のバーパターンとよく似ているため、" +
+    "「どのバーコードにも666が隠れている」と考えられるようになりました。" +
+    "日本でも1990年代に有名なオカルト漫画がこの説を取り上げ、広く知られる" +
+    "ようになりました。\n" +
+    "しかし技術的には、両者は**まったく異なるエンコード方式**です。" +
+    "ガードバーは3モジュール幅、数字は7モジュール幅で、ビットパターンも" +
+    "異なります。Snopes等のファクトチェックでもこの説は「FALSE(誤り)」と" +
+    "判定されています。つまり、見た目が似ているのは本当ですが、666が" +
+    "隠されているわけではなく、**オカルト的な意味も技術的な根拠も一切" +
+    "ありません**——偶然の一致がよくできた物語に育っただけ、というのが" +
+    "実際のところです。(ご自身で調べる際は、Wikipediaの「バーコード」の" +
+    "項目や、Snopesのファクトチェックが手頃です。)\n\n" +
+    "3) 着地点 — 便利な時代になったものです\n" +
+    "古い文章をどう受け取るにせよ、現代についてはこう明るく捉えられます。" +
+    "WWW(インターネット)のおかげで、家にいながらたいていの物が通販で" +
+    "買えるようになりました。POSレジと連動したバーコードスキャナーの" +
+    "おかげで、お店のお会計は数分ではなく数秒で済むようになりました。" +
+    "そしてそのどれもが、**人間の体に何かを刻印する必要なしに**実現して" +
+    "います。刻印なしで便利さのほうが先に来てくれた——これは素直に" +
+    "喜んでよいことだと思います。\n\n" +
+    "4) プログラミングの余談 — 単なる偶然の一致です\n" +
+    "獣の話が出たついでに。プログラミング言語Pythonのロゴはヘビです。" +
+    "ただし名前の由来は聖書とはまったく無関係で、グイド・ヴァンロッサムが" +
+    "イギリスのコメディ番組「空飛ぶモンティ・パイソン」から取ったものです。" +
+    "ですから「ヘビ=獣」というイメージとの符合は、**単なる偶然の一致・" +
+    "言葉遊びにすぎません**。両者の間に意味のある繋がりは一切ありません。" +
+    "面白い豆知識なのでご紹介したまでです。",
+};
+
+// 666についての豆知識を返す(現状は英日を併記)。
+function markOfBeastText() {
+  return `🔢 ${MARK_OF_BEAST_TEXTS.en}\n\n${MARK_OF_BEAST_TEXTS.ja}`;
+}
+
 formEl.addEventListener("submit", async (e) => {
   e.preventDefault();
   const text = inputEl.value.trim();
@@ -1875,6 +2043,16 @@ formEl.addEventListener("submit", async (e) => {
   // 事実でない答えを作ってしまう)。日次利用回数は消費しない。
   if (isCreatorQuestion(text)) {
     appendMessage("trainer", creatorIntroductionText());
+    return;
+  }
+
+  // 「666は悪魔・獣の印なのか」という趣旨の質問にも、AI推論を経ずに人手で
+  // 書いた固定文(前提の紹介+現代的な語呂合わせ+都市伝説の明示+現代の
+  // 利便性への肯定+Pythonの偶然の一致)を返す。宗教史と同じ理由で、
+  // LLMに聖書解釈を生成させない。日次利用回数は消費しない。
+  // 宗教史判定より先に置く(こちらの方が話題が具体的なため)。
+  if (isMarkOfBeastQuestion(text)) {
+    appendMessage("trainer", markOfBeastText());
     return;
   }
 
