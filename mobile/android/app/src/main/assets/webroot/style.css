@@ -594,6 +594,40 @@ body {
 .tutor-subject-choice.unavailable {
   opacity: 0.65;
 }
+/* キャリアガイダンス機能(2026-08-24新設)。教科ごとに「役立つかもしれない
+   業界・職種」「上級職種」を補足表示するボックス。 */
+.tutor-career-box {
+  margin: 10px 0;
+  padding: 10px 12px;
+  background: #2c1f33;
+  border-left: 3px solid #ff9ecb;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+.tutor-career-title {
+  margin: 0 0 6px;
+  font-weight: bold;
+  color: #ff9ecb;
+}
+
+/* バーチャルスクール / 職業訓練校の分野カード内に置くYouTube検索リンク
+   (2026-08-24追加)。特定の動画ではなく検索結果ページへのリンク。 */
+.vschool-yt-link {
+  margin-left: 4px;
+  color: #ff9ecb;
+  font-size: 0.85rem;
+  text-decoration: underline;
+  white-space: nowrap;
+}
+.vschool-yt-link:hover {
+  color: #ffd0e6;
+}
+/* 分野カードは「チェックボックス+説明+リンク」で横に長くなるため、
+   グリッド内で折り返せるようにしておく。 */
+#vschool-field-list .tutor-subject-choice {
+  flex-wrap: wrap;
+}
 /* プログラミング教材のサンプルコード。長い行は横スクロールさせる。 */
 .tutor-code {
   margin: 8px 0;

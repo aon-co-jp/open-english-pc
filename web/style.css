@@ -594,6 +594,23 @@ body {
 .tutor-subject-choice.unavailable {
   opacity: 0.65;
 }
+/* キャリアガイダンス機能(2026-08-24新設)。教科ごとに「役立つかもしれない
+   業界・職種」「上級職種」を補足表示するボックス。 */
+.tutor-career-box {
+  margin: 10px 0;
+  padding: 10px 12px;
+  background: #2c1f33;
+  border-left: 3px solid #ff9ecb;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+.tutor-career-title {
+  margin: 0 0 6px;
+  font-weight: bold;
+  color: #ff9ecb;
+}
+
 /* バーチャルスクール / 職業訓練校の分野カード内に置くYouTube検索リンク
    (2026-08-24追加)。特定の動画ではなく検索結果ページへのリンク。 */
 .vschool-yt-link {
@@ -610,6 +627,26 @@ body {
    グリッド内で折り返せるようにしておく。 */
 #vschool-field-list .tutor-subject-choice {
   flex-wrap: wrap;
+}
+/* キャリアガイダンス(2026-08-24追加、ドイツの職業訓練校
+   〈デュアルシステム〉+普通科の進路指導〈Berufsorientierung〉を参考にした
+   補足説明)。分野カード/教科カード/出題画面のいずれでも同じ見た目にする。 */
+.vschool-career {
+  flex-basis: 100%;
+  margin-top: 6px;
+  padding: 8px 10px;
+  background: #241726;
+  border-left: 3px solid #ff9ecb;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+.vschool-career p {
+  margin: 3px 0;
+}
+.vschool-career-label {
+  font-weight: bold;
+  color: #ff9ecb;
 }
 /* プログラミング教材のサンプルコード。長い行は横スクロールさせる。 */
 .tutor-code {
@@ -657,6 +694,10 @@ body {
   margin: 8px;
   padding: 10px 14px;
   text-align: center;
+  /* 2026-08-24修正(バグ報告): 明るいグラデーション背景に、本文色
+     (var(--text)、ほぼ白)がそのまま継承され、日本語・数字とも
+     ほぼ読めなくなっていた。このバナー内だけ明示的に濃い色を指定する。 */
+  color: #3a1a2a;
 }
 .world-language-banner-main {
   margin: 0 0 8px;
@@ -709,6 +750,10 @@ body {
   padding: 6px 8px;
   margin-bottom: 6px;
   background: #fff;
+  /* 2026-08-24修正: 本文の文字色は body の var(--text)(ほぼ白)を継承する
+     ため、この白背景カード内では文字が白 on 白になり読めなくなっていた
+     (バグ報告により発覚)。カード内だけ明示的に濃い色を指定する。 */
+  color: #2a1a22;
 }
 .multi-speak-row.speaking-now {
   border-color: #f096be;
@@ -750,6 +795,9 @@ body {
   padding: 6px 8px;
   margin-bottom: 6px;
   background: #fff;
+  /* 2026-08-24修正: 白背景カード内の文字が本文色(ほぼ白)を継承し
+     読めなくなっていたバグの修正(multi-speak-rowと同根)。 */
+  color: #2a1a22;
 }
 .language-order-name {
   font-weight: 600;
@@ -801,6 +849,9 @@ body {
   padding: 8px 10px;
   margin: 8px 0;
   background: #fff;
+  /* 2026-08-24修正: 白背景カード内の文字が本文色(ほぼ白)を継承し
+     読めなくなっていたバグの修正(multi-speak-rowと同根)。 */
+  color: #2a1a22;
 }
 .briefing-lang-top {
   border-color: #f096be;

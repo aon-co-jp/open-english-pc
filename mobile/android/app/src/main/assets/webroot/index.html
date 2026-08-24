@@ -106,6 +106,8 @@
     <button type="button" id="exam-prep-btn" class="setup-btn">📝 Exam Prep / 資格対策</button>
     <button type="button" id="language-pack-btn" class="setup-btn">🌐 Languages / 言語のインストール</button>
     <button type="button" id="tutor-course-btn" class="setup-btn">🎓 Install the student tutor course / 学生向け家庭教師コースをインストール</button>
+    <button type="button" id="vschool-btn" class="setup-btn">🏫 バーチャルスクール(高等教育) / Virtual school</button>
+    <button type="button" id="vvoc-btn" class="setup-btn">🛠 バーチャル職業訓練校 / Virtual vocational school</button>
     <button type="button" id="briefing-btn" class="setup-btn">🗞 話題ブリーフィング / Topic briefing</button>
     <button type="button" id="aruaru-db-setup-btn" class="setup-btn">🗄 Setup aruaru-db</button>
     <button type="button" id="llm-recommend-btn" class="setup-btn">🧠 Recommend LLM / おすすめLLM</button>
@@ -771,6 +773,12 @@ cd aruaru-db
         <!-- 教科ごとの案内文(現在はプログラミングのみ)。 -->
         <p id="tutor-subject-notice" class="setup-honest hidden"></p>
         <!--
+          キャリアガイダンス(2026-08-24新設)。選んだ教科について
+          「役立つかもしれない業界・職種」「さらに極めると目指せる
+          可能性のある上級職種」を補足表示する。app.jsが組み立てる。
+        -->
+        <div id="tutor-career-guidance" class="tutor-career-box hidden"></div>
+        <!--
           プログラミング教科を選んだときだけ表示する教材エリア
           (サンプルコード+改造課題)。中身は app.js が組み立てる。
         -->
@@ -791,6 +799,76 @@ cd aruaru-db
           🔁 学年を変更する / Change grade
         </button>
         <button type="button" id="tutor-practice-btn" class="setup-btn hidden">
+          💬 この結果をトレーナーと復習する / Review these with your trainer
+        </button>
+      </div>
+    </div>
+  </div>
+  <!--
+    バーチャルスクール / バーチャルオンライン職業訓練校(ユーザー指示、2026-08-24)。
+    高等教育(専門学校・短大・大学・大学院)と職業訓練分野を「区分 → 分野 →
+    インストール → 出題 → 採点」の流れで扱う。UI・採点・履歴保存の作りは
+    既存の学生向け家庭教師コース(#tutor-course-modal)をそのまま踏襲しており、
+    新しい仕組みは増やしていない。同じモーダルを、上部の2つのボタンから
+    「高等教育モード」「職業訓練モード」として開き分ける。
+  -->
+  <div id="vschool-modal" class="setup-modal hidden">
+    <div class="setup-panel">
+      <button type="button" id="vschool-close" class="setup-close">✕</button>
+      <h2 id="vschool-title">🏫 バーチャルスクール / Virtual school</h2>
+      <p class="setup-honest">
+        <strong>正直な開示:</strong> ここに収録している問題は、すべて本アプリ用に書き下ろした
+        <strong>オリジナルの模擬問題</strong>です。実際の入学試験問題・市販の問題集・教科書は
+        一切転載していません(いずれも著作権保護の対象です)。区分や分野の分け方は日本の高等教育・
+        公的職業訓練のおおまかな一般像を目安にしたもので、特定の学校・特定の入試・特定の資格試験に
+        準拠したものではありません。<strong>合否や資格取得を予測・保証するものではありません。</strong>
+        <strong>現時点で問題を用意できているのは一部の分野だけ</strong>で、それ以外を選んだ場合は
+        「準備中」と正直に表示します(用意できていないものを「対応済み」に見せることはしません)。
+        小論文・面接・実技は自動採点になじまないため<strong>4択の知識問題としてのみ</strong>扱っており、
+        本物の小論文添削や面接練習の代わりにはなりません。<br /><br />
+        <strong>Honest disclosure:</strong> every question here is an <strong>original mock question
+        written for this app</strong>; nothing is copied from real entrance exams, textbooks, or
+        commercial workbooks. The categories are a rough sketch of Japanese higher education and public
+        vocational training, not a match to any specific school or qualification, and results predict
+        nothing about real admissions. <strong>Only some fields have questions so far</strong>; the rest
+        honestly say "not ready yet". Essays, interviews, and practical skills are only approximated as
+        multiple-choice knowledge questions and are no substitute for real practice.
+      </p>
+      <p class="setup-honest">
+        採点結果は既存の学習履歴の仕組み(<code>/v1/db/history</code>)に保存されます。
+        aruaru-db / PostgreSQL を設定していない場合はアプリ内蔵のローカルDB(SQLite)にのみ残ります。<br />
+        Scores are stored through the existing history endpoint; without aruaru-db/PostgreSQL they stay
+        in the app's local SQLite only.
+      </p>
+
+      <h3 id="vschool-step1-title">1. 区分を選んでください / Choose a category</h3>
+      <div id="vschool-track-list" class="tutor-choice-grid"></div>
+
+      <div id="vschool-field-section" class="hidden">
+        <h3>2. 分野を選んでください / Choose your fields</h3>
+        <p class="setup-note" id="vschool-selected-track"></p>
+        <div id="vschool-field-list" class="tutor-choice-grid"></div>
+        <div class="settings-buttons">
+          <button type="button" id="vschool-install-selected" class="setup-btn">⬇ 選んだ分野をインストール / Install selected fields</button>
+          <button type="button" id="vschool-install-all" class="setup-btn">⬇ 収録済みの全分野をインストール / Install all available fields</button>
+        </div>
+        <p class="setup-note" id="vschool-install-status"></p>
+      </div>
+
+      <div id="vschool-practice-section" class="hidden">
+        <h3>3. 模擬問題 / Mock questions</h3>
+        <label class="settings-field">
+          出題する分野 / Field to practise
+          <select id="vschool-practice-field"></select>
+        </label>
+        <div class="settings-buttons">
+          <button type="button" id="vschool-start" class="setup-btn">▶ 開始 / Start</button>
+          <button type="button" id="vschool-submit" class="setup-btn hidden">✅ 採点 / Submit</button>
+        </div>
+        <p id="vschool-field-notice" class="setup-note"></p>
+        <div id="vschool-quiz"></div>
+        <p id="vschool-result" class="setup-note"></p>
+        <button type="button" id="vschool-practice-btn" class="setup-btn hidden">
           💬 この結果をトレーナーと復習する / Review these with your trainer
         </button>
       </div>

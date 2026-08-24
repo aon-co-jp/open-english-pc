@@ -4851,28 +4851,28 @@ const TUTOR_SUBJECTS_BY_STAGE = {
     { id: "life", ja: "生活", en: "Life studies" },
   ],
   elementaryUpper: [
-    { id: "japanese", ja: "国語", en: "Japanese" },
-    { id: "math", ja: "算数", en: "Arithmetic" },
-    { id: "science", ja: "理科", en: "Science" },
-    { id: "social", ja: "社会", en: "Social studies" },
-    { id: "english", ja: "英語", en: "English" },
-    { id: "programming", ja: "プログラミング", en: "Programming" },
+    { id: "japanese", ja: "国語", en: "Japanese", career: TUTOR_CAREER.japanese.elementary },
+    { id: "math", ja: "算数", en: "Arithmetic", career: TUTOR_CAREER.math.elementary },
+    { id: "science", ja: "理科", en: "Science", career: TUTOR_CAREER.science.elementary },
+    { id: "social", ja: "社会", en: "Social studies", career: TUTOR_CAREER.social.elementary },
+    { id: "english", ja: "英語", en: "English", career: TUTOR_CAREER.english.elementary },
+    { id: "programming", ja: "プログラミング", en: "Programming", career: TUTOR_CAREER.programming.elementary },
   ],
   junior: [
-    { id: "japanese", ja: "国語", en: "Japanese" },
-    { id: "math", ja: "数学", en: "Mathematics" },
-    { id: "science", ja: "理科", en: "Science" },
-    { id: "social", ja: "社会", en: "Social studies" },
-    { id: "english", ja: "英語", en: "English" },
-    { id: "programming", ja: "プログラミング", en: "Programming" },
+    { id: "japanese", ja: "国語", en: "Japanese", career: TUTOR_CAREER.japanese.secondary },
+    { id: "math", ja: "数学", en: "Mathematics", career: TUTOR_CAREER.math.secondary },
+    { id: "science", ja: "理科", en: "Science", career: TUTOR_CAREER.science.secondary },
+    { id: "social", ja: "社会", en: "Social studies", career: TUTOR_CAREER.social.secondary },
+    { id: "english", ja: "英語", en: "English", career: TUTOR_CAREER.english.secondary },
+    { id: "programming", ja: "プログラミング", en: "Programming", career: TUTOR_CAREER.programming.secondary },
   ],
   high: [
-    { id: "japanese", ja: "国語(現代文・古文)", en: "Japanese (modern & classical)" },
-    { id: "math", ja: "数学", en: "Mathematics" },
-    { id: "science", ja: "理科(物理・化学・生物)", en: "Science" },
-    { id: "social", ja: "地理歴史・公民", en: "Geography, history & civics" },
-    { id: "english", ja: "英語", en: "English" },
-    { id: "programming", ja: "プログラミング", en: "Programming" },
+    { id: "japanese", ja: "国語(現代文・古文)", en: "Japanese (modern & classical)", career: TUTOR_CAREER.japanese.high },
+    { id: "math", ja: "数学", en: "Mathematics", career: TUTOR_CAREER.math.high },
+    { id: "science", ja: "理科(物理・化学・生物)", en: "Science", career: TUTOR_CAREER.science.high },
+    { id: "social", ja: "地理歴史・公民", en: "Geography, history & civics", career: TUTOR_CAREER.social.high },
+    { id: "english", ja: "英語", en: "English", career: TUTOR_CAREER.english.high },
+    { id: "programming", ja: "プログラミング", en: "Programming", career: TUTOR_CAREER.programming.high },
   ],
 };
 
@@ -4952,6 +4952,95 @@ const TUTOR_FIGURES = {
     '<circle cx="115" cy="103" r="4" fill="#f4e6f0"/>' +
     '<text x="122" y="106" fill="#f4e6f0" font-size="12">頂点 / vertex</text></svg>',
 };
+
+// キャリアガイダンス機能(2026-08-24新設、ユーザー指示「各レッスン/学習
+// 項目に、この内容をマスターすると役立つ業界・職種、さらに極めると
+// 目指せる可能性のある上級職種を補足表示して」への対応)。
+//
+// 設計の下敷き: ドイツの職業教育制度(デュアルシステム)を実際に調査した
+// (2026-08-24、日英Web検索)。ドイツでは訓練生(Azubi)が週の大半を
+// 企業での実地訓練、残りをBerufsschule(職業学校)での座学に充て、
+// BIBB(連邦職業教育訓練研究所)が認定する327種の職業ごとに訓練内容が
+// 標準化されており、IHK(商工会議所)が試験を実施して資格
+// (Facharbeiterbrief/Gesellenbrief)を発行する——「学習内容→具体的な
+// 職業→上級資格(マイスター等)」という一本の線でつながっている点が
+// 特徴。出典: IHK Darmstadt "The Dual System in Germany"
+// (https://www.ihk.de/darmstadt/en/productlabels/training/voctrain-2533080)、
+// deutschland.de "How Germany's dual vocational training system works"
+// (https://www.deutschland.de/en/topic/business/how-germanys-dual-vocational-training-system-works)、
+// Wikipedia "Dual education system"
+// (https://en.wikipedia.org/wiki/Dual_education_system)。
+//
+// この調査結果を踏まえ、本アプリでも「教科を学ぶと、どんな業界・職種に
+// 役立つ可能性があるか」「さらに極めると、どんな上級職種を目指せる
+// 可能性があるか」を教科単位(問題1問ごとではなく、学年×教科のグループ
+// 単位)で補足表示する。**断定はしない**——「〜かもしれません」
+// 「〜に役立つ可能性があります」という表現に統一し、「これを学べば
+// 必ず就職できる」という趣旨の表現は一切使わない。
+const TUTOR_CAREER_GUIDANCE = {
+  japanese: {
+    ja: "国語で身につく読解力・語彙力・文章作成力は、出版・編集、広報・広告、教育、行政・法務、接客業など、言葉を扱うあらゆる業界で役立つかもしれません。",
+    en: "The reading comprehension, vocabulary, and writing skills built in Japanese class may help in publishing/editing, PR & advertising, education, administration/legal work, and customer service — fields that rely on language.",
+    advanced: "文章力・語彙力をさらに極めると、編集者・校正者・脚本家・広報担当者・行政書士のような、言葉を専門的に扱う上級職種を目指せる可能性があります。",
+    advancedEn: "Mastering writing and vocabulary further may open paths toward more advanced roles such as editor, proofreader, scriptwriter, PR specialist, or legal-document professional.",
+  },
+  math: {
+    ja: "算数・数学の計算力・論理的思考力は、製造業、建設業、金融・会計、ITエンジニアリング、データ分析、科学研究など、数字や論理を扱う幅広い業界で役立つかもしれません。",
+    en: "Arithmetic/math skills and logical thinking may help in manufacturing, construction, finance & accounting, IT engineering, data analysis, and scientific research — fields built on numbers and logic.",
+    advanced: "計算力・論理的思考力をさらに極めると、アクチュアリー・データサイエンティスト・システムエンジニア・建築士・会計士のような、数学を専門的に使う上級職種を目指せる可能性があります。",
+    advancedEn: "Going further with math and logic may open paths toward advanced roles such as actuary, data scientist, systems engineer, architect, or accountant.",
+  },
+  life: {
+    ja: "生活科で身につく身の回りの物事への気づき・観察力は、保育・幼児教育、食品・生活用品業界、小売業など、日常生活に関わる業界の基礎として役立つかもしれません。",
+    en: "The everyday observation skills built in life studies may serve as a foundation for childcare/early education, food & household-goods industries, and retail — fields close to daily life.",
+    advanced: "観察力・気づく力をさらに極めると、保育士・幼稚園教諭・商品開発担当のような、日常生活に関わる上級職種を目指せる可能性があります。",
+    advancedEn: "Building further on this observational foundation may open paths toward roles such as childcare worker, kindergarten teacher, or product development specialist.",
+  },
+  science: {
+    ja: "理科の実験・観察・仮説検証の考え方は、製薬・医療、農業・食品、環境・エネルギー、製造業の研究開発など、科学的な裏付けが求められる業界で役立つかもしれません。",
+    en: "The experimentation, observation, and hypothesis-testing skills from science class may help in pharmaceuticals/healthcare, agriculture/food, environment & energy, and manufacturing R&D — fields that need scientific grounding.",
+    advanced: "科学的な考え方をさらに極めると、研究者・薬剤師・臨床検査技師・環境コンサルタントのような、専門知識を要する上級職種を目指せる可能性があります。",
+    advancedEn: "Deepening scientific thinking may open paths toward advanced roles such as researcher, pharmacist, clinical laboratory technician, or environmental consultant.",
+  },
+  social: {
+    ja: "社会・地理歴史・公民で学ぶ社会の仕組みへの理解は、公務員、金融、報道・メディア、観光業、国際関係の仕事など、社会や制度と関わる業界で役立つかもしれません。",
+    en: "Understanding social structures, geography, history, and civics may help in public service, finance, journalism/media, tourism, and international-relations work — fields tied to society and institutions.",
+    advanced: "社会への理解をさらに極めると、公務員・記者・国際協力の専門職・都市計画コンサルタントのような、制度や社会を専門的に扱う上級職種を目指せる可能性があります。",
+    advancedEn: "Deepening this understanding of society may open paths toward advanced roles such as civil servant, journalist, international-cooperation specialist, or urban-planning consultant.",
+  },
+  english: {
+    ja: "英語での基本的なコミュニケーション力は、観光・接客業、貿易・商社、航空・物流、国際的なカスタマーサポートなど、外国語を使う機会がある業界で役立つかもしれません。",
+    en: "Basic English communication skills may help in tourism/hospitality, trading companies, aviation/logistics, and international customer support — fields where a foreign language comes in handy.",
+    advanced: "英語力をさらに極めると、通訳・翻訳者・国際営業・海外駐在員のような、語学力を専門的に活かす上級職種を目指せる可能性があります。",
+    advancedEn: "Mastering English further may open paths toward advanced roles such as interpreter, translator, international sales, or overseas assignment positions.",
+  },
+  programming: {
+    ja: "プログラミングの基礎(HTML/CSS/JavaScriptの入門レベル)は、Web制作、ITサポート、業務効率化(RPA等)、ゲーム制作の周辺分野など、コンピュータを扱う業界の入り口として役立つかもしれません。ただし本アプリで扱うのはあくまで入門レベルであり、この一点だけで就職できるという趣旨ではありません。",
+    en: "The introductory programming basics here (HTML/CSS/JavaScript fundamentals) may serve as an entry point toward web production, IT support, workflow automation (RPA, etc.), or adjacent areas of game development. This app only covers introductory-level material, though — it is not a claim that this alone leads to employment.",
+    advanced: "プログラミングをさらに極めると、Webエンジニア・システムエンジニア・ゲームプログラマー・データエンジニアのような、開発を専門的に担う上級職種を目指せる可能性があります。",
+    advancedEn: "Going much further with programming may open paths toward advanced roles such as web engineer, systems engineer, game programmer, or data engineer.",
+  },
+};
+
+/**
+ * キャリアガイダンスの表示HTMLを組み立てる(教科ID単位、断定表現は
+ * 使わない)。該当データが無い教科(将来追加された教科等)では静かに
+ * 何も表示しない——無理に埋めない、誇張しない方針。
+ */
+function tutorCareerGuidanceHtml(subjectId) {
+  const g = TUTOR_CAREER_GUIDANCE[subjectId];
+  if (!g) return "";
+  return (
+    '<p class="tutor-career-title">🧭 キャリアガイダンス / Career guidance</p>' +
+    `<p>${g.ja}<br>${g.en}</p>` +
+    `<p>${g.advanced}<br>${g.advancedEn}</p>` +
+    '<p class="setup-honest">※この内容は一般的な参考情報であり、就職・資格取得を保証するものではありません。' +
+    "ドイツの職業教育制度(デュアルシステム)の「学習内容と職業・上級資格が結びついている」という考え方を参考に、" +
+    "参考情報として補足しているものです。 / This is general reference information, not a guarantee of employment " +
+    "or qualification. It is offered as a supplementary note inspired by how Germany's dual vocational training " +
+    "system links subjects to specific occupations and further qualifications.</p>"
+  );
+}
 
 // 練習問題本体。キーは `<学年ID>:<教科ID>`。**ここに無い組み合わせは
 // 「準備中」と表示する**(嘘の「対応済み」を作らないこと)。
@@ -5486,6 +5575,7 @@ const tutorInstallSelectedBtn = document.getElementById("tutor-install-selected"
 const tutorInstallAllBtn = document.getElementById("tutor-install-all");
 const tutorInstallStatusEl = document.getElementById("tutor-install-status");
 const tutorPracticeSectionEl = document.getElementById("tutor-practice-section");
+const tutorCareerGuidanceEl = document.getElementById("tutor-career-guidance");
 const tutorPracticeSubjectEl = document.getElementById("tutor-practice-subject");
 const tutorStartBtn = document.getElementById("tutor-start");
 const tutorSubmitBtn = document.getElementById("tutor-submit");
@@ -5772,6 +5862,19 @@ function renderTutorSingleQuestion(item) {
   tutorMuchEasierBtn.classList.add("hidden");
   tutorPracticeBtn.classList.add("hidden");
   tutorMissedQuestions = [];
+  // キャリアガイダンス(2026-08-24新設)。出題中の教科に紐づく業界・職種の
+  // 参考情報を、問題の下に補足表示する。
+  const careerSubjectId = tutorPracticeSubjectEl && tutorPracticeSubjectEl.value;
+  const careerHtml = careerSubjectId ? tutorCareerGuidanceHtml(careerSubjectId) : "";
+  if (tutorCareerGuidanceEl) {
+    if (careerHtml) {
+      tutorCareerGuidanceEl.innerHTML = careerHtml;
+      tutorCareerGuidanceEl.classList.remove("hidden");
+    } else {
+      tutorCareerGuidanceEl.innerHTML = "";
+      tutorCareerGuidanceEl.classList.add("hidden");
+    }
+  }
 }
 
 /**
@@ -6316,3 +6419,1059 @@ function renderTutorProgrammingMaterials() {
   root.classList.remove("hidden");
 }
 
+
+
+// ============================================================================
+// バーチャルスクール(高等教育) / バーチャルオンライン職業訓練校
+// (ユーザー指示、2026-08-24)
+// ----------------------------------------------------------------------------
+// 「専門学校・短大・大学・大学院の入試/授業/校内テストを擬似的に想定した
+// バーチャルスクール」と「様々な産業・職業を想定したバーチャルオンライン
+// 職業訓練校」を、利用者が分野ごとに選んでインストールし、実際に出題・採点
+// できるようにする機能。
+//
+// 設計は既存の「学生向け家庭教師コース」(TUTOR_*)をそのまま踏襲する:
+//   区分(学年に相当)を選ぶ → 分野(教科に相当)をチェックしてインストール
+//   → ランダム出題 → 採点 → `/v1/db/history` へ保存 → トレーナーと復習。
+// 新しい保存先・新しいAPIは一切増やしていない。
+//
+// **正直な開示(改変時も弱めないこと)**:
+//  - 収録問題はすべて本アプリ用の書き下ろしオリジナル。実際の入試問題・
+//    市販問題集・教科書からの転載は一切無い。
+//  - **全区分×全分野は揃っていない。** 下記VSCHOOL_QUESTIONSに実際に
+//    存在する組み合わせだけが動き、それ以外は「準備中」と表示する。
+//  - 小論文・面接・実技は自動採点になじまないため、**4択の知識問題として
+//    しか扱っていない**。本物の小論文添削・面接練習の代わりにはならない。
+//  - 合否・資格取得を予測・保証するものではない。
+//
+// 事前調査(2026-08-24、日本語Web検索): 大学・短大・専門学校の総合型選抜/
+// 学校推薦型選抜では小論文(課題文型・テーマ型・図表分析型など)と面接が
+// 中心で、大学院では研究計画・先行研究・専門科目と面接が問われる、という
+// 一般的な傾向を確認した。公的職業訓練(ハロートレーニング/求職者支援訓練)は
+// IT、営業・販売、介護・福祉、建設、美容、調理など幅広い分野があることを
+// 確認した。この一般的傾向を踏まえて分野の区分を決めているが、問題文自体は
+// 検索結果からの転載ではなく書き下ろしである。
+// ============================================================================
+
+// 区分。`mode`が"school"のものが高等教育、"voc"が職業訓練校。
+const VSCHOOL_TRACKS = [
+  { id: "senmon", mode: "school", ja: "専門学校", en: "Vocational college (senmon gakko)" },
+  { id: "tandai", mode: "school", ja: "短期大学", en: "Junior college" },
+  { id: "daigaku", mode: "school", ja: "大学(学部)", en: "University (undergraduate)" },
+  { id: "daigakuin", mode: "school", ja: "大学院", en: "Graduate school" },
+  { id: "voc", mode: "voc", ja: "オンライン職業訓練校", en: "Online vocational training" },
+];
+
+// 区分ごとの分野。`yt`はYouTube検索に使う一般的なキーワード
+// (**特定の動画へは誘導しない**——検索結果ページへのリンクのみ)。
+const VSCHOOL_FIELDS = {
+  senmon: [
+    {
+      id: "it",
+      ja: "情報処理・IT",
+      en: "Information technology",
+      yt: "基本情報技術者 入門 解説",
+      career: {
+        ja: "しっかり身につけると、システムエンジニアやITサポートの仕事で役立つかもしれません。さらに極めると、プロジェクトリーダーやITコンサルタントのような職種を目指せる可能性があります。",
+        en: "Mastering this may help with roles like systems engineer or IT support. Going further, it could open a path toward project lead or IT consultant roles.",
+      },
+    },
+    {
+      id: "medoffice",
+      ja: "医療事務",
+      en: "Medical office admin",
+      yt: "医療事務 初心者 講座",
+      career: {
+        ja: "病院やクリニックの受付・診療報酬請求(レセプト)業務に役立つかもしれません。経験を積むと、医事課のリーダーや医療機関の事務管理者を目指せる可能性があります。",
+        en: "May help with hospital/clinic reception and medical billing work. With experience, it could lead toward a medical office lead or administrator role.",
+      },
+    },
+    {
+      id: "care",
+      ja: "介護福祉",
+      en: "Care work",
+      yt: "介護福祉士 基礎 講座",
+      career: {
+        ja: "高齢者施設や訪問介護の現場で役立つかもしれません。国家資格(介護福祉士)を取得すると、サービス提供責任者やケアマネジャーのような職種を目指せる可能性があります。",
+        en: "May help in elder care facilities or home care. With the national care-worker qualification, it could lead toward a service coordinator or care manager role.",
+      },
+    },
+    {
+      id: "beauty",
+      ja: "美容",
+      en: "Beauty / hairdressing",
+      yt: "美容師国家試験 筆記 対策",
+      career: {
+        ja: "美容師国家資格の筆記対策として役立つかもしれません。技術と経験を積むと、店舗の店長や独立開業を目指せる可能性があります。",
+        en: "May help with the written portion of the national hairdressing licence exam. With skill and experience, it could lead toward a salon manager or independent stylist path.",
+      },
+    },
+    {
+      id: "cook",
+      ja: "調理・製菓",
+      en: "Cooking & confectionery",
+      yt: "調理師試験 独学",
+      career: {
+        ja: "調理師試験の対策や飲食・製菓業界での仕事に役立つかもしれません。経験を積むと、シェフやパティシエ、独立開業を目指せる可能性があります。",
+        en: "May help with the cook's licence exam and work in food service or confectionery. With experience, it could lead toward a chef, pastry chef, or independent shop.",
+      },
+    },
+    {
+      id: "civil",
+      ja: "建築・土木",
+      en: "Architecture & civil engineering",
+      yt: "建築 構造力学 入門",
+      career: {
+        ja: "建設現場の施工管理や設計補助の仕事に役立つかもしれません。資格(施工管理技士等)を取得すると、現場監督や一級建築士のような職種を目指せる可能性があります。",
+        en: "May help with construction site supervision or design assistant work. With licences, it could lead toward a site manager or licensed architect role.",
+      },
+    },
+  ],
+  tandai: [
+    {
+      id: "childcare",
+      ja: "保育・幼児教育",
+      en: "Early childhood education",
+      yt: "保育士試験 独学 講座",
+      career: {
+        ja: "保育園・幼稚園での保育補助の仕事に役立つかもしれません。保育士資格を取得すると、主任保育士や園長のような職種を目指せる可能性があります。",
+        en: "May help with assistant roles at nurseries and kindergartens. With the childcare licence, it could lead toward a lead teacher or director role.",
+      },
+    },
+    {
+      id: "nutrition",
+      ja: "栄養",
+      en: "Nutrition",
+      yt: "栄養士 基礎 栄養学 講義",
+      career: {
+        ja: "給食施設や病院での栄養士補助の仕事に役立つかもしれません。管理栄養士資格を取得すると、献立管理者や栄養指導の専門職を目指せる可能性があります。",
+        en: "May help with dietitian-assistant work in schools or hospitals. With the registered dietitian licence, it could lead toward a menu-planning lead or nutrition counsellor role.",
+      },
+    },
+    {
+      id: "business",
+      ja: "ビジネス実務",
+      en: "Business practice",
+      yt: "ビジネス実務マナー 検定",
+      career: {
+        ja: "一般事務や秘書業務に役立つかもしれません。経験を積むと、総務・人事のリーダーやオフィスマネージャーを目指せる可能性があります。",
+        en: "May help with general office or secretarial work. With experience, it could lead toward a general affairs/HR lead or office manager role.",
+      },
+    },
+    {
+      id: "liberal",
+      ja: "英語・国際教養",
+      en: "English & liberal arts",
+      yt: "英語 リーディング 大学 基礎",
+      career: {
+        ja: "英語を使う事務職や観光業の接客に役立つかもしれません。さらに極めると、通訳・翻訳や国際関係の仕事を目指せる可能性があります。",
+        en: "May help with English-using office roles or tourism/hospitality. Going further, it could open a path toward interpreting, translation, or international relations work.",
+      },
+    },
+  ],
+  daigaku: [
+    {
+      id: "humanities",
+      ja: "人文・社会科学系",
+      en: "Humanities & social sciences",
+      yt: "小論文 書き方 大学入試",
+      career: {
+        ja: "論理的な文章力は、出版・マスコミ・法律関係・公務員など幅広い仕事に役立つかもしれません。さらに極めると、研究者や専門職(弁護士等)を目指せる可能性があります。",
+        en: "Logical writing skills may help in publishing, media, law-adjacent, or public-sector work. Going further, it could open a path toward research or licensed professions such as law.",
+      },
+    },
+    {
+      id: "science",
+      ja: "理工系",
+      en: "Science & engineering",
+      yt: "大学 微分積分 入門 講義",
+      career: {
+        ja: "数学・物理の基礎は、メーカーの技術職や研究開発に役立つかもしれません。さらに極めると、研究者やエンジニアリングマネージャーを目指せる可能性があります。",
+        en: "A foundation in math and physics may help with engineering or R&D roles at manufacturers. Going further, it could open a path toward research or engineering management.",
+      },
+    },
+    {
+      id: "nursing",
+      ja: "医療・看護系",
+      en: "Medicine & nursing",
+      yt: "看護 基礎 解剖生理 講義",
+      career: {
+        ja: "看護師や医療職として病院で働く際に役立つかもしれません。経験を積むと、専門看護師や看護師長のような職種を目指せる可能性があります。",
+        en: "May help with hospital nursing or allied health roles. With experience, it could lead toward a specialist nurse or nursing manager role.",
+      },
+    },
+    {
+      id: "education",
+      ja: "教育系",
+      en: "Education",
+      yt: "教育原理 教員採用試験 講義",
+      career: {
+        ja: "学校の教員や学習塾の講師の仕事に役立つかもしれません。経験を積むと、教頭・校長や教育行政の仕事を目指せる可能性があります。",
+        en: "May help with school teaching or tutoring roles. With experience, it could lead toward a vice-principal, principal, or education administration role.",
+      },
+    },
+  ],
+  daigakuin: [
+    {
+      id: "research",
+      ja: "研究基礎(研究計画・研究倫理・面接)",
+      en: "Research fundamentals",
+      yt: "研究計画書 書き方 大学院",
+      career: {
+        ja: "大学院での研究活動や企業の研究職に役立つかもしれません。さらに極めると、大学教員や研究機関のプロジェクトリーダーを目指せる可能性があります。",
+        en: "May help with graduate research or corporate R&D roles. Going further, it could open a path toward a university faculty or research-lead position.",
+      },
+    },
+    {
+      id: "engsci",
+      ja: "理工学研究科・専門科目",
+      en: "Engineering graduate specialisation",
+      yt: "大学院 入試 数学 対策",
+      career: {
+        ja: "高度な専門知識は、メーカーや研究機関の専門職に役立つかもしれません。さらに極めると、博士研究員(ポスドク)や技術部門の責任者を目指せる可能性があります。",
+        en: "Advanced expertise may help with specialist roles at manufacturers or research institutes. Going further, it could open a path toward a postdoctoral researcher or technical lead role.",
+      },
+    },
+  ],
+  voc: [
+    {
+      id: "it_basic",
+      ja: "IT・プログラミング基礎",
+      en: "IT & programming basics",
+      yt: "プログラミング 初心者 入門 講座",
+      career: {
+        ja: "しっかりマスターすると、Webサイト制作会社やIT企業のジュニアエンジニアの仕事で役立つかもしれません。さらに極めると、フルスタックエンジニアやシステムアーキテクトのような職種を目指せる可能性があります。",
+        en: "Mastering this may help with junior developer roles at IT or web companies. Going further, it could open a path toward full-stack engineer or systems architect roles.",
+      },
+    },
+    {
+      id: "bookkeeping",
+      ja: "簿記・経理基礎",
+      en: "Bookkeeping & accounting basics",
+      yt: "簿記3級 独学",
+      career: {
+        ja: "しっかりマスターすると、企業の経理担当者や税理士事務所のスタッフの仕事で役立つかもしれません。さらに極めると、公認会計士や税理士のような職種を目指せる可能性があります。",
+        en: "Mastering this may help with accounting-clerk roles at companies or tax firms. Going further, it could open a path toward certified public accountant or tax accountant roles.",
+      },
+    },
+    {
+      id: "service",
+      ja: "接客・サービス業基礎",
+      en: "Customer service basics",
+      yt: "接客 マナー 研修 基礎",
+      career: {
+        ja: "しっかりマスターすると、小売・飲食・ホテル業界の接客スタッフの仕事で役立つかもしれません。さらに極めると、店長やカスタマーサクセスの責任者のような職種を目指せる可能性があります。",
+        en: "Mastering this may help with retail, food service, or hotel front-line roles. Going further, it could open a path toward store manager or customer-success lead roles.",
+      },
+    },
+    {
+      id: "care_basic",
+      ja: "介護・福祉基礎",
+      en: "Care work basics",
+      yt: "介護 初任者研修 講座",
+      career: {
+        ja: "介護職員初任者研修相当の基礎知識は、介護施設や訪問介護の現場で役立つかもしれません。さらに極めると、介護福祉士やサービス提供責任者を目指せる可能性があります。",
+        en: "This foundational knowledge may help in care facilities or home care. Going further, it could open a path toward a certified care worker or service coordinator role.",
+      },
+    },
+    {
+      id: "construction",
+      ja: "建築・土木基礎",
+      en: "Construction basics",
+      yt: "建設業 施工管理 入門",
+      career: {
+        ja: "建設現場の作業員や施工管理補助の仕事に役立つかもしれません。資格を取得すると、施工管理技士や現場監督を目指せる可能性があります。",
+        en: "May help with construction site work or assistant supervision. With licences, it could lead toward a certified site manager role.",
+      },
+    },
+    {
+      id: "cooking_basic",
+      ja: "調理・製菓基礎",
+      en: "Cooking basics",
+      yt: "調理 基本 包丁 使い方",
+      career: {
+        ja: "飲食店の調理補助やカフェのスタッフの仕事に役立つかもしれません。経験を積むと、調理師や店舗責任者を目指せる可能性があります。",
+        en: "May help with kitchen-assistant or cafe-staff roles. With experience, it could lead toward a licensed cook or shop manager role.",
+      },
+    },
+    {
+      id: "beauty_basic",
+      ja: "美容基礎",
+      en: "Beauty basics",
+      yt: "美容 基礎知識 講座",
+      career: {
+        ja: "美容室やエステサロンの受付・アシスタント業務に役立つかもしれません。経験を積むと、スタイリストやサロン店長を目指せる可能性があります。",
+        en: "May help with salon reception or assistant work. With experience, it could lead toward a stylist or salon manager role.",
+      },
+    },
+  ],
+};
+
+// キャリアガイダンス機能(2026-08-24、ユーザー指示「ドイツの職業訓練校
+// 〈Berufsschule〉をお手本にした、学習内容と実社会でのキャリアパスを
+// 結びつける補足説明機能」への対応)。
+//
+// ドイツのデュアルシステム(Duale Ausbildung)は、企業での実地研修
+// (週3〜4日)と職業学校(Berufsschule、週1〜2日)を組み合わせ、商工会議所
+// (IHK)等の認定を経て資格取得に至る制度で、修了後のキャリアパスが
+// 明確に見える設計になっている(WebSearchで実在の情報源を確認済み——
+// IHK Darmstadt公式ページ、deutschland.de、adriaveza.de等、下記参照)。
+// この「学習内容→実社会での役立ち方→さらに上のキャリア」という
+// 見通しの明確さを参考に、既存のバーチャルスクール/職業訓練校コーナー
+// (`VSCHOOL_FIELDS`)の各分野へ`career`(日英併記)を追加した。
+//
+// **誠実さの方針(このアプリ全体の既存ルールを踏襲、絶対に弱めないこと)**:
+// 「〜かもしれません」「〜を目指せる可能性があります」という非断定的な
+// 表現のみを使う。「必ず就職できる」「この職業に就ける」という断定は
+// 一切しない。就職・資格取得を保証するものではない。
+//
+// 情報源(2026-08-24 WebSearchで確認、実在のページ):
+// - IHK Darmstadt「The Dual System in Germany」
+//   https://www.ihk.de/darmstadt/en/productlabels/training/voctrain-2533080
+// - deutschland.de「How Germany's dual vocational training system works」
+//   https://www.deutschland.de/en/topic/business/how-germanys-dual-vocational-training-system-works
+// - adriaveza.de「Vocational School and Ausbildung」
+//   https://adriaveza.de/en/02-news/02-f-schools-and-education/02-f9-berufsschule-ausbildung.html
+function vschoolCareerHtml(field) {
+  if (!field || !field.career) return "";
+  return (
+    '<div class="vschool-career">' +
+    '<p class="vschool-career-label">🎓 キャリアガイダンス / Career guidance</p>' +
+    "<p>" + field.career.ja + "</p>" +
+    "<p>" + field.career.en + "</p>" +
+    "</div>"
+  );
+}
+
+// 模擬問題本体。キーは `<区分ID>:<分野ID>`。**ここに無い組み合わせは
+// 「準備中」と表示する**(嘘の「対応済み」を作らないこと)。
+// すべて本アプリ用に書き下ろしたオリジナル問題。`answer`は`choices`の添字。
+// `why`は採点後に表示する短い解説。
+const VSCHOOL_QUESTIONS = {
+  // --- 大学(学部)・人文社会系: 小論文と学術的な考え方の基礎 ---
+  "daigaku:humanities": [
+    {
+      q: "大学入試の小論文で最も一般的とされる基本構成はどれですか。",
+      choices: ["序論・本論・結論", "起承転結の四コマ形式", "結論のみを繰り返す", "感想を時系列で並べる"],
+      answer: 0,
+      why: "問いへの立場を示す序論、根拠を述べる本論、まとめの結論という三部構成が基本とされます。",
+    },
+    {
+      q: "課題文が与えられる「課題文型」小論文で、書き始める前にまず行うべきことはどれですか。",
+      choices: [
+        "課題文の主張と論拠を正確に読み取る",
+        "自分の体験談を先に書き出す",
+        "できるだけ難しい語を書き出す",
+        "字数を数えて配分だけ決める",
+      ],
+      answer: 0,
+      why: "課題文型では、筆者の主張を正確に把握しないと的外れな論述になります。",
+    },
+    {
+      q: "「帰納」の説明として適切なものはどれですか。",
+      choices: [
+        "個別の事例から一般的な法則を導く",
+        "一般的な法則から個別の結論を導く",
+        "結論を先に決めて根拠を作る",
+        "対立する二つの意見を足して二で割る",
+      ],
+      answer: 0,
+      why: "個別から一般へ向かうのが帰納、一般から個別へ向かうのが演繹です。",
+    },
+    {
+      q: "他人の文章を出典を示さずに自分の文章として提出する行為を何と呼びますか。",
+      choices: ["剽窃(盗用)", "引用", "要約", "校閲"],
+      answer: 0,
+      why: "出典を明示して必要な範囲で用いるのが引用、示さずに自分のものとするのが剽窃です。",
+    },
+    {
+      q: "面接で志望理由を聞かれたときの答え方として、最も説得力があるとされるものはどれですか。",
+      choices: [
+        "学びたい内容と、その学校の教育内容との結びつきを具体的に述べる",
+        "偏差値や知名度が高いからと述べる",
+        "家族に勧められたからと述べる",
+        "特に理由はないと正直に述べる",
+      ],
+      answer: 0,
+      why: "「なぜこの学校でなければならないか」を具体的に語れるかが見られます。",
+    },
+  ],
+
+  // --- 大学(学部)・理工系: 理系基礎学力 ---
+  "daigaku:science": [
+    {
+      q: "測定値 2.5 と 3.0 の積を有効数字を考えて表すとどれですか。",
+      choices: ["7.5", "7.50", "7", "7.500"],
+      answer: 0,
+      why: "有効数字2桁どうしの積は2桁で表します。",
+    },
+    {
+      q: "関数 y = x^3 を x で微分するとどれになりますか。",
+      choices: ["3x^2", "x^2", "3x", "x^4/4"],
+      answer: 0,
+      why: "べき関数の微分は、指数を係数に下ろして指数を1減らします。",
+    },
+    {
+      q: "次のうち SI基本単位でないものはどれですか。",
+      choices: ["N(ニュートン)", "m(メートル)", "kg(キログラム)", "s(秒)"],
+      answer: 0,
+      why: "ニュートンは kg·m/s^2 から作られる組立単位です。",
+    },
+    {
+      q: "log10(1000) の値はどれですか。",
+      choices: ["3", "2", "10", "1000"],
+      answer: 0,
+      why: "10の3乗が1000だからです。",
+    },
+    {
+      q: "実験レポートで「再現性」を確認するために最も適切な方法はどれですか。",
+      choices: [
+        "同じ条件で複数回測定し、ばらつきを確認する",
+        "最も良い値だけを採用して記載する",
+        "測定を1回だけ行い平均値と呼ぶ",
+        "理論値をそのまま測定値として書く",
+      ],
+      answer: 0,
+      why: "都合のよい値だけを選ぶのはデータの選別であり、研究倫理上も問題があります。",
+    },
+  ],
+
+  // --- 専門学校・情報処理/IT ---
+  "senmon:it": [
+    {
+      q: "10進数の 13 を2進数で表すとどれですか。",
+      choices: ["1101", "1011", "1110", "1001"],
+      answer: 0,
+      why: "8+4+1 = 13 なので 1101 です。",
+    },
+    {
+      q: "HTML の主な役割として適切なものはどれですか。",
+      choices: [
+        "文書の構造(見出し・段落・リンクなど)を記述する",
+        "サーバーのCPU使用率を制御する",
+        "データベースのバックアップを取る",
+        "通信を暗号化する",
+      ],
+      answer: 0,
+      why: "見た目はCSS、動きはJavaScriptが担当し、HTMLは構造を担います。",
+    },
+    {
+      q: "1バイトは何ビットですか。",
+      choices: ["8ビット", "4ビット", "16ビット", "1024ビット"],
+      answer: 0,
+      why: "現在の一般的な計算機では1バイト = 8ビットです。",
+    },
+    {
+      q: "リレーショナルデータベースで、テーブルからデータを取り出すSQL文はどれですか。",
+      choices: ["SELECT", "INSERT", "DELETE", "CREATE"],
+      answer: 0,
+      why: "INSERTは追加、DELETEは削除、CREATEは定義です。",
+    },
+    {
+      q: "アルゴリズムにおける「繰り返し(ループ)」の説明として適切なものはどれですか。",
+      choices: [
+        "条件が満たされている間、同じ処理を何度も実行する",
+        "条件によって処理を二つに分ける",
+        "処理を一度だけ実行して終了する",
+        "処理の順序を無作為に入れ替える",
+      ],
+      answer: 0,
+      why: "条件で二つに分けるのは分岐(選択)構造です。",
+    },
+  ],
+
+  // --- 大学院・研究基礎 ---
+  "daigakuin:research": [
+    {
+      q: "研究計画書の中核として最も重要とされる要素はどれですか。",
+      choices: [
+        "先行研究を踏まえた「問い」の設定",
+        "使用する文房具の一覧",
+        "研究にかける費用の内訳のみ",
+        "指導教員への感謝の言葉",
+      ],
+      answer: 0,
+      why: "何が未解明で、自分は何を明らかにするのかが計画書の骨格です。",
+    },
+    {
+      q: "「査読(peer review)」の説明として適切なものはどれですか。",
+      choices: [
+        "同じ分野の研究者が投稿論文の内容を審査する仕組み",
+        "著者が自分の論文を読み返すこと",
+        "出版社が誤字脱字だけを直すこと",
+        "一般読者が人気投票をすること",
+      ],
+      answer: 0,
+      why: "専門家による審査を経ることで学術的な質を担保します。",
+    },
+    {
+      q: "先行研究レビューを行う主な目的はどれですか。",
+      choices: [
+        "自分の研究の位置づけと、まだ解かれていない点を示すため",
+        "参考文献の数を増やして分量を稼ぐため",
+        "他の研究者を批判するため",
+        "指導教員の論文だけを紹介するため",
+      ],
+      answer: 0,
+      why: "既知と未知の境界を示すことで、研究の新規性が説明できます。",
+    },
+    {
+      q: "研究倫理上、明確に許されない行為はどれですか。",
+      choices: [
+        "データの捏造・改ざん",
+        "実験条件を論文に詳しく書くこと",
+        "否定的な結果を報告すること",
+        "貢献した共同研究者を著者に含めること",
+      ],
+      answer: 0,
+      why: "捏造・改ざん・盗用は研究不正の代表例とされます。",
+    },
+    {
+      q: "学術論文の要旨(abstract)に通常含めないものはどれですか。",
+      choices: ["参考文献の一覧", "研究の目的", "用いた方法", "得られた主な結果"],
+      answer: 0,
+      why: "要旨は目的・方法・結果・結論を短くまとめたもので、文献一覧は本文の末尾に置きます。",
+    },
+  ],
+
+  // --- 職業訓練校・IT/プログラミング基礎 ---
+  "voc:it_basic": [
+    {
+      q: "複数のサービスで同じパスワードを使い回すことの主な危険はどれですか。",
+      choices: [
+        "一つのサービスから漏れると、他のサービスにも侵入されうる",
+        "パスワードを忘れやすくなる",
+        "通信速度が遅くなる",
+        "画面が見づらくなる",
+      ],
+      answer: 0,
+      why: "漏れた組み合わせを他サイトで試す攻撃(パスワードリスト攻撃)があります。",
+    },
+    {
+      q: "拡張子が .csv のファイルはどのようなデータですか。",
+      choices: [
+        "区切り文字で列を分けた表形式のテキストデータ",
+        "圧縮された画像データ",
+        "実行可能なプログラム",
+        "暗号化された鍵ファイル",
+      ],
+      answer: 0,
+      why: "CSVは Comma-Separated Values の略で、表計算ソフトとの受け渡しによく使われます。",
+    },
+    {
+      q: "ソースコードの変更履歴を管理するために広く使われている仕組みはどれですか。",
+      choices: ["Git", "PDF", "JPEG", "SMTP"],
+      answer: 0,
+      why: "Gitは分散型のバージョン管理システムです。",
+    },
+    {
+      q: "プログラミングでいう「バグ」とは何ですか。",
+      choices: [
+        "プログラムの誤りや不具合",
+        "処理速度を上げる工夫",
+        "画面の配色設計",
+        "プログラムの設計書",
+      ],
+      answer: 0,
+      why: "バグを取り除く作業をデバッグと呼びます。",
+    },
+    {
+      q: "クラウドサービスを利用する利点として一般的に挙げられるものはどれですか。",
+      choices: [
+        "自前でサーバーを用意せず、必要な分だけ使える",
+        "インターネット接続が不要になる",
+        "情報漏えいが起こらなくなる",
+        "料金が必ず無料になる",
+      ],
+      answer: 0,
+      why: "初期投資を抑えられる一方、通信やセキュリティ設定の管理は依然として必要です。",
+    },
+  ],
+
+  // --- 職業訓練校・簿記/経理基礎 ---
+  "voc:bookkeeping": [
+    {
+      q: "貸借対照表を表す基本の等式はどれですか。",
+      choices: [
+        "資産 = 負債 + 純資産",
+        "資産 = 収益 - 費用",
+        "負債 = 資産 + 純資産",
+        "純資産 = 収益 + 費用",
+      ],
+      answer: 0,
+      why: "左側(借方)の資産と、右側(貸方)の負債・純資産が必ず一致します。",
+    },
+    {
+      q: "商品を現金で売り上げたときの仕訳で、借方に来る勘定科目はどれですか。",
+      choices: ["現金", "売上", "買掛金", "資本金"],
+      answer: 0,
+      why: "現金という資産が増えるので借方、売上(収益)は貸方に記入します。",
+    },
+    {
+      q: "「減価償却」の説明として適切なものはどれですか。",
+      choices: [
+        "固定資産の取得原価を、使用する期間にわたって費用として配分する手続き",
+        "商品の売値を値引きすること",
+        "現金を銀行に預けること",
+        "借入金を一括で返済すること",
+      ],
+      answer: 0,
+      why: "建物や機械のように長期間使う資産に対して行います。",
+    },
+    {
+      q: "損益計算書が示すものはどれですか。",
+      choices: [
+        "一定期間の収益・費用と、その差である利益",
+        "ある一時点の財政状態",
+        "従業員の名簿",
+        "取引先の住所録",
+      ],
+      answer: 0,
+      why: "ある一時点の財政状態を示すのは貸借対照表です。",
+    },
+    {
+      q: "複式簿記で、勘定の左側を何と呼びますか。",
+      choices: ["借方", "貸方", "残高", "元帳"],
+      answer: 0,
+      why: "左側が借方、右側が貸方です。名称と貸し借りの意味は必ずしも一致しません。",
+    },
+  ],
+
+  // --- 職業訓練校・接客/サービス業基礎 ---
+  "voc:service": [
+    {
+      q: "接客の第一印象を大きく左右するとされる要素はどれですか。",
+      choices: [
+        "表情・身だしなみ・挨拶",
+        "商品の仕入れ値",
+        "店舗の築年数",
+        "従業員の勤続年数",
+      ],
+      answer: 0,
+      why: "第一印象は短時間で決まるとされ、見た目と挨拶の影響が大きいと言われます。",
+    },
+    {
+      q: "お客様から苦情を受けたとき、最初に取るべき対応はどれですか。",
+      choices: [
+        "まず最後まで話を聴き、不快な思いをさせたことを詫びる",
+        "すぐに反論して誤解を解く",
+        "その場を離れて時間を置く",
+        "責任は自分にないと最初に伝える",
+      ],
+      answer: 0,
+      why: "事実確認より先に傾聴と謝意を示すことで、対話が成立しやすくなります。",
+    },
+    {
+      q: "依頼や断りをやわらげる「クッション言葉」の例はどれですか。",
+      choices: ["恐れ入りますが", "だから", "いいから", "とにかく"],
+      answer: 0,
+      why: "「恐れ入りますが」「差し支えなければ」などが代表例です。",
+    },
+    {
+      q: "「お客様が申しました」という表現の問題点はどれですか。",
+      choices: [
+        "お客様の動作に謙譲語を使っており、「おっしゃいました」が適切",
+        "丁寧すぎるので「言った」が適切",
+        "文法上まったく問題がない",
+        "尊敬語を二重に使っている",
+      ],
+      answer: 0,
+      why: "「申す」は自分側をへりくだる謙譲語なので、お客様の動作には使いません。",
+    },
+    {
+      q: "業務で知り得たお客様の個人情報の扱いとして適切なものはどれですか。",
+      choices: [
+        "業務上必要な範囲でのみ利用し、他に漏らさない",
+        "同僚との雑談の話題にする",
+        "自分のSNSで共有する",
+        "退職後は自由に使ってよい",
+      ],
+      answer: 0,
+      why: "守秘義務は在職中だけでなく退職後も続くのが一般的です。",
+    },
+  ],
+};
+
+const VSCHOOL_QUESTIONS_PER_ROUND = 3;
+
+function vschoolHasQuestions(trackId, fieldId) {
+  const list = VSCHOOL_QUESTIONS[trackId + ":" + fieldId];
+  return Array.isArray(list) && list.length > 0;
+}
+
+function vschoolTrack(trackId) {
+  return VSCHOOL_TRACKS.find((t) => t.id === trackId) || null;
+}
+
+function vschoolField(trackId, fieldId) {
+  return (VSCHOOL_FIELDS[trackId] || []).find((f) => f.id === fieldId) || null;
+}
+
+/** 学習の参考になりそうなYouTube「検索結果ページ」へのリンク。
+ *  **特定の動画を「これが正解」として紹介することはしない**——一般的な
+ *  検索キーワードで検索した結果を開くだけで、内容の正しさは保証しない。 */
+function vschoolYoutubeUrl(keyword) {
+  return "https://www.youtube.com/results?search_query=" + encodeURIComponent(keyword);
+}
+
+const vschoolBtn = document.getElementById("vschool-btn");
+const vvocBtn = document.getElementById("vvoc-btn");
+const vschoolModal = document.getElementById("vschool-modal");
+const vschoolCloseBtn = document.getElementById("vschool-close");
+const vschoolTitleEl = document.getElementById("vschool-title");
+const vschoolStep1TitleEl = document.getElementById("vschool-step1-title");
+const vschoolTrackListEl = document.getElementById("vschool-track-list");
+const vschoolFieldSectionEl = document.getElementById("vschool-field-section");
+const vschoolSelectedTrackEl = document.getElementById("vschool-selected-track");
+const vschoolFieldListEl = document.getElementById("vschool-field-list");
+const vschoolInstallSelectedBtn = document.getElementById("vschool-install-selected");
+const vschoolInstallAllBtn = document.getElementById("vschool-install-all");
+const vschoolInstallStatusEl = document.getElementById("vschool-install-status");
+const vschoolPracticeSectionEl = document.getElementById("vschool-practice-section");
+const vschoolPracticeFieldEl = document.getElementById("vschool-practice-field");
+const vschoolStartBtn = document.getElementById("vschool-start");
+const vschoolSubmitBtn = document.getElementById("vschool-submit");
+const vschoolQuizEl = document.getElementById("vschool-quiz");
+const vschoolNoticeEl = document.getElementById("vschool-field-notice");
+const vschoolResultEl = document.getElementById("vschool-result");
+const vschoolReviewBtn = document.getElementById("vschool-practice-btn");
+
+const VSCHOOL_SETTINGS_KEY = "open-english.virtualSchool";
+let vschoolMode = "school";
+let vschoolSelectedTrack = null;
+let vschoolInstalledFields = [];
+let vschoolCurrentQuiz = [];
+let vschoolMissed = [];
+
+function loadVschoolSettings() {
+  try {
+    const raw = localStorage.getItem(VSCHOOL_SETTINGS_KEY);
+    if (!raw) return;
+    const saved = JSON.parse(raw);
+    if (saved && typeof saved.track === "string") vschoolSelectedTrack = saved.track;
+    if (saved && Array.isArray(saved.fields)) vschoolInstalledFields = saved.fields;
+  } catch (_) {
+    /* 壊れた保存値は無視して初期状態から始める(サービスを止めない) */
+  }
+}
+
+function saveVschoolSettings() {
+  try {
+    localStorage.setItem(
+      VSCHOOL_SETTINGS_KEY,
+      JSON.stringify({ track: vschoolSelectedTrack, fields: vschoolInstalledFields })
+    );
+  } catch (_) {
+    /* 保存できなくても機能自体は使える */
+  }
+}
+
+/** 採点結果の保存。既存の`POST /v1/db/history`をそのまま使う
+ *  (家庭教師コースの`recordTutorHistory`と同じ仕組み・同じ保存先)。
+ *  失敗しても学習の進行は止めない。 */
+function recordVschoolHistory(text) {
+  try {
+    fetch("/v1/db/history", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ role: "virtual-school-result", content: text }),
+    }).catch(() => {});
+  } catch (_) {
+    /* 保存できなくても出題・採点は続ける */
+  }
+}
+
+function renderVschoolTracks() {
+  if (!vschoolTrackListEl) return;
+  vschoolTrackListEl.innerHTML = "";
+  VSCHOOL_TRACKS.filter((t) => t.mode === vschoolMode).forEach((track) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "setup-btn" + (track.id === vschoolSelectedTrack ? " selected" : "");
+    const fields = VSCHOOL_FIELDS[track.id] || [];
+    const ready = fields.filter((f) => vschoolHasQuestions(track.id, f.id)).length;
+    btn.textContent =
+      track.ja + " / " + track.en + "(収録済み " + ready + "/" + fields.length + " 分野)";
+    btn.addEventListener("click", () => selectVschoolTrack(track.id));
+    vschoolTrackListEl.appendChild(btn);
+  });
+}
+
+function selectVschoolTrack(trackId) {
+  if (trackId !== vschoolSelectedTrack) {
+    // 区分を変えたら出題は破棄し、インストール済み分野もその区分のものだけ残す。
+    vschoolInstalledFields = vschoolInstalledFields.filter((id) => vschoolHasQuestions(trackId, id));
+    vschoolCurrentQuiz = [];
+    vschoolMissed = [];
+    vschoolQuizEl.innerHTML = "";
+    vschoolResultEl.textContent = "";
+    vschoolNoticeEl.innerHTML = "";
+    vschoolInstallStatusEl.textContent = "";
+    vschoolPracticeSectionEl.classList.add("hidden");
+    vschoolSubmitBtn.classList.add("hidden");
+    vschoolReviewBtn.classList.add("hidden");
+  }
+  vschoolSelectedTrack = trackId;
+  saveVschoolSettings();
+  renderVschoolTracks();
+  renderVschoolFields();
+}
+
+function renderVschoolFields() {
+  if (!vschoolSelectedTrack) return;
+  const track = vschoolTrack(vschoolSelectedTrack);
+  if (!track) return;
+  vschoolSelectedTrackEl.textContent =
+    "選択中の区分 / Selected category: " + track.ja + " / " + track.en;
+  vschoolFieldListEl.innerHTML = "";
+  (VSCHOOL_FIELDS[vschoolSelectedTrack] || []).forEach((field) => {
+    const available = vschoolHasQuestions(vschoolSelectedTrack, field.id);
+    const label = document.createElement("label");
+    label.className = "tutor-subject-choice" + (available ? "" : " unavailable");
+    const box = document.createElement("input");
+    box.type = "checkbox";
+    box.value = field.id;
+    box.checked = available && vschoolInstalledFields.includes(field.id);
+    box.disabled = !available;
+    label.appendChild(box);
+    const span = document.createElement("span");
+    if (available) {
+      const n = VSCHOOL_QUESTIONS[vschoolSelectedTrack + ":" + field.id].length;
+      span.textContent = field.ja + " / " + field.en + "(" + n + "問収録 / " + n + " questions)";
+    } else {
+      // **嘘の「対応済み」を作らないこと。**
+      span.textContent = field.ja + " / " + field.en + "(準備中 / not ready yet)";
+    }
+    label.appendChild(span);
+    // 学習の参考になりそうなYouTube検索リンク(未収録の分野にも付ける——
+    // アプリに問題が無くても、学習の入口としては役に立つため)。
+    const link = document.createElement("a");
+    link.href = vschoolYoutubeUrl(field.yt);
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    link.className = "vschool-yt-link";
+    link.textContent = "▶ YouTubeで「" + field.yt + "」を検索";
+    link.addEventListener("click", (e) => e.stopPropagation());
+    label.appendChild(link);
+    vschoolFieldListEl.appendChild(label);
+  });
+  // その区分にまだ1分野も問題が無いときは、選ばせる前に正直に伝える
+  // (何も起きない画面にして利用者を迷わせないため)。
+  const readyCount = (VSCHOOL_FIELDS[vschoolSelectedTrack] || []).filter((f) =>
+    vschoolHasQuestions(vschoolSelectedTrack, f.id)
+  ).length;
+  if (readyCount === 0) {
+    const note = document.createElement("p");
+    note.className = "setup-note";
+    note.textContent =
+      "この区分は現在すべての分野が準備中です(問題をまだ用意できていません)。" +
+      "上の一覧で「収録済み」の分野がある区分をお選びください。 / " +
+      "No field in this category has questions yet; please pick a category that lists available fields.";
+    vschoolFieldListEl.appendChild(note);
+  }
+  vschoolFieldSectionEl.classList.remove("hidden");
+  if (vschoolInstalledFields.length > 0) refreshVschoolPracticeSection();
+}
+
+function installVschoolFields(fieldIds) {
+  const ok = (id) => vschoolHasQuestions(vschoolSelectedTrack, id);
+  const available = fieldIds.filter(ok);
+  const missing = fieldIds.filter((id) => !ok(id));
+  vschoolInstalledFields = available;
+  saveVschoolSettings();
+
+  const nameOf = (id) => {
+    const f = vschoolField(vschoolSelectedTrack, id);
+    return f ? f.ja + " / " + f.en : id;
+  };
+  const lines = [];
+  if (available.length > 0) {
+    lines.push("インストールしました / Installed: " + available.map(nameOf).join("、"));
+  } else {
+    lines.push("インストールできる分野がありませんでした。 / No field could be installed.");
+  }
+  if (missing.length > 0) {
+    // **嘘の「対応済み」を出さないこと**——未収録は未収録と正直に伝える。
+    lines.push(
+      "次の分野の問題は準備中のためインストールしていません: " + missing.map(nameOf).join("、") +
+        " / Questions for these fields are not ready yet, so they were not installed."
+    );
+  }
+  vschoolInstallStatusEl.textContent = lines.join("\n");
+  renderVschoolFields();
+  refreshVschoolPracticeSection();
+}
+
+function refreshVschoolPracticeSection() {
+  if (vschoolInstalledFields.length === 0) {
+    vschoolPracticeSectionEl.classList.add("hidden");
+    return;
+  }
+  vschoolPracticeFieldEl.innerHTML = vschoolInstalledFields
+    .map((id) => {
+      const f = vschoolField(vschoolSelectedTrack, id);
+      return '<option value="' + id + '">' + (f ? f.ja + " / " + f.en : id) + "</option>";
+    })
+    .join("");
+  vschoolPracticeSectionEl.classList.remove("hidden");
+}
+
+/** インストール済み分野からランダムに数問出題する
+ *  (家庭教師コースと同じく`shuffledCopy`を使い、選択肢の並びも毎回変える)。 */
+function renderVschoolQuiz() {
+  const fieldId = vschoolPracticeFieldEl.value;
+  const pool = VSCHOOL_QUESTIONS[vschoolSelectedTrack + ":" + fieldId] || [];
+  const field = vschoolField(vschoolSelectedTrack, fieldId);
+  vschoolResultEl.textContent = "";
+  vschoolReviewBtn.classList.add("hidden");
+  vschoolMissed = [];
+  if (pool.length === 0) {
+    vschoolQuizEl.innerHTML = "";
+    vschoolCurrentQuiz = [];
+    vschoolResultEl.textContent =
+      "現在この分野の問題は準備中です。 / Questions for this field are not ready yet.";
+    vschoolSubmitBtn.classList.add("hidden");
+    return;
+  }
+  if (field) {
+    vschoolNoticeEl.innerHTML =
+      '学習の参考: <a href="' + vschoolYoutubeUrl(field.yt) +
+      '" target="_blank" rel="noopener noreferrer">▶ YouTubeで「' + field.yt + "」を検索</a>" +
+      "(一般的な検索キーワードで検索結果ページを開くだけです。特定の動画の内容を推奨・保証するものではありません。 / " +
+      "This just opens a YouTube search for a generic keyword; no specific video is endorsed.)";
+  }
+  vschoolCurrentQuiz = shuffledCopy(pool)
+    .slice(0, Math.min(VSCHOOL_QUESTIONS_PER_ROUND, pool.length))
+    .map((item) => {
+      const order = shuffledCopy(item.choices.map((_, ci) => ci));
+      return {
+        q: item.q,
+        choices: order.map((ci) => item.choices[ci]),
+        answer: order.indexOf(item.answer),
+        why: item.why || "",
+      };
+    });
+  vschoolQuizEl.innerHTML = vschoolCurrentQuiz
+    .map((item, qi) => {
+      const choices = item.choices
+        .map(
+          (choice, ci) =>
+            '<label class="exam-prep-choice"><input type="radio" name="vschool-q' + qi +
+            '" value="' + ci + '" /> ' + choice + "</label>"
+        )
+        .join("");
+      return '<div class="exam-prep-question"><p>' + (qi + 1) + ". " + item.q + "</p>" + choices + "</div>";
+    })
+    .join("");
+  vschoolSubmitBtn.classList.remove("hidden");
+}
+
+function scoreVschoolQuiz() {
+  if (vschoolCurrentQuiz.length === 0) return;
+  const fieldId = vschoolPracticeFieldEl.value;
+  const track = vschoolTrack(vschoolSelectedTrack);
+  const field = vschoolField(vschoolSelectedTrack, fieldId);
+  let score = 0;
+  let unanswered = 0;
+  vschoolMissed = [];
+  const lines = [];
+  vschoolCurrentQuiz.forEach((item, qi) => {
+    const selected = vschoolQuizEl.querySelector('input[name="vschool-q' + qi + '"]:checked');
+    if (!selected) unanswered += 1;
+    const correct = Boolean(selected) && Number(selected.value) === item.answer;
+    if (correct) score += 1;
+    else vschoolMissed.push({ q: item.q, correctChoice: item.choices[item.answer] });
+    lines.push(
+      (qi + 1) + ". " + (correct ? "○ 正解 / correct" : selected ? "× 不正解 / incorrect" : "− 未回答 / not answered") +
+        " — 正解は「" + item.choices[item.answer] + "」" + (item.why ? " — " + item.why : "")
+    );
+  });
+  const header =
+    "得点 / Score: " + score + " / " + vschoolCurrentQuiz.length +
+    "(" + (track ? track.ja : "") + "・" + (field ? field.ja : fieldId) + ")" +
+    (unanswered > 0 ? " ※未回答 " + unanswered + "問" : "") +
+    " — 本アプリのオリジナル模擬問題です。実際の入試の合否や資格取得を予測するものではありません。 / " +
+    "These are original mock questions; the score does not predict real admissions or qualifications.";
+  vschoolResultEl.textContent = [header].concat(lines).join("\n");
+  vschoolReviewBtn.classList.remove("hidden");
+
+  recordVschoolHistory(
+    "[virtual-school] mode=" + vschoolMode +
+      " track=" + (track ? track.en : vschoolSelectedTrack) +
+      " field=" + (field ? field.en : fieldId) +
+      " score=" + score + "/" + vschoolCurrentQuiz.length
+  );
+}
+
+function reviewVschoolWithTrainer() {
+  const track = vschoolTrack(vschoolSelectedTrack);
+  const field = vschoolField(vschoolSelectedTrack, vschoolPracticeFieldEl.value);
+  const targets =
+    vschoolMissed.length > 0
+      ? vschoolMissed
+      : vschoolCurrentQuiz.map((item) => ({ q: item.q, correctChoice: item.choices[item.answer] }));
+  if (targets.length === 0) return;
+  const body = targets
+    .map((item, i) => i + 1 + ". " + item.q + " (正解 / correct answer: " + item.correctChoice + ")")
+    .join("\n");
+  const requestText =
+    (track ? track.ja : "") + "の" + (field ? field.ja : "") +
+    "の講師として、次の模擬問題を解説してください。\n" +
+    "Please act as an instructor for this field and explain these mock questions to me.\n\n" + body;
+  vschoolModal.classList.add("hidden");
+  inputEl.value = requestText;
+  formEl.dispatchEvent(new Event("submit", { cancelable: true }));
+}
+
+function openVschoolModal(mode) {
+  vschoolMode = mode;
+  const isVoc = mode === "voc";
+  vschoolTitleEl.textContent = isVoc
+    ? "🛠 バーチャルオンライン職業訓練校 / Virtual online vocational school"
+    : "🏫 バーチャルスクール(高等教育) / Virtual school (higher education)";
+  vschoolStep1TitleEl.textContent = isVoc
+    ? "1. 訓練校を選んでください / Choose a training school"
+    : "1. 区分を選んでください / Choose a category";
+  // 別モードで選んでいた区分が残っていたら選び直させる。
+  const cur = vschoolTrack(vschoolSelectedTrack);
+  if (!cur || cur.mode !== mode) {
+    vschoolSelectedTrack = null;
+    vschoolInstalledFields = [];
+    vschoolFieldSectionEl.classList.add("hidden");
+    vschoolPracticeSectionEl.classList.add("hidden");
+  }
+  renderVschoolTracks();
+  if (vschoolSelectedTrack) renderVschoolFields();
+  vschoolModal.classList.remove("hidden");
+}
+
+if (vschoolModal && vschoolBtn) {
+  loadVschoolSettings();
+  vschoolBtn.addEventListener("click", () => openVschoolModal("school"));
+  if (vvocBtn) vvocBtn.addEventListener("click", () => openVschoolModal("voc"));
+  vschoolCloseBtn.addEventListener("click", () => vschoolModal.classList.add("hidden"));
+  vschoolModal.addEventListener("click", (e) => {
+    if (e.target === vschoolModal) vschoolModal.classList.add("hidden");
+  });
+  vschoolInstallSelectedBtn.addEventListener("click", () => {
+    const chosen = Array.from(
+      vschoolFieldListEl.querySelectorAll("input[type=checkbox]:checked")
+    ).map((box) => box.value);
+    if (chosen.length === 0) {
+      vschoolInstallStatusEl.textContent =
+        "分野を1つ以上選んでください。 / Please choose at least one field.";
+      return;
+    }
+    installVschoolFields(chosen);
+  });
+  vschoolInstallAllBtn.addEventListener("click", () => {
+    installVschoolFields(
+      (VSCHOOL_FIELDS[vschoolSelectedTrack] || [])
+        .map((f) => f.id)
+        .filter((id) => vschoolHasQuestions(vschoolSelectedTrack, id))
+    );
+  });
+  vschoolStartBtn.addEventListener("click", renderVschoolQuiz);
+  vschoolSubmitBtn.addEventListener("click", scoreVschoolQuiz);
+  vschoolReviewBtn.addEventListener("click", reviewVschoolWithTrainer);
+}

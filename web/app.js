@@ -4836,6 +4836,138 @@ const TUTOR_GRADES = [
 // 学年ごとの一般的な教科(日本の一般的なカリキュラムを目安にしたおおまかな
 // 分類。高校の理科・社会は科目名を細分化しすぎず「理科」「地理歴史・公民」
 // 程度の粒度にとどめている)。
+// キャリアガイダンス(通常の学校教科向け、2026-08-24追加)。
+//
+// 当初はバーチャル職業訓練校(`VSCHOOL_FIELDS`)のみへ「ドイツの
+// デュアルシステム」をお手本にした補足説明を追加したが、ユーザーから
+// 「ドイツでは普通科の学校教育でも、この教科を学ぶとこの産業・職業に
+// 役立つという進路指導(Berufsorientierung)の考え方が浸透している」との
+// 補足指示があり、通常の学年別・家庭教師コース(`TUTOR_SUBJECTS_BY_STAGE`)
+// 側にも同様の補足説明を広げた。
+//
+// WebSearchで確認した実在の情報源(2026-08-24): Realschuleは数学・理科・
+// 経済・現代語学に重点を置き、進路指導(Arbeitslehre)や職場体験実習が
+// カリキュラムへ組み込まれており、生徒は技術・経済・社会のいずれかの
+// 重点コースを選べる。Gymnasiumも一般教育と並行して進路を意識した
+// 指導が行われる、という実態を確認した上で設計した。
+// - iamexpat.de「The German school system」
+//   https://www.iamexpat.de/education/primary-secondary-education/german-school-system
+// - econotravelgermany.com「Germany's School System Explained」
+//   https://econotravelgermany.com/germanys-school-system-explained-gymnasium-realschule-hauptschule/
+// - cbs.de「A Guide to the German School & Education System」
+//   https://www.cbs.de/en/blog/school-education-system-in-germany
+//
+// **誠実さの方針(VSCHOOL側と同じ、絶対に弱めないこと)**: 「〜かもしれま
+// せん」「〜を目指せる可能性があります」という非断定的な表現のみを使う。
+// 「必ず〜になれる」という断定はしない。
+//
+// **正直な開示・スコープ**: 保育園児・幼稚園児(`preschool`)と小学校
+// 低学年(`elementaryLower`)には、あえてキャリア接続の説明を付けていない
+// ——この年齢にキャリア・職業選択を意識させるのは時期尚早と判断した
+// (ドイツでも進路指導が本格化するのはRealschule/Gymnasium相当の学年から
+// であることを踏まえた判断)。小学校高学年(`elementaryUpper`)以上にのみ、
+// 学年段階(elementary/secondary/high)ごとに文面を分けて用意している。
+const TUTOR_CAREER = {
+  japanese: {
+    elementary: {
+      ja: "文章を正確に読み書きする力は、どんな仕事でも役立つ土台になるかもしれません。",
+      en: "Reading and writing accurately may become a foundation useful in almost any job.",
+    },
+    secondary: {
+      ja: "しっかり身につけると、編集・出版や広報の仕事で役立つかもしれません。さらに極めると、記者やライター、国語の先生のような職種を目指せる可能性があります。",
+      en: "Mastering this may help with editing, publishing, or PR work. Going further, it could open a path toward journalism, writing, or teaching Japanese.",
+    },
+    high: {
+      ja: "論理的な文章力・古典の読解力は、法律関係や出版業界で役立つかもしれません。さらに極めると、弁護士や研究者、編集者のような職種を目指せる可能性があります。",
+      en: "Logical writing and classical-text reading skills may help in law-adjacent or publishing work. Going further, it could open a path toward law, research, or editorial roles.",
+    },
+  },
+  math: {
+    elementary: {
+      ja: "計算力は、お店の仕事や設計、プログラミングなど、数字を扱うさまざまな仕事の土台になるかもしれません。",
+      en: "Arithmetic skills may become a foundation for shop work, design, or programming — anything involving numbers.",
+    },
+    secondary: {
+      ja: "しっかり身につけると、経理や工業系の仕事で役立つかもしれません。さらに極めると、エンジニアや数学の先生のような職種を目指せる可能性があります。",
+      en: "Mastering this may help with accounting or technical/industrial roles. Going further, it could open a path toward engineering or teaching mathematics.",
+    },
+    high: {
+      ja: "数学の力は、金融・データ分析・エンジニアリングなど幅広い業界で役立つかもしれません。さらに極めると、アクチュアリーやデータサイエンティスト、研究者のような職種を目指せる可能性があります。",
+      en: "Mathematical skill may help across finance, data analysis, and engineering. Going further, it could open a path toward actuarial work, data science, or research.",
+    },
+  },
+  science: {
+    elementary: {
+      ja: "身の回りの現象を観察して考える力は、ものづくりや自然について学ぶ仕事の入り口になるかもしれません。",
+      en: "Observing and reasoning about everyday phenomena may be a first step toward manufacturing or nature-related work.",
+    },
+    secondary: {
+      ja: "しっかり身につけると、製造業や農業、環境関連の仕事で役立つかもしれません。さらに極めると、研究者や技術者のような職種を目指せる可能性があります。",
+      en: "Mastering this may help with manufacturing, agriculture, or environmental work. Going further, it could open a path toward research or engineering roles.",
+    },
+    high: {
+      ja: "物理・化学・生物の知識は、製薬・医療機器・エネルギー業界で役立つかもしれません。さらに極めると、研究者や医師、技術者のような職種を目指せる可能性があります。",
+      en: "Physics, chemistry, and biology knowledge may help in pharmaceuticals, medical devices, or energy. Going further, it could open a path toward research, medicine, or engineering.",
+    },
+  },
+  social: {
+    elementary: {
+      ja: "地域や社会の仕組みを知ることは、お店や役所など、人と関わる仕事の理解に役立つかもしれません。",
+      en: "Understanding how communities and society work may help you understand jobs that involve working with people, like shops or local government.",
+    },
+    secondary: {
+      ja: "しっかり身につけると、公務員や観光・報道関連の仕事で役立つかもしれません。さらに極めると、社会科の先生や政策に関わる仕事を目指せる可能性があります。",
+      en: "Mastering this may help with public-sector, tourism, or media-related roles. Going further, it could open a path toward teaching social studies or policy work.",
+    },
+    high: {
+      ja: "地理歴史・公民の知識は、外交・観光・報道・法律関係の仕事で役立つかもしれません。さらに極めると、外交官やジャーナリスト、公務員のような職種を目指せる可能性があります。",
+      en: "Geography, history, and civics knowledge may help in diplomacy, tourism, media, or law-adjacent work. Going further, it could open a path toward diplomacy, journalism, or public service.",
+    },
+  },
+  english: {
+    elementary: {
+      ja: "英語に親しむことは、将来、海外の人と関わる仕事や旅行で役立つかもしれません。",
+      en: "Getting comfortable with English may help later with jobs or travel involving people from other countries.",
+    },
+    secondary: {
+      ja: "しっかり身につけると、貿易・観光・接客業で役立つかもしれません。さらに極めると、通訳・翻訳者や英語の先生のような職種を目指せる可能性があります。",
+      en: "Mastering this may help with trade, tourism, or hospitality roles. Going further, it could open a path toward interpreting, translation, or teaching English.",
+    },
+    high: {
+      ja: "実用的な英語力は、商社・外資系企業・国際機関で働く際に役立つかもしれません。さらに極めると、外交官や国際弁護士、通訳者のような職種を目指せる可能性があります。",
+      en: "Practical English skill may help at trading companies, foreign firms, or international organizations. Going further, it could open a path toward diplomacy, international law, or interpreting.",
+    },
+  },
+  programming: {
+    elementary: {
+      ja: "順序立てて考える力(プログラミング的思考)は、将来いろいろな仕事の課題解決に役立つかもしれません。",
+      en: "Thinking step by step (computational thinking) may help you solve problems in many future jobs.",
+    },
+    secondary: {
+      ja: "しっかり身につけると、Webサイト制作やアプリ開発の仕事で役立つかもしれません。さらに極めると、ソフトウェアエンジニアのような職種を目指せる可能性があります。",
+      en: "Mastering this may help with web or app development work. Going further, it could open a path toward a software engineering role.",
+    },
+    high: {
+      ja: "プログラミングの力は、IT企業だけでなく、あらゆる業界のデジタル化を支える仕事で役立つかもしれません。さらに極めると、フルスタックエンジニアやITアーキテクトのような職種を目指せる可能性があります。",
+      en: "Programming skill may help not just at IT companies but in digitalization work across many industries. Going further, it could open a path toward full-stack engineering or IT architecture roles.",
+    },
+  },
+};
+
+/** VSCHOOLの`vschoolCareerHtml`と同じ表示形式(日英併記・非断定)。
+ *  教科オブジェクトの`career`(無ければ何も表示しない、preschool/
+ *  elementaryLowerは意図的に無し)。 */
+function tutorCareerHtml(subject) {
+  if (!subject || !subject.career) return "";
+  return (
+    '<div class="vschool-career">' +
+    '<p class="vschool-career-label">🎓 キャリアガイダンス / Career guidance</p>' +
+    "<p>" + subject.career.ja + "</p>" +
+    "<p>" + subject.career.en + "</p>" +
+    "</div>"
+  );
+}
+
 const TUTOR_SUBJECTS_BY_STAGE = {
   // 保育園児・幼稚園児(小学校の教科名ではなく、その年齢で親しみやすい
   // 呼び方にしている。教科IDは小学校以上と共通にしてあるので、
@@ -4851,28 +4983,28 @@ const TUTOR_SUBJECTS_BY_STAGE = {
     { id: "life", ja: "生活", en: "Life studies" },
   ],
   elementaryUpper: [
-    { id: "japanese", ja: "国語", en: "Japanese" },
-    { id: "math", ja: "算数", en: "Arithmetic" },
-    { id: "science", ja: "理科", en: "Science" },
-    { id: "social", ja: "社会", en: "Social studies" },
-    { id: "english", ja: "英語", en: "English" },
-    { id: "programming", ja: "プログラミング", en: "Programming" },
+    { id: "japanese", ja: "国語", en: "Japanese", career: TUTOR_CAREER.japanese.elementary },
+    { id: "math", ja: "算数", en: "Arithmetic", career: TUTOR_CAREER.math.elementary },
+    { id: "science", ja: "理科", en: "Science", career: TUTOR_CAREER.science.elementary },
+    { id: "social", ja: "社会", en: "Social studies", career: TUTOR_CAREER.social.elementary },
+    { id: "english", ja: "英語", en: "English", career: TUTOR_CAREER.english.elementary },
+    { id: "programming", ja: "プログラミング", en: "Programming", career: TUTOR_CAREER.programming.elementary },
   ],
   junior: [
-    { id: "japanese", ja: "国語", en: "Japanese" },
-    { id: "math", ja: "数学", en: "Mathematics" },
-    { id: "science", ja: "理科", en: "Science" },
-    { id: "social", ja: "社会", en: "Social studies" },
-    { id: "english", ja: "英語", en: "English" },
-    { id: "programming", ja: "プログラミング", en: "Programming" },
+    { id: "japanese", ja: "国語", en: "Japanese", career: TUTOR_CAREER.japanese.secondary },
+    { id: "math", ja: "数学", en: "Mathematics", career: TUTOR_CAREER.math.secondary },
+    { id: "science", ja: "理科", en: "Science", career: TUTOR_CAREER.science.secondary },
+    { id: "social", ja: "社会", en: "Social studies", career: TUTOR_CAREER.social.secondary },
+    { id: "english", ja: "英語", en: "English", career: TUTOR_CAREER.english.secondary },
+    { id: "programming", ja: "プログラミング", en: "Programming", career: TUTOR_CAREER.programming.secondary },
   ],
   high: [
-    { id: "japanese", ja: "国語(現代文・古文)", en: "Japanese (modern & classical)" },
-    { id: "math", ja: "数学", en: "Mathematics" },
-    { id: "science", ja: "理科(物理・化学・生物)", en: "Science" },
-    { id: "social", ja: "地理歴史・公民", en: "Geography, history & civics" },
-    { id: "english", ja: "英語", en: "English" },
-    { id: "programming", ja: "プログラミング", en: "Programming" },
+    { id: "japanese", ja: "国語(現代文・古文)", en: "Japanese (modern & classical)", career: TUTOR_CAREER.japanese.high },
+    { id: "math", ja: "数学", en: "Mathematics", career: TUTOR_CAREER.math.high },
+    { id: "science", ja: "理科(物理・化学・生物)", en: "Science", career: TUTOR_CAREER.science.high },
+    { id: "social", ja: "地理歴史・公民", en: "Geography, history & civics", career: TUTOR_CAREER.social.high },
+    { id: "english", ja: "英語", en: "English", career: TUTOR_CAREER.english.high },
+    { id: "programming", ja: "プログラミング", en: "Programming", career: TUTOR_CAREER.programming.high },
   ],
 };
 
@@ -4952,6 +5084,95 @@ const TUTOR_FIGURES = {
     '<circle cx="115" cy="103" r="4" fill="#f4e6f0"/>' +
     '<text x="122" y="106" fill="#f4e6f0" font-size="12">頂点 / vertex</text></svg>',
 };
+
+// キャリアガイダンス機能(2026-08-24新設、ユーザー指示「各レッスン/学習
+// 項目に、この内容をマスターすると役立つ業界・職種、さらに極めると
+// 目指せる可能性のある上級職種を補足表示して」への対応)。
+//
+// 設計の下敷き: ドイツの職業教育制度(デュアルシステム)を実際に調査した
+// (2026-08-24、日英Web検索)。ドイツでは訓練生(Azubi)が週の大半を
+// 企業での実地訓練、残りをBerufsschule(職業学校)での座学に充て、
+// BIBB(連邦職業教育訓練研究所)が認定する327種の職業ごとに訓練内容が
+// 標準化されており、IHK(商工会議所)が試験を実施して資格
+// (Facharbeiterbrief/Gesellenbrief)を発行する——「学習内容→具体的な
+// 職業→上級資格(マイスター等)」という一本の線でつながっている点が
+// 特徴。出典: IHK Darmstadt "The Dual System in Germany"
+// (https://www.ihk.de/darmstadt/en/productlabels/training/voctrain-2533080)、
+// deutschland.de "How Germany's dual vocational training system works"
+// (https://www.deutschland.de/en/topic/business/how-germanys-dual-vocational-training-system-works)、
+// Wikipedia "Dual education system"
+// (https://en.wikipedia.org/wiki/Dual_education_system)。
+//
+// この調査結果を踏まえ、本アプリでも「教科を学ぶと、どんな業界・職種に
+// 役立つ可能性があるか」「さらに極めると、どんな上級職種を目指せる
+// 可能性があるか」を教科単位(問題1問ごとではなく、学年×教科のグループ
+// 単位)で補足表示する。**断定はしない**——「〜かもしれません」
+// 「〜に役立つ可能性があります」という表現に統一し、「これを学べば
+// 必ず就職できる」という趣旨の表現は一切使わない。
+const TUTOR_CAREER_GUIDANCE = {
+  japanese: {
+    ja: "国語で身につく読解力・語彙力・文章作成力は、出版・編集、広報・広告、教育、行政・法務、接客業など、言葉を扱うあらゆる業界で役立つかもしれません。",
+    en: "The reading comprehension, vocabulary, and writing skills built in Japanese class may help in publishing/editing, PR & advertising, education, administration/legal work, and customer service — fields that rely on language.",
+    advanced: "文章力・語彙力をさらに極めると、編集者・校正者・脚本家・広報担当者・行政書士のような、言葉を専門的に扱う上級職種を目指せる可能性があります。",
+    advancedEn: "Mastering writing and vocabulary further may open paths toward more advanced roles such as editor, proofreader, scriptwriter, PR specialist, or legal-document professional.",
+  },
+  math: {
+    ja: "算数・数学の計算力・論理的思考力は、製造業、建設業、金融・会計、ITエンジニアリング、データ分析、科学研究など、数字や論理を扱う幅広い業界で役立つかもしれません。",
+    en: "Arithmetic/math skills and logical thinking may help in manufacturing, construction, finance & accounting, IT engineering, data analysis, and scientific research — fields built on numbers and logic.",
+    advanced: "計算力・論理的思考力をさらに極めると、アクチュアリー・データサイエンティスト・システムエンジニア・建築士・会計士のような、数学を専門的に使う上級職種を目指せる可能性があります。",
+    advancedEn: "Going further with math and logic may open paths toward advanced roles such as actuary, data scientist, systems engineer, architect, or accountant.",
+  },
+  life: {
+    ja: "生活科で身につく身の回りの物事への気づき・観察力は、保育・幼児教育、食品・生活用品業界、小売業など、日常生活に関わる業界の基礎として役立つかもしれません。",
+    en: "The everyday observation skills built in life studies may serve as a foundation for childcare/early education, food & household-goods industries, and retail — fields close to daily life.",
+    advanced: "観察力・気づく力をさらに極めると、保育士・幼稚園教諭・商品開発担当のような、日常生活に関わる上級職種を目指せる可能性があります。",
+    advancedEn: "Building further on this observational foundation may open paths toward roles such as childcare worker, kindergarten teacher, or product development specialist.",
+  },
+  science: {
+    ja: "理科の実験・観察・仮説検証の考え方は、製薬・医療、農業・食品、環境・エネルギー、製造業の研究開発など、科学的な裏付けが求められる業界で役立つかもしれません。",
+    en: "The experimentation, observation, and hypothesis-testing skills from science class may help in pharmaceuticals/healthcare, agriculture/food, environment & energy, and manufacturing R&D — fields that need scientific grounding.",
+    advanced: "科学的な考え方をさらに極めると、研究者・薬剤師・臨床検査技師・環境コンサルタントのような、専門知識を要する上級職種を目指せる可能性があります。",
+    advancedEn: "Deepening scientific thinking may open paths toward advanced roles such as researcher, pharmacist, clinical laboratory technician, or environmental consultant.",
+  },
+  social: {
+    ja: "社会・地理歴史・公民で学ぶ社会の仕組みへの理解は、公務員、金融、報道・メディア、観光業、国際関係の仕事など、社会や制度と関わる業界で役立つかもしれません。",
+    en: "Understanding social structures, geography, history, and civics may help in public service, finance, journalism/media, tourism, and international-relations work — fields tied to society and institutions.",
+    advanced: "社会への理解をさらに極めると、公務員・記者・国際協力の専門職・都市計画コンサルタントのような、制度や社会を専門的に扱う上級職種を目指せる可能性があります。",
+    advancedEn: "Deepening this understanding of society may open paths toward advanced roles such as civil servant, journalist, international-cooperation specialist, or urban-planning consultant.",
+  },
+  english: {
+    ja: "英語での基本的なコミュニケーション力は、観光・接客業、貿易・商社、航空・物流、国際的なカスタマーサポートなど、外国語を使う機会がある業界で役立つかもしれません。",
+    en: "Basic English communication skills may help in tourism/hospitality, trading companies, aviation/logistics, and international customer support — fields where a foreign language comes in handy.",
+    advanced: "英語力をさらに極めると、通訳・翻訳者・国際営業・海外駐在員のような、語学力を専門的に活かす上級職種を目指せる可能性があります。",
+    advancedEn: "Mastering English further may open paths toward advanced roles such as interpreter, translator, international sales, or overseas assignment positions.",
+  },
+  programming: {
+    ja: "プログラミングの基礎(HTML/CSS/JavaScriptの入門レベル)は、Web制作、ITサポート、業務効率化(RPA等)、ゲーム制作の周辺分野など、コンピュータを扱う業界の入り口として役立つかもしれません。ただし本アプリで扱うのはあくまで入門レベルであり、この一点だけで就職できるという趣旨ではありません。",
+    en: "The introductory programming basics here (HTML/CSS/JavaScript fundamentals) may serve as an entry point toward web production, IT support, workflow automation (RPA, etc.), or adjacent areas of game development. This app only covers introductory-level material, though — it is not a claim that this alone leads to employment.",
+    advanced: "プログラミングをさらに極めると、Webエンジニア・システムエンジニア・ゲームプログラマー・データエンジニアのような、開発を専門的に担う上級職種を目指せる可能性があります。",
+    advancedEn: "Going much further with programming may open paths toward advanced roles such as web engineer, systems engineer, game programmer, or data engineer.",
+  },
+};
+
+/**
+ * キャリアガイダンスの表示HTMLを組み立てる(教科ID単位、断定表現は
+ * 使わない)。該当データが無い教科(将来追加された教科等)では静かに
+ * 何も表示しない——無理に埋めない、誇張しない方針。
+ */
+function tutorCareerGuidanceHtml(subjectId) {
+  const g = TUTOR_CAREER_GUIDANCE[subjectId];
+  if (!g) return "";
+  return (
+    '<p class="tutor-career-title">🧭 キャリアガイダンス / Career guidance</p>' +
+    `<p>${g.ja}<br>${g.en}</p>` +
+    `<p>${g.advanced}<br>${g.advancedEn}</p>` +
+    '<p class="setup-honest">※この内容は一般的な参考情報であり、就職・資格取得を保証するものではありません。' +
+    "ドイツの職業教育制度(デュアルシステム)の「学習内容と職業・上級資格が結びついている」という考え方を参考に、" +
+    "参考情報として補足しているものです。 / This is general reference information, not a guarantee of employment " +
+    "or qualification. It is offered as a supplementary note inspired by how Germany's dual vocational training " +
+    "system links subjects to specific occupations and further qualifications.</p>"
+  );
+}
 
 // 練習問題本体。キーは `<学年ID>:<教科ID>`。**ここに無い組み合わせは
 // 「準備中」と表示する**(嘘の「対応済み」を作らないこと)。
@@ -5486,6 +5707,7 @@ const tutorInstallSelectedBtn = document.getElementById("tutor-install-selected"
 const tutorInstallAllBtn = document.getElementById("tutor-install-all");
 const tutorInstallStatusEl = document.getElementById("tutor-install-status");
 const tutorPracticeSectionEl = document.getElementById("tutor-practice-section");
+const tutorCareerGuidanceEl = document.getElementById("tutor-career-guidance");
 const tutorPracticeSubjectEl = document.getElementById("tutor-practice-subject");
 const tutorStartBtn = document.getElementById("tutor-start");
 const tutorSubmitBtn = document.getElementById("tutor-submit");
@@ -5648,6 +5870,13 @@ function renderTutorSubjects() {
       span.textContent = `${subject.ja} / ${subject.en}(準備中 / not ready yet)`;
     }
     label.appendChild(span);
+    const careerHtml = tutorCareerHtml(subject);
+    if (careerHtml) {
+      const careerWrap = document.createElement("div");
+      careerWrap.innerHTML = careerHtml;
+      careerWrap.addEventListener("click", (e) => e.stopPropagation());
+      label.appendChild(careerWrap);
+    }
     tutorSubjectListEl.appendChild(label);
   });
   tutorSubjectSectionEl.classList.remove("hidden");
@@ -5752,6 +5981,15 @@ function renderTutorSingleQuestion(item) {
       return `<div class="exam-prep-question"><p>${q.q}</p>${figure}${choices}</div>`;
     })
     .join("");
+  // キャリアガイダンス(2026-08-24追加)。この問題の教科に`career`が
+  // 用意されていれば、出題のたびに表示する(押しつけがましくならない
+  // よう、質問のすぐ下に控えめに1回だけ添える)。
+  const tutorCurrentSubject =
+    tutorPracticeSubjectEl && tutorSelectedGrade
+      ? (tutorSubjectsFor(tutorSelectedGrade) || []).find((s) => s.id === tutorPracticeSubjectEl.value)
+      : null;
+  const tutorCareerBlock = tutorCareerHtml(tutorCurrentSubject);
+  if (tutorCareerBlock) tutorQuizEl.innerHTML += tutorCareerBlock;
   if (tutorStage > 0) {
     tutorResultEl.textContent =
       tutorGradeLabel(tutorPracticeGrade) + "の問題を、もう少し易しくしました(第" + tutorStage +
@@ -5772,6 +6010,19 @@ function renderTutorSingleQuestion(item) {
   tutorMuchEasierBtn.classList.add("hidden");
   tutorPracticeBtn.classList.add("hidden");
   tutorMissedQuestions = [];
+  // キャリアガイダンス(2026-08-24新設)。出題中の教科に紐づく業界・職種の
+  // 参考情報を、問題の下に補足表示する。
+  const careerSubjectId = tutorPracticeSubjectEl && tutorPracticeSubjectEl.value;
+  const careerHtml = careerSubjectId ? tutorCareerGuidanceHtml(careerSubjectId) : "";
+  if (tutorCareerGuidanceEl) {
+    if (careerHtml) {
+      tutorCareerGuidanceEl.innerHTML = careerHtml;
+      tutorCareerGuidanceEl.classList.remove("hidden");
+    } else {
+      tutorCareerGuidanceEl.innerHTML = "";
+      tutorCareerGuidanceEl.classList.add("hidden");
+    }
+  }
 }
 
 /**
@@ -6363,39 +6614,282 @@ const VSCHOOL_TRACKS = [
 // (**特定の動画へは誘導しない**——検索結果ページへのリンクのみ)。
 const VSCHOOL_FIELDS = {
   senmon: [
-    { id: "it", ja: "情報処理・IT", en: "Information technology", yt: "基本情報技術者 入門 解説" },
-    { id: "medoffice", ja: "医療事務", en: "Medical office admin", yt: "医療事務 初心者 講座" },
-    { id: "care", ja: "介護福祉", en: "Care work", yt: "介護福祉士 基礎 講座" },
-    { id: "beauty", ja: "美容", en: "Beauty / hairdressing", yt: "美容師国家試験 筆記 対策" },
-    { id: "cook", ja: "調理・製菓", en: "Cooking & confectionery", yt: "調理師試験 独学" },
-    { id: "civil", ja: "建築・土木", en: "Architecture & civil engineering", yt: "建築 構造力学 入門" },
+    {
+      id: "it",
+      ja: "情報処理・IT",
+      en: "Information technology",
+      yt: "基本情報技術者 入門 解説",
+      career: {
+        ja: "しっかり身につけると、システムエンジニアやITサポートの仕事で役立つかもしれません。さらに極めると、プロジェクトリーダーやITコンサルタントのような職種を目指せる可能性があります。",
+        en: "Mastering this may help with roles like systems engineer or IT support. Going further, it could open a path toward project lead or IT consultant roles.",
+      },
+    },
+    {
+      id: "medoffice",
+      ja: "医療事務",
+      en: "Medical office admin",
+      yt: "医療事務 初心者 講座",
+      career: {
+        ja: "病院やクリニックの受付・診療報酬請求(レセプト)業務に役立つかもしれません。経験を積むと、医事課のリーダーや医療機関の事務管理者を目指せる可能性があります。",
+        en: "May help with hospital/clinic reception and medical billing work. With experience, it could lead toward a medical office lead or administrator role.",
+      },
+    },
+    {
+      id: "care",
+      ja: "介護福祉",
+      en: "Care work",
+      yt: "介護福祉士 基礎 講座",
+      career: {
+        ja: "高齢者施設や訪問介護の現場で役立つかもしれません。国家資格(介護福祉士)を取得すると、サービス提供責任者やケアマネジャーのような職種を目指せる可能性があります。",
+        en: "May help in elder care facilities or home care. With the national care-worker qualification, it could lead toward a service coordinator or care manager role.",
+      },
+    },
+    {
+      id: "beauty",
+      ja: "美容",
+      en: "Beauty / hairdressing",
+      yt: "美容師国家試験 筆記 対策",
+      career: {
+        ja: "美容師国家資格の筆記対策として役立つかもしれません。技術と経験を積むと、店舗の店長や独立開業を目指せる可能性があります。",
+        en: "May help with the written portion of the national hairdressing licence exam. With skill and experience, it could lead toward a salon manager or independent stylist path.",
+      },
+    },
+    {
+      id: "cook",
+      ja: "調理・製菓",
+      en: "Cooking & confectionery",
+      yt: "調理師試験 独学",
+      career: {
+        ja: "調理師試験の対策や飲食・製菓業界での仕事に役立つかもしれません。経験を積むと、シェフやパティシエ、独立開業を目指せる可能性があります。",
+        en: "May help with the cook's licence exam and work in food service or confectionery. With experience, it could lead toward a chef, pastry chef, or independent shop.",
+      },
+    },
+    {
+      id: "civil",
+      ja: "建築・土木",
+      en: "Architecture & civil engineering",
+      yt: "建築 構造力学 入門",
+      career: {
+        ja: "建設現場の施工管理や設計補助の仕事に役立つかもしれません。資格(施工管理技士等)を取得すると、現場監督や一級建築士のような職種を目指せる可能性があります。",
+        en: "May help with construction site supervision or design assistant work. With licences, it could lead toward a site manager or licensed architect role.",
+      },
+    },
   ],
   tandai: [
-    { id: "childcare", ja: "保育・幼児教育", en: "Early childhood education", yt: "保育士試験 独学 講座" },
-    { id: "nutrition", ja: "栄養", en: "Nutrition", yt: "栄養士 基礎 栄養学 講義" },
-    { id: "business", ja: "ビジネス実務", en: "Business practice", yt: "ビジネス実務マナー 検定" },
-    { id: "liberal", ja: "英語・国際教養", en: "English & liberal arts", yt: "英語 リーディング 大学 基礎" },
+    {
+      id: "childcare",
+      ja: "保育・幼児教育",
+      en: "Early childhood education",
+      yt: "保育士試験 独学 講座",
+      career: {
+        ja: "保育園・幼稚園での保育補助の仕事に役立つかもしれません。保育士資格を取得すると、主任保育士や園長のような職種を目指せる可能性があります。",
+        en: "May help with assistant roles at nurseries and kindergartens. With the childcare licence, it could lead toward a lead teacher or director role.",
+      },
+    },
+    {
+      id: "nutrition",
+      ja: "栄養",
+      en: "Nutrition",
+      yt: "栄養士 基礎 栄養学 講義",
+      career: {
+        ja: "給食施設や病院での栄養士補助の仕事に役立つかもしれません。管理栄養士資格を取得すると、献立管理者や栄養指導の専門職を目指せる可能性があります。",
+        en: "May help with dietitian-assistant work in schools or hospitals. With the registered dietitian licence, it could lead toward a menu-planning lead or nutrition counsellor role.",
+      },
+    },
+    {
+      id: "business",
+      ja: "ビジネス実務",
+      en: "Business practice",
+      yt: "ビジネス実務マナー 検定",
+      career: {
+        ja: "一般事務や秘書業務に役立つかもしれません。経験を積むと、総務・人事のリーダーやオフィスマネージャーを目指せる可能性があります。",
+        en: "May help with general office or secretarial work. With experience, it could lead toward a general affairs/HR lead or office manager role.",
+      },
+    },
+    {
+      id: "liberal",
+      ja: "英語・国際教養",
+      en: "English & liberal arts",
+      yt: "英語 リーディング 大学 基礎",
+      career: {
+        ja: "英語を使う事務職や観光業の接客に役立つかもしれません。さらに極めると、通訳・翻訳や国際関係の仕事を目指せる可能性があります。",
+        en: "May help with English-using office roles or tourism/hospitality. Going further, it could open a path toward interpreting, translation, or international relations work.",
+      },
+    },
   ],
   daigaku: [
-    { id: "humanities", ja: "人文・社会科学系", en: "Humanities & social sciences", yt: "小論文 書き方 大学入試" },
-    { id: "science", ja: "理工系", en: "Science & engineering", yt: "大学 微分積分 入門 講義" },
-    { id: "nursing", ja: "医療・看護系", en: "Medicine & nursing", yt: "看護 基礎 解剖生理 講義" },
-    { id: "education", ja: "教育系", en: "Education", yt: "教育原理 教員採用試験 講義" },
+    {
+      id: "humanities",
+      ja: "人文・社会科学系",
+      en: "Humanities & social sciences",
+      yt: "小論文 書き方 大学入試",
+      career: {
+        ja: "論理的な文章力は、出版・マスコミ・法律関係・公務員など幅広い仕事に役立つかもしれません。さらに極めると、研究者や専門職(弁護士等)を目指せる可能性があります。",
+        en: "Logical writing skills may help in publishing, media, law-adjacent, or public-sector work. Going further, it could open a path toward research or licensed professions such as law.",
+      },
+    },
+    {
+      id: "science",
+      ja: "理工系",
+      en: "Science & engineering",
+      yt: "大学 微分積分 入門 講義",
+      career: {
+        ja: "数学・物理の基礎は、メーカーの技術職や研究開発に役立つかもしれません。さらに極めると、研究者やエンジニアリングマネージャーを目指せる可能性があります。",
+        en: "A foundation in math and physics may help with engineering or R&D roles at manufacturers. Going further, it could open a path toward research or engineering management.",
+      },
+    },
+    {
+      id: "nursing",
+      ja: "医療・看護系",
+      en: "Medicine & nursing",
+      yt: "看護 基礎 解剖生理 講義",
+      career: {
+        ja: "看護師や医療職として病院で働く際に役立つかもしれません。経験を積むと、専門看護師や看護師長のような職種を目指せる可能性があります。",
+        en: "May help with hospital nursing or allied health roles. With experience, it could lead toward a specialist nurse or nursing manager role.",
+      },
+    },
+    {
+      id: "education",
+      ja: "教育系",
+      en: "Education",
+      yt: "教育原理 教員採用試験 講義",
+      career: {
+        ja: "学校の教員や学習塾の講師の仕事に役立つかもしれません。経験を積むと、教頭・校長や教育行政の仕事を目指せる可能性があります。",
+        en: "May help with school teaching or tutoring roles. With experience, it could lead toward a vice-principal, principal, or education administration role.",
+      },
+    },
   ],
   daigakuin: [
-    { id: "research", ja: "研究基礎(研究計画・研究倫理・面接)", en: "Research fundamentals", yt: "研究計画書 書き方 大学院" },
-    { id: "engsci", ja: "理工学研究科・専門科目", en: "Engineering graduate specialisation", yt: "大学院 入試 数学 対策" },
+    {
+      id: "research",
+      ja: "研究基礎(研究計画・研究倫理・面接)",
+      en: "Research fundamentals",
+      yt: "研究計画書 書き方 大学院",
+      career: {
+        ja: "大学院での研究活動や企業の研究職に役立つかもしれません。さらに極めると、大学教員や研究機関のプロジェクトリーダーを目指せる可能性があります。",
+        en: "May help with graduate research or corporate R&D roles. Going further, it could open a path toward a university faculty or research-lead position.",
+      },
+    },
+    {
+      id: "engsci",
+      ja: "理工学研究科・専門科目",
+      en: "Engineering graduate specialisation",
+      yt: "大学院 入試 数学 対策",
+      career: {
+        ja: "高度な専門知識は、メーカーや研究機関の専門職に役立つかもしれません。さらに極めると、博士研究員(ポスドク)や技術部門の責任者を目指せる可能性があります。",
+        en: "Advanced expertise may help with specialist roles at manufacturers or research institutes. Going further, it could open a path toward a postdoctoral researcher or technical lead role.",
+      },
+    },
   ],
   voc: [
-    { id: "it_basic", ja: "IT・プログラミング基礎", en: "IT & programming basics", yt: "プログラミング 初心者 入門 講座" },
-    { id: "bookkeeping", ja: "簿記・経理基礎", en: "Bookkeeping & accounting basics", yt: "簿記3級 独学" },
-    { id: "service", ja: "接客・サービス業基礎", en: "Customer service basics", yt: "接客 マナー 研修 基礎" },
-    { id: "care_basic", ja: "介護・福祉基礎", en: "Care work basics", yt: "介護 初任者研修 講座" },
-    { id: "construction", ja: "建築・土木基礎", en: "Construction basics", yt: "建設業 施工管理 入門" },
-    { id: "cooking_basic", ja: "調理・製菓基礎", en: "Cooking basics", yt: "調理 基本 包丁 使い方" },
-    { id: "beauty_basic", ja: "美容基礎", en: "Beauty basics", yt: "美容 基礎知識 講座" },
+    {
+      id: "it_basic",
+      ja: "IT・プログラミング基礎",
+      en: "IT & programming basics",
+      yt: "プログラミング 初心者 入門 講座",
+      career: {
+        ja: "しっかりマスターすると、Webサイト制作会社やIT企業のジュニアエンジニアの仕事で役立つかもしれません。さらに極めると、フルスタックエンジニアやシステムアーキテクトのような職種を目指せる可能性があります。",
+        en: "Mastering this may help with junior developer roles at IT or web companies. Going further, it could open a path toward full-stack engineer or systems architect roles.",
+      },
+    },
+    {
+      id: "bookkeeping",
+      ja: "簿記・経理基礎",
+      en: "Bookkeeping & accounting basics",
+      yt: "簿記3級 独学",
+      career: {
+        ja: "しっかりマスターすると、企業の経理担当者や税理士事務所のスタッフの仕事で役立つかもしれません。さらに極めると、公認会計士や税理士のような職種を目指せる可能性があります。",
+        en: "Mastering this may help with accounting-clerk roles at companies or tax firms. Going further, it could open a path toward certified public accountant or tax accountant roles.",
+      },
+    },
+    {
+      id: "service",
+      ja: "接客・サービス業基礎",
+      en: "Customer service basics",
+      yt: "接客 マナー 研修 基礎",
+      career: {
+        ja: "しっかりマスターすると、小売・飲食・ホテル業界の接客スタッフの仕事で役立つかもしれません。さらに極めると、店長やカスタマーサクセスの責任者のような職種を目指せる可能性があります。",
+        en: "Mastering this may help with retail, food service, or hotel front-line roles. Going further, it could open a path toward store manager or customer-success lead roles.",
+      },
+    },
+    {
+      id: "care_basic",
+      ja: "介護・福祉基礎",
+      en: "Care work basics",
+      yt: "介護 初任者研修 講座",
+      career: {
+        ja: "介護職員初任者研修相当の基礎知識は、介護施設や訪問介護の現場で役立つかもしれません。さらに極めると、介護福祉士やサービス提供責任者を目指せる可能性があります。",
+        en: "This foundational knowledge may help in care facilities or home care. Going further, it could open a path toward a certified care worker or service coordinator role.",
+      },
+    },
+    {
+      id: "construction",
+      ja: "建築・土木基礎",
+      en: "Construction basics",
+      yt: "建設業 施工管理 入門",
+      career: {
+        ja: "建設現場の作業員や施工管理補助の仕事に役立つかもしれません。資格を取得すると、施工管理技士や現場監督を目指せる可能性があります。",
+        en: "May help with construction site work or assistant supervision. With licences, it could lead toward a certified site manager role.",
+      },
+    },
+    {
+      id: "cooking_basic",
+      ja: "調理・製菓基礎",
+      en: "Cooking basics",
+      yt: "調理 基本 包丁 使い方",
+      career: {
+        ja: "飲食店の調理補助やカフェのスタッフの仕事に役立つかもしれません。経験を積むと、調理師や店舗責任者を目指せる可能性があります。",
+        en: "May help with kitchen-assistant or cafe-staff roles. With experience, it could lead toward a licensed cook or shop manager role.",
+      },
+    },
+    {
+      id: "beauty_basic",
+      ja: "美容基礎",
+      en: "Beauty basics",
+      yt: "美容 基礎知識 講座",
+      career: {
+        ja: "美容室やエステサロンの受付・アシスタント業務に役立つかもしれません。経験を積むと、スタイリストやサロン店長を目指せる可能性があります。",
+        en: "May help with salon reception or assistant work. With experience, it could lead toward a stylist or salon manager role.",
+      },
+    },
   ],
 };
+
+// キャリアガイダンス機能(2026-08-24、ユーザー指示「ドイツの職業訓練校
+// 〈Berufsschule〉をお手本にした、学習内容と実社会でのキャリアパスを
+// 結びつける補足説明機能」への対応)。
+//
+// ドイツのデュアルシステム(Duale Ausbildung)は、企業での実地研修
+// (週3〜4日)と職業学校(Berufsschule、週1〜2日)を組み合わせ、商工会議所
+// (IHK)等の認定を経て資格取得に至る制度で、修了後のキャリアパスが
+// 明確に見える設計になっている(WebSearchで実在の情報源を確認済み——
+// IHK Darmstadt公式ページ、deutschland.de、adriaveza.de等、下記参照)。
+// この「学習内容→実社会での役立ち方→さらに上のキャリア」という
+// 見通しの明確さを参考に、既存のバーチャルスクール/職業訓練校コーナー
+// (`VSCHOOL_FIELDS`)の各分野へ`career`(日英併記)を追加した。
+//
+// **誠実さの方針(このアプリ全体の既存ルールを踏襲、絶対に弱めないこと)**:
+// 「〜かもしれません」「〜を目指せる可能性があります」という非断定的な
+// 表現のみを使う。「必ず就職できる」「この職業に就ける」という断定は
+// 一切しない。就職・資格取得を保証するものではない。
+//
+// 情報源(2026-08-24 WebSearchで確認、実在のページ):
+// - IHK Darmstadt「The Dual System in Germany」
+//   https://www.ihk.de/darmstadt/en/productlabels/training/voctrain-2533080
+// - deutschland.de「How Germany's dual vocational training system works」
+//   https://www.deutschland.de/en/topic/business/how-germanys-dual-vocational-training-system-works
+// - adriaveza.de「Vocational School and Ausbildung」
+//   https://adriaveza.de/en/02-news/02-f-schools-and-education/02-f9-berufsschule-ausbildung.html
+function vschoolCareerHtml(field) {
+  if (!field || !field.career) return "";
+  return (
+    '<div class="vschool-career">' +
+    '<p class="vschool-career-label">🎓 キャリアガイダンス / Career guidance</p>' +
+    "<p>" + field.career.ja + "</p>" +
+    "<p>" + field.career.en + "</p>" +
+    "</div>"
+  );
+}
 
 // 模擬問題本体。キーは `<区分ID>:<分野ID>`。**ここに無い組み合わせは
 // 「準備中」と表示する**(嘘の「対応済み」を作らないこと)。
@@ -6907,6 +7401,13 @@ function renderVschoolFields() {
     link.textContent = "▶ YouTubeで「" + field.yt + "」を検索";
     link.addEventListener("click", (e) => e.stopPropagation());
     label.appendChild(link);
+    const careerHtml = vschoolCareerHtml(field);
+    if (careerHtml) {
+      const careerWrap = document.createElement("div");
+      careerWrap.innerHTML = careerHtml;
+      careerWrap.addEventListener("click", (e) => e.stopPropagation());
+      label.appendChild(careerWrap);
+    }
     vschoolFieldListEl.appendChild(label);
   });
   // その区分にまだ1分野も問題が無いときは、選ばせる前に正直に伝える
