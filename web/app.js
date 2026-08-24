@@ -2674,6 +2674,21 @@ if (SpeechRecognitionImpl) {
 checkHealth();
 speak("Hi! I'm your English trainer. Choose your level above, then type or press the mic to start! / レベルを選んで、話すか入力してね!");
 
+// Service Workerの登録(2026-08-24新設)。Android版ChromeでPWAとして
+// 「ワンタップでホーム画面に追加」できるようにするために必要
+// (manifest.jsonだけでは不十分——Chromeのインストール可能性判定は
+// fetchハンドラを持つ登録済みSWも要求する)。**正直な開示**:
+// 非対応ブラウザ(Service Worker未実装のブラウザ、または`file://`で
+// 直接開いた場合)では静かにスキップされ、既存機能には一切影響しない。
+if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("./sw.js").catch(() => {
+      // 登録に失敗しても(例: 旧バージョンのサーバーが/sw.jsをまだ
+      // 配信していない等)通常のWebアプリとしての利用は継続できる。
+    });
+  });
+}
+
 // aruaru-llmの簡単セットアップ手順モーダル(ユーザー指示、2026-08-10
 // 「aruaru-llmのインストールを簡単にして」への対応)。正直な開示:
 // このPhase 0段階ではワンクリック・インストーラーではなく、Git+Rust
@@ -5981,15 +5996,10 @@ function renderTutorSingleQuestion(item) {
       return `<div class="exam-prep-question"><p>${q.q}</p>${figure}${choices}</div>`;
     })
     .join("");
-  // キャリアガイダンス(2026-08-24追加)。この問題の教科に`career`が
-  // 用意されていれば、出題のたびに表示する(押しつけがましくならない
-  // よう、質問のすぐ下に控えめに1回だけ添える)。
-  const tutorCurrentSubject =
-    tutorPracticeSubjectEl && tutorSelectedGrade
-      ? (tutorSubjectsFor(tutorSelectedGrade) || []).find((s) => s.id === tutorPracticeSubjectEl.value)
-      : null;
-  const tutorCareerBlock = tutorCareerHtml(tutorCurrentSubject);
-  if (tutorCareerBlock) tutorQuizEl.innerHTML += tutorCareerBlock;
+  // キャリアガイダンスは`#tutor-career-guidance`(下部、
+  // `TUTOR_CAREER_GUIDANCE`/`tutorCareerGuidanceHtml`)側で出題のたびに
+  // 更新して表示する。この関数内で二重に表示しないよう、ここでは
+  // 教科選択画面用の`tutorCareerHtml`(`renderTutorSubjects`)は呼ばない。
   if (tutorStage > 0) {
     tutorResultEl.textContent =
       tutorGradeLabel(tutorPracticeGrade) + "の問題を、もう少し易しくしました(第" + tutorStage +

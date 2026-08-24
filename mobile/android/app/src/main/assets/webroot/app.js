@@ -2674,6 +2674,21 @@ if (SpeechRecognitionImpl) {
 checkHealth();
 speak("Hi! I'm your English trainer. Choose your level above, then type or press the mic to start! / レベルを選んで、話すか入力してね!");
 
+// Service Workerの登録(2026-08-24新設)。Android版ChromeでPWAとして
+// 「ワンタップでホーム画面に追加」できるようにするために必要
+// (manifest.jsonだけでは不十分——Chromeのインストール可能性判定は
+// fetchハンドラを持つ登録済みSWも要求する)。**正直な開示**:
+// 非対応ブラウザ(Service Worker未実装のブラウザ、または`file://`で
+// 直接開いた場合)では静かにスキップされ、既存機能には一切影響しない。
+if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("./sw.js").catch(() => {
+      // 登録に失敗しても(例: 旧バージョンのサーバーが/sw.jsをまだ
+      // 配信していない等)通常のWebアプリとしての利用は継続できる。
+    });
+  });
+}
+
 // aruaru-llmの簡単セットアップ手順モーダル(ユーザー指示、2026-08-10
 // 「aruaru-llmのインストールを簡単にして」への対応)。正直な開示:
 // このPhase 0段階ではワンクリック・インストーラーではなく、Git+Rust
@@ -4836,6 +4851,138 @@ const TUTOR_GRADES = [
 // 学年ごとの一般的な教科(日本の一般的なカリキュラムを目安にしたおおまかな
 // 分類。高校の理科・社会は科目名を細分化しすぎず「理科」「地理歴史・公民」
 // 程度の粒度にとどめている)。
+// キャリアガイダンス(通常の学校教科向け、2026-08-24追加)。
+//
+// 当初はバーチャル職業訓練校(`VSCHOOL_FIELDS`)のみへ「ドイツの
+// デュアルシステム」をお手本にした補足説明を追加したが、ユーザーから
+// 「ドイツでは普通科の学校教育でも、この教科を学ぶとこの産業・職業に
+// 役立つという進路指導(Berufsorientierung)の考え方が浸透している」との
+// 補足指示があり、通常の学年別・家庭教師コース(`TUTOR_SUBJECTS_BY_STAGE`)
+// 側にも同様の補足説明を広げた。
+//
+// WebSearchで確認した実在の情報源(2026-08-24): Realschuleは数学・理科・
+// 経済・現代語学に重点を置き、進路指導(Arbeitslehre)や職場体験実習が
+// カリキュラムへ組み込まれており、生徒は技術・経済・社会のいずれかの
+// 重点コースを選べる。Gymnasiumも一般教育と並行して進路を意識した
+// 指導が行われる、という実態を確認した上で設計した。
+// - iamexpat.de「The German school system」
+//   https://www.iamexpat.de/education/primary-secondary-education/german-school-system
+// - econotravelgermany.com「Germany's School System Explained」
+//   https://econotravelgermany.com/germanys-school-system-explained-gymnasium-realschule-hauptschule/
+// - cbs.de「A Guide to the German School & Education System」
+//   https://www.cbs.de/en/blog/school-education-system-in-germany
+//
+// **誠実さの方針(VSCHOOL側と同じ、絶対に弱めないこと)**: 「〜かもしれま
+// せん」「〜を目指せる可能性があります」という非断定的な表現のみを使う。
+// 「必ず〜になれる」という断定はしない。
+//
+// **正直な開示・スコープ**: 保育園児・幼稚園児(`preschool`)と小学校
+// 低学年(`elementaryLower`)には、あえてキャリア接続の説明を付けていない
+// ——この年齢にキャリア・職業選択を意識させるのは時期尚早と判断した
+// (ドイツでも進路指導が本格化するのはRealschule/Gymnasium相当の学年から
+// であることを踏まえた判断)。小学校高学年(`elementaryUpper`)以上にのみ、
+// 学年段階(elementary/secondary/high)ごとに文面を分けて用意している。
+const TUTOR_CAREER = {
+  japanese: {
+    elementary: {
+      ja: "文章を正確に読み書きする力は、どんな仕事でも役立つ土台になるかもしれません。",
+      en: "Reading and writing accurately may become a foundation useful in almost any job.",
+    },
+    secondary: {
+      ja: "しっかり身につけると、編集・出版や広報の仕事で役立つかもしれません。さらに極めると、記者やライター、国語の先生のような職種を目指せる可能性があります。",
+      en: "Mastering this may help with editing, publishing, or PR work. Going further, it could open a path toward journalism, writing, or teaching Japanese.",
+    },
+    high: {
+      ja: "論理的な文章力・古典の読解力は、法律関係や出版業界で役立つかもしれません。さらに極めると、弁護士や研究者、編集者のような職種を目指せる可能性があります。",
+      en: "Logical writing and classical-text reading skills may help in law-adjacent or publishing work. Going further, it could open a path toward law, research, or editorial roles.",
+    },
+  },
+  math: {
+    elementary: {
+      ja: "計算力は、お店の仕事や設計、プログラミングなど、数字を扱うさまざまな仕事の土台になるかもしれません。",
+      en: "Arithmetic skills may become a foundation for shop work, design, or programming — anything involving numbers.",
+    },
+    secondary: {
+      ja: "しっかり身につけると、経理や工業系の仕事で役立つかもしれません。さらに極めると、エンジニアや数学の先生のような職種を目指せる可能性があります。",
+      en: "Mastering this may help with accounting or technical/industrial roles. Going further, it could open a path toward engineering or teaching mathematics.",
+    },
+    high: {
+      ja: "数学の力は、金融・データ分析・エンジニアリングなど幅広い業界で役立つかもしれません。さらに極めると、アクチュアリーやデータサイエンティスト、研究者のような職種を目指せる可能性があります。",
+      en: "Mathematical skill may help across finance, data analysis, and engineering. Going further, it could open a path toward actuarial work, data science, or research.",
+    },
+  },
+  science: {
+    elementary: {
+      ja: "身の回りの現象を観察して考える力は、ものづくりや自然について学ぶ仕事の入り口になるかもしれません。",
+      en: "Observing and reasoning about everyday phenomena may be a first step toward manufacturing or nature-related work.",
+    },
+    secondary: {
+      ja: "しっかり身につけると、製造業や農業、環境関連の仕事で役立つかもしれません。さらに極めると、研究者や技術者のような職種を目指せる可能性があります。",
+      en: "Mastering this may help with manufacturing, agriculture, or environmental work. Going further, it could open a path toward research or engineering roles.",
+    },
+    high: {
+      ja: "物理・化学・生物の知識は、製薬・医療機器・エネルギー業界で役立つかもしれません。さらに極めると、研究者や医師、技術者のような職種を目指せる可能性があります。",
+      en: "Physics, chemistry, and biology knowledge may help in pharmaceuticals, medical devices, or energy. Going further, it could open a path toward research, medicine, or engineering.",
+    },
+  },
+  social: {
+    elementary: {
+      ja: "地域や社会の仕組みを知ることは、お店や役所など、人と関わる仕事の理解に役立つかもしれません。",
+      en: "Understanding how communities and society work may help you understand jobs that involve working with people, like shops or local government.",
+    },
+    secondary: {
+      ja: "しっかり身につけると、公務員や観光・報道関連の仕事で役立つかもしれません。さらに極めると、社会科の先生や政策に関わる仕事を目指せる可能性があります。",
+      en: "Mastering this may help with public-sector, tourism, or media-related roles. Going further, it could open a path toward teaching social studies or policy work.",
+    },
+    high: {
+      ja: "地理歴史・公民の知識は、外交・観光・報道・法律関係の仕事で役立つかもしれません。さらに極めると、外交官やジャーナリスト、公務員のような職種を目指せる可能性があります。",
+      en: "Geography, history, and civics knowledge may help in diplomacy, tourism, media, or law-adjacent work. Going further, it could open a path toward diplomacy, journalism, or public service.",
+    },
+  },
+  english: {
+    elementary: {
+      ja: "英語に親しむことは、将来、海外の人と関わる仕事や旅行で役立つかもしれません。",
+      en: "Getting comfortable with English may help later with jobs or travel involving people from other countries.",
+    },
+    secondary: {
+      ja: "しっかり身につけると、貿易・観光・接客業で役立つかもしれません。さらに極めると、通訳・翻訳者や英語の先生のような職種を目指せる可能性があります。",
+      en: "Mastering this may help with trade, tourism, or hospitality roles. Going further, it could open a path toward interpreting, translation, or teaching English.",
+    },
+    high: {
+      ja: "実用的な英語力は、商社・外資系企業・国際機関で働く際に役立つかもしれません。さらに極めると、外交官や国際弁護士、通訳者のような職種を目指せる可能性があります。",
+      en: "Practical English skill may help at trading companies, foreign firms, or international organizations. Going further, it could open a path toward diplomacy, international law, or interpreting.",
+    },
+  },
+  programming: {
+    elementary: {
+      ja: "順序立てて考える力(プログラミング的思考)は、将来いろいろな仕事の課題解決に役立つかもしれません。",
+      en: "Thinking step by step (computational thinking) may help you solve problems in many future jobs.",
+    },
+    secondary: {
+      ja: "しっかり身につけると、Webサイト制作やアプリ開発の仕事で役立つかもしれません。さらに極めると、ソフトウェアエンジニアのような職種を目指せる可能性があります。",
+      en: "Mastering this may help with web or app development work. Going further, it could open a path toward a software engineering role.",
+    },
+    high: {
+      ja: "プログラミングの力は、IT企業だけでなく、あらゆる業界のデジタル化を支える仕事で役立つかもしれません。さらに極めると、フルスタックエンジニアやITアーキテクトのような職種を目指せる可能性があります。",
+      en: "Programming skill may help not just at IT companies but in digitalization work across many industries. Going further, it could open a path toward full-stack engineering or IT architecture roles.",
+    },
+  },
+};
+
+/** VSCHOOLの`vschoolCareerHtml`と同じ表示形式(日英併記・非断定)。
+ *  教科オブジェクトの`career`(無ければ何も表示しない、preschool/
+ *  elementaryLowerは意図的に無し)。 */
+function tutorCareerHtml(subject) {
+  if (!subject || !subject.career) return "";
+  return (
+    '<div class="vschool-career">' +
+    '<p class="vschool-career-label">🎓 キャリアガイダンス / Career guidance</p>' +
+    "<p>" + subject.career.ja + "</p>" +
+    "<p>" + subject.career.en + "</p>" +
+    "</div>"
+  );
+}
+
 const TUTOR_SUBJECTS_BY_STAGE = {
   // 保育園児・幼稚園児(小学校の教科名ではなく、その年齢で親しみやすい
   // 呼び方にしている。教科IDは小学校以上と共通にしてあるので、
@@ -5738,6 +5885,13 @@ function renderTutorSubjects() {
       span.textContent = `${subject.ja} / ${subject.en}(準備中 / not ready yet)`;
     }
     label.appendChild(span);
+    const careerHtml = tutorCareerHtml(subject);
+    if (careerHtml) {
+      const careerWrap = document.createElement("div");
+      careerWrap.innerHTML = careerHtml;
+      careerWrap.addEventListener("click", (e) => e.stopPropagation());
+      label.appendChild(careerWrap);
+    }
     tutorSubjectListEl.appendChild(label);
   });
   tutorSubjectSectionEl.classList.remove("hidden");
@@ -5842,6 +5996,10 @@ function renderTutorSingleQuestion(item) {
       return `<div class="exam-prep-question"><p>${q.q}</p>${figure}${choices}</div>`;
     })
     .join("");
+  // キャリアガイダンスは`#tutor-career-guidance`(下部、
+  // `TUTOR_CAREER_GUIDANCE`/`tutorCareerGuidanceHtml`)側で出題のたびに
+  // 更新して表示する。この関数内で二重に表示しないよう、ここでは
+  // 教科選択画面用の`tutorCareerHtml`(`renderTutorSubjects`)は呼ばない。
   if (tutorStage > 0) {
     tutorResultEl.textContent =
       tutorGradeLabel(tutorPracticeGrade) + "の問題を、もう少し易しくしました(第" + tutorStage +
@@ -7253,6 +7411,13 @@ function renderVschoolFields() {
     link.textContent = "▶ YouTubeで「" + field.yt + "」を検索";
     link.addEventListener("click", (e) => e.stopPropagation());
     label.appendChild(link);
+    const careerHtml = vschoolCareerHtml(field);
+    if (careerHtml) {
+      const careerWrap = document.createElement("div");
+      careerWrap.innerHTML = careerHtml;
+      careerWrap.addEventListener("click", (e) => e.stopPropagation());
+      label.appendChild(careerWrap);
+    }
     vschoolFieldListEl.appendChild(label);
   });
   // その区分にまだ1分野も問題が無いときは、選ばせる前に正直に伝える

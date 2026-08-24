@@ -75,6 +75,10 @@ body {
   background: #fbe4ec;
   border-radius: 20px;
   padding: 16px 10px;
+  /* 2026-08-24修正(バグ報告): この薄いピンク背景の中でも本文色
+     (var(--text)、ほぼ白)がそのまま継承され、「Voice reply / 音声で
+     返答」等のラベルがほぼ読めなくなっていた。明示的に濃い色を指定する。 */
+  color: #3a1a2a;
 }
 
 #trainer-svg {
@@ -278,6 +282,13 @@ body {
   padding: 10px;
   border-radius: 8px;
   border: none;
+  /* 2026-08-24修正(バグ報告): 背景色を指定していない入力欄はブラウザ
+     既定の白背景になるが、文字色は本文色(var(--text)、ほぼ白)を継承
+     していたため、入力した文字がほぼ見えなくなっていた。数字を含め、
+     このアプリのテキスト入力欄すべてに共通する問題だったため、明示的に
+     白背景+濃い文字色を指定する。 */
+  background: #fff;
+  color: #221a26;
 }
 
 .chat-form button {
@@ -303,6 +314,10 @@ body {
   border-radius: 6px;
   border: none;
   min-width: 220px;
+  /* 2026-08-24修正(バグ報告と同根、chat-form inputを参照): 明示的な
+     背景・文字色が無いと白背景に白文字同然になるため両方指定する。 */
+  background: #fff;
+  color: #221a26;
 }
 
 .status {
@@ -628,6 +643,26 @@ body {
 #vschool-field-list .tutor-subject-choice {
   flex-wrap: wrap;
 }
+/* キャリアガイダンス(2026-08-24追加、ドイツの職業訓練校
+   〈デュアルシステム〉+普通科の進路指導〈Berufsorientierung〉を参考にした
+   補足説明)。分野カード/教科カード/出題画面のいずれでも同じ見た目にする。 */
+.vschool-career {
+  flex-basis: 100%;
+  margin-top: 6px;
+  padding: 8px 10px;
+  background: #241726;
+  border-left: 3px solid #ff9ecb;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+.vschool-career p {
+  margin: 3px 0;
+}
+.vschool-career-label {
+  font-weight: bold;
+  color: #ff9ecb;
+}
 /* プログラミング教材のサンプルコード。長い行は横スクロールさせる。 */
 .tutor-code {
   margin: 8px 0;
@@ -662,6 +697,11 @@ body {
   margin: 6px 0;
   padding: 6px 8px;
   font-size: 0.95rem;
+  /* 2026-08-24修正(白文字/白背景バグ、chat-form inputと同根): 背景・
+     文字色を明示しないとブラウザ既定の白背景に本文色(ほぼ白)が
+     継承され読めなくなるため、両方指定する。 */
+  background: #fff;
+  color: #221a26;
 }
 
 /* 世界の言語も選べることを大きく案内するバナー(2026-08-22追加、
@@ -674,6 +714,10 @@ body {
   margin: 8px;
   padding: 10px 14px;
   text-align: center;
+  /* 2026-08-24修正(バグ報告): 明るいグラデーション背景に、本文色
+     (var(--text)、ほぼ白)がそのまま継承され、日本語・数字とも
+     ほぼ読めなくなっていた。このバナー内だけ明示的に濃い色を指定する。 */
+  color: #3a1a2a;
 }
 .world-language-banner-main {
   margin: 0 0 8px;
@@ -711,8 +755,10 @@ body {
   opacity: 0.75;
 }
 .language-pack-count {
-  color: #777;
-  font-size: 0.85em;
+  color: #d8c8dc;
+  /* 2026-08-24修正(表示改善指示): 「(default / 既定)」等の日英併記が
+     本文より小さく不揃いだったため、周囲の文字サイズ(1em)に揃えた。 */
+  font-size: 1em;
 }
 
 /* 多言語の連続表示・読み上げ(2026-08-22追加)。表示文はコピー&ペースト
@@ -726,6 +772,10 @@ body {
   padding: 6px 8px;
   margin-bottom: 6px;
   background: #fff;
+  /* 2026-08-24修正: 本文の文字色は body の var(--text)(ほぼ白)を継承する
+     ため、この白背景カード内では文字が白 on 白になり読めなくなっていた
+     (バグ報告により発覚)。カード内だけ明示的に濃い色を指定する。 */
+  color: #2a1a22;
 }
 .multi-speak-row.speaking-now {
   border-color: #f096be;
@@ -750,6 +800,10 @@ body {
   resize: vertical;
   user-select: text;
   -webkit-user-select: text;
+  /* 2026-08-24修正(白文字/白背景バグと同根): フォーム要素は必ずしも
+     祖先のcolorを継承しないブラウザがあるため、明示的に指定する。 */
+  background: #fff;
+  color: #2a1a22;
 }
 
 /* 母国語指定+表示順のカスタマイズUI(2026-08-22追加)。順番は数値入力欄・
@@ -767,6 +821,9 @@ body {
   padding: 6px 8px;
   margin-bottom: 6px;
   background: #fff;
+  /* 2026-08-24修正: 白背景カード内の文字が本文色(ほぼ白)を継承し
+     読めなくなっていたバグの修正(multi-speak-rowと同根)。 */
+  color: #2a1a22;
 }
 .language-order-name {
   font-weight: 600;
@@ -777,7 +834,9 @@ body {
   display: flex;
   align-items: center;
   gap: 4px;
-  font-size: 0.9rem;
+  /* 2026-08-24修正(表示改善指示): 数値入力欄まわりの文字サイズを
+     周囲の日本語ラベルと揃えた(0.9rem→1rem)。 */
+  font-size: 1rem;
 }
 .language-order-input {
   width: 4em;
@@ -793,13 +852,18 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 2px;
-  font-size: 0.9rem;
+  /* 2026-08-24修正(表示改善指示): 番号ラジオボタンの文字サイズを
+     周囲の日本語ラベルと揃えた(0.9rem→1rem)。 */
+  font-size: 1rem;
 }
 
-/* 言語選択の国名併記(2026-08-22追加)。 */
+/* 言語選択の国名併記(2026-08-22追加)。
+   2026-08-24修正(表示改善指示): 「イギリス・アメリカ / United Kingdom /
+   USA」のような日英併記部分が、本文(日本語)より小さいフォントサイズに
+   なっていて不揃いだったため、周囲の文字サイズ(1em)に揃えた。 */
 .language-pack-country {
-  color: #666;
-  font-size: 0.85em;
+  color: #d8c8dc;
+  font-size: 1em;
   margin-left: 4px;
 }
 
@@ -818,6 +882,9 @@ body {
   padding: 8px 10px;
   margin: 8px 0;
   background: #fff;
+  /* 2026-08-24修正: 白背景カード内の文字が本文色(ほぼ白)を継承し
+     読めなくなっていたバグの修正(multi-speak-rowと同根)。 */
+  color: #2a1a22;
 }
 .briefing-lang-top {
   border-color: #f096be;

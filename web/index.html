@@ -605,9 +605,17 @@ cd aruaru-db
         <strong>どちらを選んでも構いません</strong>——保存先は環境変数
         <code>OPEN_ENGLISH_DATABASE_URL</code>にPostgreSQL接続文字列を設定するだけで、aruaru-dbは
         PostgreSQLワイヤプロトコル互換(pgwire)のため同じ設定で使えます。
-        <strong>ただし正直な但し書き</strong>: サーバー側の接続は平文接続(TLS非対応)の実装のため、
-        SSL必須のマネージドPostgreSQLサービスへは現状つながりません。また、標準PostgreSQL単体での
-        実接続はこの開発環境では未検証です(実装上は同じクライアントライブラリで接続します)。<br /><br />
+        <strong>ただし正直な但し書き(2026-08-24更新)</strong>: サーバー側は
+        <code>tokio-postgres-rustls</code>によりTLS接続に対応しています(接続文字列の
+        <code>sslmode=require</code>等を設定すれば、SSL必須のマネージドPostgreSQLサービスにも
+        接続できます。自己署名証明書の場合のみ<code>OPEN_ENGLISH_DB_TLS_INSECURE=1</code>が必要です、
+        中間者攻撃に無防備になる設定のため信頼できる閉域網以外では使わないでください)。
+        ただし、この開発機には<code>cargo</code>/<code>rustc</code>・<code>psql</code>・Dockerのいずれも
+        インストールされていないため、TLS接続・標準PostgreSQL単体への実接続とも、この環境で実機検証は
+        できていません(コードレビューレベルの確認にとどまります)。接続クライアント自体
+        (<code>tokio-postgres</code>)はaruaru-db固有ではなく標準的なPostgreSQLワイヤプロトコル
+        クライアントであるため、標準PostgreSQLへの接続可否は主にクライアント側ではなくaruaru-db側の
+        pgwire実装の完成度に依存します。<br /><br />
         <strong>Before you start: we recommend setting up a learning-history database.</strong>
         Set up either <strong>aruaru-db</strong> (see "🗄 Setup aruaru-db" above) or a
         <strong>standard PostgreSQL</strong> server, and the course can keep a record of which grades and
@@ -617,8 +625,16 @@ cd aruaru-db
         or survive a reinstall), and your grade/subject choices live only in browser localStorage.
         Either database works: point <code>OPEN_ENGLISH_DATABASE_URL</code> at a PostgreSQL connection
         string — aruaru-db speaks the same PostgreSQL wire protocol. <strong>Honest caveats</strong>: the
-        server connects without TLS, so managed PostgreSQL services that require SSL will not connect yet,
-        and a plain PostgreSQL server has not been tested end to end in our development environment.
+        server now supports TLS via <code>tokio-postgres-rustls</code> (updated 2026-08-24) — set
+        <code>sslmode=require</code> etc. in the connection string to reach managed PostgreSQL services that
+        require SSL (self-signed certificates need <code>OPEN_ENGLISH_DB_TLS_INSECURE=1</code>, which disables
+        certificate verification and should only be used on a trusted closed network). However, this
+        development machine has neither <code>cargo</code>/<code>rustc</code> nor <code>psql</code> nor Docker
+        installed, so neither the TLS path nor a plain PostgreSQL connection has actually been tested end to
+        end here — this remains a code-review-level check only. The client library itself
+        (<code>tokio-postgres</code>) is a generic PostgreSQL wire-protocol client, not specific to aruaru-db,
+        so compatibility with standard PostgreSQL mainly depends on aruaru-db's own pgwire implementation
+        rather than on this client.
       </p>
       <p class="setup-honest">
         <strong>より安全にしたい方へ: aruaru-db と PostgreSQL の二重(DUAL)構成 — 実装済みです</strong><br />
@@ -640,8 +656,9 @@ cd aruaru-db
         <code>GET /v1/db/info</code> の <code>dual_mirror</code> / <code>mirror_targets</code> で確認できます。<br />
         <strong>正直な但し書き</strong>: 実装したのは「書き込み時に両方へ送る」ところまでです。
         <strong>片方が停止していた期間に取りこぼした行を、復旧後に自動で追いつかせる自己修復機能は
-        実装していません</strong>(その場合はバックアップからのリストアが必要です)。また、接続は平文(TLS非対応)の
-        ため、SSL必須のマネージドPostgreSQLサービスへは現状つながりません。<br />
+        実装していません</strong>(その場合はバックアップからのリストアが必要です)。TLS対応は
+        2026-08-24に追加済みですが、この開発機に検証手段(cargo/psql/Docker)が無いため実機検証は
+        できていません(詳細は上の節参照)。<br />
         <strong>バックアップ(rsync)について</strong>: 学習履歴DBは、open-english の
         「💾 Data &amp; Model Storage」パネルにある rsync バックアップ機能で、外付けドライブ・別PC・VPS等へ
         コピー対象として<strong>加えることができます</strong>(自動で常時バックアップされるわけではありません)。
@@ -666,8 +683,9 @@ cd aruaru-db
         check the current configuration via <code>dual_mirror</code> and <code>mirror_targets</code> in
         <code>GET /v1/db/info</code>. <strong>Honest caveats</strong>: what is implemented is sending each write to
         both targets. <strong>There is no self-healing catch-up</strong> that replays rows missed while one side was
-        down (you would restore from a backup instead), and the connection is made without TLS, so managed PostgreSQL
-        services that require SSL will not connect yet. <strong>Backups (rsync)</strong>: the learning-history
+        down (you would restore from a backup instead). TLS support was added on 2026-08-24, but this
+        development machine has no cargo/psql/Docker available to test it end to end (see the section above).
+        <strong>Backups (rsync)</strong>: the learning-history
         database <em>can be added</em> to an rsync backup to an external drive, another PC, or a VPS from the
         "💾 Data &amp; Model Storage" panel (it is not backed up automatically). General rsync usage — commands,
         syncing to Google Drive with rclone, syncing to shared hosting or a VPS, scheduling and restoring — is
