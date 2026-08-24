@@ -6316,3 +6316,816 @@ function renderTutorProgrammingMaterials() {
   root.classList.remove("hidden");
 }
 
+
+
+// ============================================================================
+// バーチャルスクール(高等教育) / バーチャルオンライン職業訓練校
+// (ユーザー指示、2026-08-24)
+// ----------------------------------------------------------------------------
+// 「専門学校・短大・大学・大学院の入試/授業/校内テストを擬似的に想定した
+// バーチャルスクール」と「様々な産業・職業を想定したバーチャルオンライン
+// 職業訓練校」を、利用者が分野ごとに選んでインストールし、実際に出題・採点
+// できるようにする機能。
+//
+// 設計は既存の「学生向け家庭教師コース」(TUTOR_*)をそのまま踏襲する:
+//   区分(学年に相当)を選ぶ → 分野(教科に相当)をチェックしてインストール
+//   → ランダム出題 → 採点 → `/v1/db/history` へ保存 → トレーナーと復習。
+// 新しい保存先・新しいAPIは一切増やしていない。
+//
+// **正直な開示(改変時も弱めないこと)**:
+//  - 収録問題はすべて本アプリ用の書き下ろしオリジナル。実際の入試問題・
+//    市販問題集・教科書からの転載は一切無い。
+//  - **全区分×全分野は揃っていない。** 下記VSCHOOL_QUESTIONSに実際に
+//    存在する組み合わせだけが動き、それ以外は「準備中」と表示する。
+//  - 小論文・面接・実技は自動採点になじまないため、**4択の知識問題として
+//    しか扱っていない**。本物の小論文添削・面接練習の代わりにはならない。
+//  - 合否・資格取得を予測・保証するものではない。
+//
+// 事前調査(2026-08-24、日本語Web検索): 大学・短大・専門学校の総合型選抜/
+// 学校推薦型選抜では小論文(課題文型・テーマ型・図表分析型など)と面接が
+// 中心で、大学院では研究計画・先行研究・専門科目と面接が問われる、という
+// 一般的な傾向を確認した。公的職業訓練(ハロートレーニング/求職者支援訓練)は
+// IT、営業・販売、介護・福祉、建設、美容、調理など幅広い分野があることを
+// 確認した。この一般的傾向を踏まえて分野の区分を決めているが、問題文自体は
+// 検索結果からの転載ではなく書き下ろしである。
+// ============================================================================
+
+// 区分。`mode`が"school"のものが高等教育、"voc"が職業訓練校。
+const VSCHOOL_TRACKS = [
+  { id: "senmon", mode: "school", ja: "専門学校", en: "Vocational college (senmon gakko)" },
+  { id: "tandai", mode: "school", ja: "短期大学", en: "Junior college" },
+  { id: "daigaku", mode: "school", ja: "大学(学部)", en: "University (undergraduate)" },
+  { id: "daigakuin", mode: "school", ja: "大学院", en: "Graduate school" },
+  { id: "voc", mode: "voc", ja: "オンライン職業訓練校", en: "Online vocational training" },
+];
+
+// 区分ごとの分野。`yt`はYouTube検索に使う一般的なキーワード
+// (**特定の動画へは誘導しない**——検索結果ページへのリンクのみ)。
+const VSCHOOL_FIELDS = {
+  senmon: [
+    { id: "it", ja: "情報処理・IT", en: "Information technology", yt: "基本情報技術者 入門 解説" },
+    { id: "medoffice", ja: "医療事務", en: "Medical office admin", yt: "医療事務 初心者 講座" },
+    { id: "care", ja: "介護福祉", en: "Care work", yt: "介護福祉士 基礎 講座" },
+    { id: "beauty", ja: "美容", en: "Beauty / hairdressing", yt: "美容師国家試験 筆記 対策" },
+    { id: "cook", ja: "調理・製菓", en: "Cooking & confectionery", yt: "調理師試験 独学" },
+    { id: "civil", ja: "建築・土木", en: "Architecture & civil engineering", yt: "建築 構造力学 入門" },
+  ],
+  tandai: [
+    { id: "childcare", ja: "保育・幼児教育", en: "Early childhood education", yt: "保育士試験 独学 講座" },
+    { id: "nutrition", ja: "栄養", en: "Nutrition", yt: "栄養士 基礎 栄養学 講義" },
+    { id: "business", ja: "ビジネス実務", en: "Business practice", yt: "ビジネス実務マナー 検定" },
+    { id: "liberal", ja: "英語・国際教養", en: "English & liberal arts", yt: "英語 リーディング 大学 基礎" },
+  ],
+  daigaku: [
+    { id: "humanities", ja: "人文・社会科学系", en: "Humanities & social sciences", yt: "小論文 書き方 大学入試" },
+    { id: "science", ja: "理工系", en: "Science & engineering", yt: "大学 微分積分 入門 講義" },
+    { id: "nursing", ja: "医療・看護系", en: "Medicine & nursing", yt: "看護 基礎 解剖生理 講義" },
+    { id: "education", ja: "教育系", en: "Education", yt: "教育原理 教員採用試験 講義" },
+  ],
+  daigakuin: [
+    { id: "research", ja: "研究基礎(研究計画・研究倫理・面接)", en: "Research fundamentals", yt: "研究計画書 書き方 大学院" },
+    { id: "engsci", ja: "理工学研究科・専門科目", en: "Engineering graduate specialisation", yt: "大学院 入試 数学 対策" },
+  ],
+  voc: [
+    { id: "it_basic", ja: "IT・プログラミング基礎", en: "IT & programming basics", yt: "プログラミング 初心者 入門 講座" },
+    { id: "bookkeeping", ja: "簿記・経理基礎", en: "Bookkeeping & accounting basics", yt: "簿記3級 独学" },
+    { id: "service", ja: "接客・サービス業基礎", en: "Customer service basics", yt: "接客 マナー 研修 基礎" },
+    { id: "care_basic", ja: "介護・福祉基礎", en: "Care work basics", yt: "介護 初任者研修 講座" },
+    { id: "construction", ja: "建築・土木基礎", en: "Construction basics", yt: "建設業 施工管理 入門" },
+    { id: "cooking_basic", ja: "調理・製菓基礎", en: "Cooking basics", yt: "調理 基本 包丁 使い方" },
+    { id: "beauty_basic", ja: "美容基礎", en: "Beauty basics", yt: "美容 基礎知識 講座" },
+  ],
+};
+
+// 模擬問題本体。キーは `<区分ID>:<分野ID>`。**ここに無い組み合わせは
+// 「準備中」と表示する**(嘘の「対応済み」を作らないこと)。
+// すべて本アプリ用に書き下ろしたオリジナル問題。`answer`は`choices`の添字。
+// `why`は採点後に表示する短い解説。
+const VSCHOOL_QUESTIONS = {
+  // --- 大学(学部)・人文社会系: 小論文と学術的な考え方の基礎 ---
+  "daigaku:humanities": [
+    {
+      q: "大学入試の小論文で最も一般的とされる基本構成はどれですか。",
+      choices: ["序論・本論・結論", "起承転結の四コマ形式", "結論のみを繰り返す", "感想を時系列で並べる"],
+      answer: 0,
+      why: "問いへの立場を示す序論、根拠を述べる本論、まとめの結論という三部構成が基本とされます。",
+    },
+    {
+      q: "課題文が与えられる「課題文型」小論文で、書き始める前にまず行うべきことはどれですか。",
+      choices: [
+        "課題文の主張と論拠を正確に読み取る",
+        "自分の体験談を先に書き出す",
+        "できるだけ難しい語を書き出す",
+        "字数を数えて配分だけ決める",
+      ],
+      answer: 0,
+      why: "課題文型では、筆者の主張を正確に把握しないと的外れな論述になります。",
+    },
+    {
+      q: "「帰納」の説明として適切なものはどれですか。",
+      choices: [
+        "個別の事例から一般的な法則を導く",
+        "一般的な法則から個別の結論を導く",
+        "結論を先に決めて根拠を作る",
+        "対立する二つの意見を足して二で割る",
+      ],
+      answer: 0,
+      why: "個別から一般へ向かうのが帰納、一般から個別へ向かうのが演繹です。",
+    },
+    {
+      q: "他人の文章を出典を示さずに自分の文章として提出する行為を何と呼びますか。",
+      choices: ["剽窃(盗用)", "引用", "要約", "校閲"],
+      answer: 0,
+      why: "出典を明示して必要な範囲で用いるのが引用、示さずに自分のものとするのが剽窃です。",
+    },
+    {
+      q: "面接で志望理由を聞かれたときの答え方として、最も説得力があるとされるものはどれですか。",
+      choices: [
+        "学びたい内容と、その学校の教育内容との結びつきを具体的に述べる",
+        "偏差値や知名度が高いからと述べる",
+        "家族に勧められたからと述べる",
+        "特に理由はないと正直に述べる",
+      ],
+      answer: 0,
+      why: "「なぜこの学校でなければならないか」を具体的に語れるかが見られます。",
+    },
+  ],
+
+  // --- 大学(学部)・理工系: 理系基礎学力 ---
+  "daigaku:science": [
+    {
+      q: "測定値 2.5 と 3.0 の積を有効数字を考えて表すとどれですか。",
+      choices: ["7.5", "7.50", "7", "7.500"],
+      answer: 0,
+      why: "有効数字2桁どうしの積は2桁で表します。",
+    },
+    {
+      q: "関数 y = x^3 を x で微分するとどれになりますか。",
+      choices: ["3x^2", "x^2", "3x", "x^4/4"],
+      answer: 0,
+      why: "べき関数の微分は、指数を係数に下ろして指数を1減らします。",
+    },
+    {
+      q: "次のうち SI基本単位でないものはどれですか。",
+      choices: ["N(ニュートン)", "m(メートル)", "kg(キログラム)", "s(秒)"],
+      answer: 0,
+      why: "ニュートンは kg·m/s^2 から作られる組立単位です。",
+    },
+    {
+      q: "log10(1000) の値はどれですか。",
+      choices: ["3", "2", "10", "1000"],
+      answer: 0,
+      why: "10の3乗が1000だからです。",
+    },
+    {
+      q: "実験レポートで「再現性」を確認するために最も適切な方法はどれですか。",
+      choices: [
+        "同じ条件で複数回測定し、ばらつきを確認する",
+        "最も良い値だけを採用して記載する",
+        "測定を1回だけ行い平均値と呼ぶ",
+        "理論値をそのまま測定値として書く",
+      ],
+      answer: 0,
+      why: "都合のよい値だけを選ぶのはデータの選別であり、研究倫理上も問題があります。",
+    },
+  ],
+
+  // --- 専門学校・情報処理/IT ---
+  "senmon:it": [
+    {
+      q: "10進数の 13 を2進数で表すとどれですか。",
+      choices: ["1101", "1011", "1110", "1001"],
+      answer: 0,
+      why: "8+4+1 = 13 なので 1101 です。",
+    },
+    {
+      q: "HTML の主な役割として適切なものはどれですか。",
+      choices: [
+        "文書の構造(見出し・段落・リンクなど)を記述する",
+        "サーバーのCPU使用率を制御する",
+        "データベースのバックアップを取る",
+        "通信を暗号化する",
+      ],
+      answer: 0,
+      why: "見た目はCSS、動きはJavaScriptが担当し、HTMLは構造を担います。",
+    },
+    {
+      q: "1バイトは何ビットですか。",
+      choices: ["8ビット", "4ビット", "16ビット", "1024ビット"],
+      answer: 0,
+      why: "現在の一般的な計算機では1バイト = 8ビットです。",
+    },
+    {
+      q: "リレーショナルデータベースで、テーブルからデータを取り出すSQL文はどれですか。",
+      choices: ["SELECT", "INSERT", "DELETE", "CREATE"],
+      answer: 0,
+      why: "INSERTは追加、DELETEは削除、CREATEは定義です。",
+    },
+    {
+      q: "アルゴリズムにおける「繰り返し(ループ)」の説明として適切なものはどれですか。",
+      choices: [
+        "条件が満たされている間、同じ処理を何度も実行する",
+        "条件によって処理を二つに分ける",
+        "処理を一度だけ実行して終了する",
+        "処理の順序を無作為に入れ替える",
+      ],
+      answer: 0,
+      why: "条件で二つに分けるのは分岐(選択)構造です。",
+    },
+  ],
+
+  // --- 大学院・研究基礎 ---
+  "daigakuin:research": [
+    {
+      q: "研究計画書の中核として最も重要とされる要素はどれですか。",
+      choices: [
+        "先行研究を踏まえた「問い」の設定",
+        "使用する文房具の一覧",
+        "研究にかける費用の内訳のみ",
+        "指導教員への感謝の言葉",
+      ],
+      answer: 0,
+      why: "何が未解明で、自分は何を明らかにするのかが計画書の骨格です。",
+    },
+    {
+      q: "「査読(peer review)」の説明として適切なものはどれですか。",
+      choices: [
+        "同じ分野の研究者が投稿論文の内容を審査する仕組み",
+        "著者が自分の論文を読み返すこと",
+        "出版社が誤字脱字だけを直すこと",
+        "一般読者が人気投票をすること",
+      ],
+      answer: 0,
+      why: "専門家による審査を経ることで学術的な質を担保します。",
+    },
+    {
+      q: "先行研究レビューを行う主な目的はどれですか。",
+      choices: [
+        "自分の研究の位置づけと、まだ解かれていない点を示すため",
+        "参考文献の数を増やして分量を稼ぐため",
+        "他の研究者を批判するため",
+        "指導教員の論文だけを紹介するため",
+      ],
+      answer: 0,
+      why: "既知と未知の境界を示すことで、研究の新規性が説明できます。",
+    },
+    {
+      q: "研究倫理上、明確に許されない行為はどれですか。",
+      choices: [
+        "データの捏造・改ざん",
+        "実験条件を論文に詳しく書くこと",
+        "否定的な結果を報告すること",
+        "貢献した共同研究者を著者に含めること",
+      ],
+      answer: 0,
+      why: "捏造・改ざん・盗用は研究不正の代表例とされます。",
+    },
+    {
+      q: "学術論文の要旨(abstract)に通常含めないものはどれですか。",
+      choices: ["参考文献の一覧", "研究の目的", "用いた方法", "得られた主な結果"],
+      answer: 0,
+      why: "要旨は目的・方法・結果・結論を短くまとめたもので、文献一覧は本文の末尾に置きます。",
+    },
+  ],
+
+  // --- 職業訓練校・IT/プログラミング基礎 ---
+  "voc:it_basic": [
+    {
+      q: "複数のサービスで同じパスワードを使い回すことの主な危険はどれですか。",
+      choices: [
+        "一つのサービスから漏れると、他のサービスにも侵入されうる",
+        "パスワードを忘れやすくなる",
+        "通信速度が遅くなる",
+        "画面が見づらくなる",
+      ],
+      answer: 0,
+      why: "漏れた組み合わせを他サイトで試す攻撃(パスワードリスト攻撃)があります。",
+    },
+    {
+      q: "拡張子が .csv のファイルはどのようなデータですか。",
+      choices: [
+        "区切り文字で列を分けた表形式のテキストデータ",
+        "圧縮された画像データ",
+        "実行可能なプログラム",
+        "暗号化された鍵ファイル",
+      ],
+      answer: 0,
+      why: "CSVは Comma-Separated Values の略で、表計算ソフトとの受け渡しによく使われます。",
+    },
+    {
+      q: "ソースコードの変更履歴を管理するために広く使われている仕組みはどれですか。",
+      choices: ["Git", "PDF", "JPEG", "SMTP"],
+      answer: 0,
+      why: "Gitは分散型のバージョン管理システムです。",
+    },
+    {
+      q: "プログラミングでいう「バグ」とは何ですか。",
+      choices: [
+        "プログラムの誤りや不具合",
+        "処理速度を上げる工夫",
+        "画面の配色設計",
+        "プログラムの設計書",
+      ],
+      answer: 0,
+      why: "バグを取り除く作業をデバッグと呼びます。",
+    },
+    {
+      q: "クラウドサービスを利用する利点として一般的に挙げられるものはどれですか。",
+      choices: [
+        "自前でサーバーを用意せず、必要な分だけ使える",
+        "インターネット接続が不要になる",
+        "情報漏えいが起こらなくなる",
+        "料金が必ず無料になる",
+      ],
+      answer: 0,
+      why: "初期投資を抑えられる一方、通信やセキュリティ設定の管理は依然として必要です。",
+    },
+  ],
+
+  // --- 職業訓練校・簿記/経理基礎 ---
+  "voc:bookkeeping": [
+    {
+      q: "貸借対照表を表す基本の等式はどれですか。",
+      choices: [
+        "資産 = 負債 + 純資産",
+        "資産 = 収益 - 費用",
+        "負債 = 資産 + 純資産",
+        "純資産 = 収益 + 費用",
+      ],
+      answer: 0,
+      why: "左側(借方)の資産と、右側(貸方)の負債・純資産が必ず一致します。",
+    },
+    {
+      q: "商品を現金で売り上げたときの仕訳で、借方に来る勘定科目はどれですか。",
+      choices: ["現金", "売上", "買掛金", "資本金"],
+      answer: 0,
+      why: "現金という資産が増えるので借方、売上(収益)は貸方に記入します。",
+    },
+    {
+      q: "「減価償却」の説明として適切なものはどれですか。",
+      choices: [
+        "固定資産の取得原価を、使用する期間にわたって費用として配分する手続き",
+        "商品の売値を値引きすること",
+        "現金を銀行に預けること",
+        "借入金を一括で返済すること",
+      ],
+      answer: 0,
+      why: "建物や機械のように長期間使う資産に対して行います。",
+    },
+    {
+      q: "損益計算書が示すものはどれですか。",
+      choices: [
+        "一定期間の収益・費用と、その差である利益",
+        "ある一時点の財政状態",
+        "従業員の名簿",
+        "取引先の住所録",
+      ],
+      answer: 0,
+      why: "ある一時点の財政状態を示すのは貸借対照表です。",
+    },
+    {
+      q: "複式簿記で、勘定の左側を何と呼びますか。",
+      choices: ["借方", "貸方", "残高", "元帳"],
+      answer: 0,
+      why: "左側が借方、右側が貸方です。名称と貸し借りの意味は必ずしも一致しません。",
+    },
+  ],
+
+  // --- 職業訓練校・接客/サービス業基礎 ---
+  "voc:service": [
+    {
+      q: "接客の第一印象を大きく左右するとされる要素はどれですか。",
+      choices: [
+        "表情・身だしなみ・挨拶",
+        "商品の仕入れ値",
+        "店舗の築年数",
+        "従業員の勤続年数",
+      ],
+      answer: 0,
+      why: "第一印象は短時間で決まるとされ、見た目と挨拶の影響が大きいと言われます。",
+    },
+    {
+      q: "お客様から苦情を受けたとき、最初に取るべき対応はどれですか。",
+      choices: [
+        "まず最後まで話を聴き、不快な思いをさせたことを詫びる",
+        "すぐに反論して誤解を解く",
+        "その場を離れて時間を置く",
+        "責任は自分にないと最初に伝える",
+      ],
+      answer: 0,
+      why: "事実確認より先に傾聴と謝意を示すことで、対話が成立しやすくなります。",
+    },
+    {
+      q: "依頼や断りをやわらげる「クッション言葉」の例はどれですか。",
+      choices: ["恐れ入りますが", "だから", "いいから", "とにかく"],
+      answer: 0,
+      why: "「恐れ入りますが」「差し支えなければ」などが代表例です。",
+    },
+    {
+      q: "「お客様が申しました」という表現の問題点はどれですか。",
+      choices: [
+        "お客様の動作に謙譲語を使っており、「おっしゃいました」が適切",
+        "丁寧すぎるので「言った」が適切",
+        "文法上まったく問題がない",
+        "尊敬語を二重に使っている",
+      ],
+      answer: 0,
+      why: "「申す」は自分側をへりくだる謙譲語なので、お客様の動作には使いません。",
+    },
+    {
+      q: "業務で知り得たお客様の個人情報の扱いとして適切なものはどれですか。",
+      choices: [
+        "業務上必要な範囲でのみ利用し、他に漏らさない",
+        "同僚との雑談の話題にする",
+        "自分のSNSで共有する",
+        "退職後は自由に使ってよい",
+      ],
+      answer: 0,
+      why: "守秘義務は在職中だけでなく退職後も続くのが一般的です。",
+    },
+  ],
+};
+
+const VSCHOOL_QUESTIONS_PER_ROUND = 3;
+
+function vschoolHasQuestions(trackId, fieldId) {
+  const list = VSCHOOL_QUESTIONS[trackId + ":" + fieldId];
+  return Array.isArray(list) && list.length > 0;
+}
+
+function vschoolTrack(trackId) {
+  return VSCHOOL_TRACKS.find((t) => t.id === trackId) || null;
+}
+
+function vschoolField(trackId, fieldId) {
+  return (VSCHOOL_FIELDS[trackId] || []).find((f) => f.id === fieldId) || null;
+}
+
+/** 学習の参考になりそうなYouTube「検索結果ページ」へのリンク。
+ *  **特定の動画を「これが正解」として紹介することはしない**——一般的な
+ *  検索キーワードで検索した結果を開くだけで、内容の正しさは保証しない。 */
+function vschoolYoutubeUrl(keyword) {
+  return "https://www.youtube.com/results?search_query=" + encodeURIComponent(keyword);
+}
+
+const vschoolBtn = document.getElementById("vschool-btn");
+const vvocBtn = document.getElementById("vvoc-btn");
+const vschoolModal = document.getElementById("vschool-modal");
+const vschoolCloseBtn = document.getElementById("vschool-close");
+const vschoolTitleEl = document.getElementById("vschool-title");
+const vschoolStep1TitleEl = document.getElementById("vschool-step1-title");
+const vschoolTrackListEl = document.getElementById("vschool-track-list");
+const vschoolFieldSectionEl = document.getElementById("vschool-field-section");
+const vschoolSelectedTrackEl = document.getElementById("vschool-selected-track");
+const vschoolFieldListEl = document.getElementById("vschool-field-list");
+const vschoolInstallSelectedBtn = document.getElementById("vschool-install-selected");
+const vschoolInstallAllBtn = document.getElementById("vschool-install-all");
+const vschoolInstallStatusEl = document.getElementById("vschool-install-status");
+const vschoolPracticeSectionEl = document.getElementById("vschool-practice-section");
+const vschoolPracticeFieldEl = document.getElementById("vschool-practice-field");
+const vschoolStartBtn = document.getElementById("vschool-start");
+const vschoolSubmitBtn = document.getElementById("vschool-submit");
+const vschoolQuizEl = document.getElementById("vschool-quiz");
+const vschoolNoticeEl = document.getElementById("vschool-field-notice");
+const vschoolResultEl = document.getElementById("vschool-result");
+const vschoolReviewBtn = document.getElementById("vschool-practice-btn");
+
+const VSCHOOL_SETTINGS_KEY = "open-english.virtualSchool";
+let vschoolMode = "school";
+let vschoolSelectedTrack = null;
+let vschoolInstalledFields = [];
+let vschoolCurrentQuiz = [];
+let vschoolMissed = [];
+
+function loadVschoolSettings() {
+  try {
+    const raw = localStorage.getItem(VSCHOOL_SETTINGS_KEY);
+    if (!raw) return;
+    const saved = JSON.parse(raw);
+    if (saved && typeof saved.track === "string") vschoolSelectedTrack = saved.track;
+    if (saved && Array.isArray(saved.fields)) vschoolInstalledFields = saved.fields;
+  } catch (_) {
+    /* 壊れた保存値は無視して初期状態から始める(サービスを止めない) */
+  }
+}
+
+function saveVschoolSettings() {
+  try {
+    localStorage.setItem(
+      VSCHOOL_SETTINGS_KEY,
+      JSON.stringify({ track: vschoolSelectedTrack, fields: vschoolInstalledFields })
+    );
+  } catch (_) {
+    /* 保存できなくても機能自体は使える */
+  }
+}
+
+/** 採点結果の保存。既存の`POST /v1/db/history`をそのまま使う
+ *  (家庭教師コースの`recordTutorHistory`と同じ仕組み・同じ保存先)。
+ *  失敗しても学習の進行は止めない。 */
+function recordVschoolHistory(text) {
+  try {
+    fetch("/v1/db/history", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ role: "virtual-school-result", content: text }),
+    }).catch(() => {});
+  } catch (_) {
+    /* 保存できなくても出題・採点は続ける */
+  }
+}
+
+function renderVschoolTracks() {
+  if (!vschoolTrackListEl) return;
+  vschoolTrackListEl.innerHTML = "";
+  VSCHOOL_TRACKS.filter((t) => t.mode === vschoolMode).forEach((track) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "setup-btn" + (track.id === vschoolSelectedTrack ? " selected" : "");
+    const fields = VSCHOOL_FIELDS[track.id] || [];
+    const ready = fields.filter((f) => vschoolHasQuestions(track.id, f.id)).length;
+    btn.textContent =
+      track.ja + " / " + track.en + "(収録済み " + ready + "/" + fields.length + " 分野)";
+    btn.addEventListener("click", () => selectVschoolTrack(track.id));
+    vschoolTrackListEl.appendChild(btn);
+  });
+}
+
+function selectVschoolTrack(trackId) {
+  if (trackId !== vschoolSelectedTrack) {
+    // 区分を変えたら出題は破棄し、インストール済み分野もその区分のものだけ残す。
+    vschoolInstalledFields = vschoolInstalledFields.filter((id) => vschoolHasQuestions(trackId, id));
+    vschoolCurrentQuiz = [];
+    vschoolMissed = [];
+    vschoolQuizEl.innerHTML = "";
+    vschoolResultEl.textContent = "";
+    vschoolNoticeEl.innerHTML = "";
+    vschoolInstallStatusEl.textContent = "";
+    vschoolPracticeSectionEl.classList.add("hidden");
+    vschoolSubmitBtn.classList.add("hidden");
+    vschoolReviewBtn.classList.add("hidden");
+  }
+  vschoolSelectedTrack = trackId;
+  saveVschoolSettings();
+  renderVschoolTracks();
+  renderVschoolFields();
+}
+
+function renderVschoolFields() {
+  if (!vschoolSelectedTrack) return;
+  const track = vschoolTrack(vschoolSelectedTrack);
+  if (!track) return;
+  vschoolSelectedTrackEl.textContent =
+    "選択中の区分 / Selected category: " + track.ja + " / " + track.en;
+  vschoolFieldListEl.innerHTML = "";
+  (VSCHOOL_FIELDS[vschoolSelectedTrack] || []).forEach((field) => {
+    const available = vschoolHasQuestions(vschoolSelectedTrack, field.id);
+    const label = document.createElement("label");
+    label.className = "tutor-subject-choice" + (available ? "" : " unavailable");
+    const box = document.createElement("input");
+    box.type = "checkbox";
+    box.value = field.id;
+    box.checked = available && vschoolInstalledFields.includes(field.id);
+    box.disabled = !available;
+    label.appendChild(box);
+    const span = document.createElement("span");
+    if (available) {
+      const n = VSCHOOL_QUESTIONS[vschoolSelectedTrack + ":" + field.id].length;
+      span.textContent = field.ja + " / " + field.en + "(" + n + "問収録 / " + n + " questions)";
+    } else {
+      // **嘘の「対応済み」を作らないこと。**
+      span.textContent = field.ja + " / " + field.en + "(準備中 / not ready yet)";
+    }
+    label.appendChild(span);
+    // 学習の参考になりそうなYouTube検索リンク(未収録の分野にも付ける——
+    // アプリに問題が無くても、学習の入口としては役に立つため)。
+    const link = document.createElement("a");
+    link.href = vschoolYoutubeUrl(field.yt);
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    link.className = "vschool-yt-link";
+    link.textContent = "▶ YouTubeで「" + field.yt + "」を検索";
+    link.addEventListener("click", (e) => e.stopPropagation());
+    label.appendChild(link);
+    vschoolFieldListEl.appendChild(label);
+  });
+  // その区分にまだ1分野も問題が無いときは、選ばせる前に正直に伝える
+  // (何も起きない画面にして利用者を迷わせないため)。
+  const readyCount = (VSCHOOL_FIELDS[vschoolSelectedTrack] || []).filter((f) =>
+    vschoolHasQuestions(vschoolSelectedTrack, f.id)
+  ).length;
+  if (readyCount === 0) {
+    const note = document.createElement("p");
+    note.className = "setup-note";
+    note.textContent =
+      "この区分は現在すべての分野が準備中です(問題をまだ用意できていません)。" +
+      "上の一覧で「収録済み」の分野がある区分をお選びください。 / " +
+      "No field in this category has questions yet; please pick a category that lists available fields.";
+    vschoolFieldListEl.appendChild(note);
+  }
+  vschoolFieldSectionEl.classList.remove("hidden");
+  if (vschoolInstalledFields.length > 0) refreshVschoolPracticeSection();
+}
+
+function installVschoolFields(fieldIds) {
+  const ok = (id) => vschoolHasQuestions(vschoolSelectedTrack, id);
+  const available = fieldIds.filter(ok);
+  const missing = fieldIds.filter((id) => !ok(id));
+  vschoolInstalledFields = available;
+  saveVschoolSettings();
+
+  const nameOf = (id) => {
+    const f = vschoolField(vschoolSelectedTrack, id);
+    return f ? f.ja + " / " + f.en : id;
+  };
+  const lines = [];
+  if (available.length > 0) {
+    lines.push("インストールしました / Installed: " + available.map(nameOf).join("、"));
+  } else {
+    lines.push("インストールできる分野がありませんでした。 / No field could be installed.");
+  }
+  if (missing.length > 0) {
+    // **嘘の「対応済み」を出さないこと**——未収録は未収録と正直に伝える。
+    lines.push(
+      "次の分野の問題は準備中のためインストールしていません: " + missing.map(nameOf).join("、") +
+        " / Questions for these fields are not ready yet, so they were not installed."
+    );
+  }
+  vschoolInstallStatusEl.textContent = lines.join("\n");
+  renderVschoolFields();
+  refreshVschoolPracticeSection();
+}
+
+function refreshVschoolPracticeSection() {
+  if (vschoolInstalledFields.length === 0) {
+    vschoolPracticeSectionEl.classList.add("hidden");
+    return;
+  }
+  vschoolPracticeFieldEl.innerHTML = vschoolInstalledFields
+    .map((id) => {
+      const f = vschoolField(vschoolSelectedTrack, id);
+      return '<option value="' + id + '">' + (f ? f.ja + " / " + f.en : id) + "</option>";
+    })
+    .join("");
+  vschoolPracticeSectionEl.classList.remove("hidden");
+}
+
+/** インストール済み分野からランダムに数問出題する
+ *  (家庭教師コースと同じく`shuffledCopy`を使い、選択肢の並びも毎回変える)。 */
+function renderVschoolQuiz() {
+  const fieldId = vschoolPracticeFieldEl.value;
+  const pool = VSCHOOL_QUESTIONS[vschoolSelectedTrack + ":" + fieldId] || [];
+  const field = vschoolField(vschoolSelectedTrack, fieldId);
+  vschoolResultEl.textContent = "";
+  vschoolReviewBtn.classList.add("hidden");
+  vschoolMissed = [];
+  if (pool.length === 0) {
+    vschoolQuizEl.innerHTML = "";
+    vschoolCurrentQuiz = [];
+    vschoolResultEl.textContent =
+      "現在この分野の問題は準備中です。 / Questions for this field are not ready yet.";
+    vschoolSubmitBtn.classList.add("hidden");
+    return;
+  }
+  if (field) {
+    vschoolNoticeEl.innerHTML =
+      '学習の参考: <a href="' + vschoolYoutubeUrl(field.yt) +
+      '" target="_blank" rel="noopener noreferrer">▶ YouTubeで「' + field.yt + "」を検索</a>" +
+      "(一般的な検索キーワードで検索結果ページを開くだけです。特定の動画の内容を推奨・保証するものではありません。 / " +
+      "This just opens a YouTube search for a generic keyword; no specific video is endorsed.)";
+  }
+  vschoolCurrentQuiz = shuffledCopy(pool)
+    .slice(0, Math.min(VSCHOOL_QUESTIONS_PER_ROUND, pool.length))
+    .map((item) => {
+      const order = shuffledCopy(item.choices.map((_, ci) => ci));
+      return {
+        q: item.q,
+        choices: order.map((ci) => item.choices[ci]),
+        answer: order.indexOf(item.answer),
+        why: item.why || "",
+      };
+    });
+  vschoolQuizEl.innerHTML = vschoolCurrentQuiz
+    .map((item, qi) => {
+      const choices = item.choices
+        .map(
+          (choice, ci) =>
+            '<label class="exam-prep-choice"><input type="radio" name="vschool-q' + qi +
+            '" value="' + ci + '" /> ' + choice + "</label>"
+        )
+        .join("");
+      return '<div class="exam-prep-question"><p>' + (qi + 1) + ". " + item.q + "</p>" + choices + "</div>";
+    })
+    .join("");
+  vschoolSubmitBtn.classList.remove("hidden");
+}
+
+function scoreVschoolQuiz() {
+  if (vschoolCurrentQuiz.length === 0) return;
+  const fieldId = vschoolPracticeFieldEl.value;
+  const track = vschoolTrack(vschoolSelectedTrack);
+  const field = vschoolField(vschoolSelectedTrack, fieldId);
+  let score = 0;
+  let unanswered = 0;
+  vschoolMissed = [];
+  const lines = [];
+  vschoolCurrentQuiz.forEach((item, qi) => {
+    const selected = vschoolQuizEl.querySelector('input[name="vschool-q' + qi + '"]:checked');
+    if (!selected) unanswered += 1;
+    const correct = Boolean(selected) && Number(selected.value) === item.answer;
+    if (correct) score += 1;
+    else vschoolMissed.push({ q: item.q, correctChoice: item.choices[item.answer] });
+    lines.push(
+      (qi + 1) + ". " + (correct ? "○ 正解 / correct" : selected ? "× 不正解 / incorrect" : "− 未回答 / not answered") +
+        " — 正解は「" + item.choices[item.answer] + "」" + (item.why ? " — " + item.why : "")
+    );
+  });
+  const header =
+    "得点 / Score: " + score + " / " + vschoolCurrentQuiz.length +
+    "(" + (track ? track.ja : "") + "・" + (field ? field.ja : fieldId) + ")" +
+    (unanswered > 0 ? " ※未回答 " + unanswered + "問" : "") +
+    " — 本アプリのオリジナル模擬問題です。実際の入試の合否や資格取得を予測するものではありません。 / " +
+    "These are original mock questions; the score does not predict real admissions or qualifications.";
+  vschoolResultEl.textContent = [header].concat(lines).join("\n");
+  vschoolReviewBtn.classList.remove("hidden");
+
+  recordVschoolHistory(
+    "[virtual-school] mode=" + vschoolMode +
+      " track=" + (track ? track.en : vschoolSelectedTrack) +
+      " field=" + (field ? field.en : fieldId) +
+      " score=" + score + "/" + vschoolCurrentQuiz.length
+  );
+}
+
+function reviewVschoolWithTrainer() {
+  const track = vschoolTrack(vschoolSelectedTrack);
+  const field = vschoolField(vschoolSelectedTrack, vschoolPracticeFieldEl.value);
+  const targets =
+    vschoolMissed.length > 0
+      ? vschoolMissed
+      : vschoolCurrentQuiz.map((item) => ({ q: item.q, correctChoice: item.choices[item.answer] }));
+  if (targets.length === 0) return;
+  const body = targets
+    .map((item, i) => i + 1 + ". " + item.q + " (正解 / correct answer: " + item.correctChoice + ")")
+    .join("\n");
+  const requestText =
+    (track ? track.ja : "") + "の" + (field ? field.ja : "") +
+    "の講師として、次の模擬問題を解説してください。\n" +
+    "Please act as an instructor for this field and explain these mock questions to me.\n\n" + body;
+  vschoolModal.classList.add("hidden");
+  inputEl.value = requestText;
+  formEl.dispatchEvent(new Event("submit", { cancelable: true }));
+}
+
+function openVschoolModal(mode) {
+  vschoolMode = mode;
+  const isVoc = mode === "voc";
+  vschoolTitleEl.textContent = isVoc
+    ? "🛠 バーチャルオンライン職業訓練校 / Virtual online vocational school"
+    : "🏫 バーチャルスクール(高等教育) / Virtual school (higher education)";
+  vschoolStep1TitleEl.textContent = isVoc
+    ? "1. 訓練校を選んでください / Choose a training school"
+    : "1. 区分を選んでください / Choose a category";
+  // 別モードで選んでいた区分が残っていたら選び直させる。
+  const cur = vschoolTrack(vschoolSelectedTrack);
+  if (!cur || cur.mode !== mode) {
+    vschoolSelectedTrack = null;
+    vschoolInstalledFields = [];
+    vschoolFieldSectionEl.classList.add("hidden");
+    vschoolPracticeSectionEl.classList.add("hidden");
+  }
+  renderVschoolTracks();
+  if (vschoolSelectedTrack) renderVschoolFields();
+  vschoolModal.classList.remove("hidden");
+}
+
+if (vschoolModal && vschoolBtn) {
+  loadVschoolSettings();
+  vschoolBtn.addEventListener("click", () => openVschoolModal("school"));
+  if (vvocBtn) vvocBtn.addEventListener("click", () => openVschoolModal("voc"));
+  vschoolCloseBtn.addEventListener("click", () => vschoolModal.classList.add("hidden"));
+  vschoolModal.addEventListener("click", (e) => {
+    if (e.target === vschoolModal) vschoolModal.classList.add("hidden");
+  });
+  vschoolInstallSelectedBtn.addEventListener("click", () => {
+    const chosen = Array.from(
+      vschoolFieldListEl.querySelectorAll("input[type=checkbox]:checked")
+    ).map((box) => box.value);
+    if (chosen.length === 0) {
+      vschoolInstallStatusEl.textContent =
+        "分野を1つ以上選んでください。 / Please choose at least one field.";
+      return;
+    }
+    installVschoolFields(chosen);
+  });
+  vschoolInstallAllBtn.addEventListener("click", () => {
+    installVschoolFields(
+      (VSCHOOL_FIELDS[vschoolSelectedTrack] || [])
+        .map((f) => f.id)
+        .filter((id) => vschoolHasQuestions(vschoolSelectedTrack, id))
+    );
+  });
+  vschoolStartBtn.addEventListener("click", renderVschoolQuiz);
+  vschoolSubmitBtn.addEventListener("click", scoreVschoolQuiz);
+  vschoolReviewBtn.addEventListener("click", reviewVschoolWithTrainer);
+}
