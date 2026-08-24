@@ -4867,6 +4867,189 @@ if (aiCodingToolLinkBtn) {
 }
 
 // ============================================================================
+// world-lab(2026-08-24新設、ユーザー指示「遊休デバイスをUSB/Wi-Fi/
+// Bluetooth/LANで繋いでハードウェアアクセラレータを共有」への対応)
+// ----------------------------------------------------------------------------
+// バックエンドは`server/src/world_lab.rs`。既定でサーバー側が無効
+// (二段階のオプトイン)なため、このUIから叩いても大抵は「無効です」と
+// 返ってくるのが正常な状態——それ自体をエラー扱いで壊れて見せないこと。
+// ============================================================================
+const worldLabBtn = document.getElementById("world-lab-btn");
+const worldLabModal = document.getElementById("world-lab-modal");
+const worldLabClose = document.getElementById("world-lab-close");
+const worldLabRefreshBtn = document.getElementById("world-lab-refresh-btn");
+const worldLabStatusInfoEl = document.getElementById("world-lab-status-info");
+const worldLabPairTokenEl = document.getElementById("world-lab-pair-token");
+const worldLabPairNameEl = document.getElementById("world-lab-pair-name");
+const worldLabPairConnectionEl = document.getElementById("world-lab-pair-connection");
+const worldLabPairBtn = document.getElementById("world-lab-pair-btn");
+const worldLabPairStatusEl = document.getElementById("world-lab-pair-status");
+const worldLabDeviceListEl = document.getElementById("world-lab-device-list");
+const worldLabTaskWasmEl = document.getElementById("world-lab-task-wasm");
+const worldLabTaskInputEl = document.getElementById("world-lab-task-input");
+const worldLabTaskRunBtn = document.getElementById("world-lab-task-run-btn");
+const worldLabTaskStatusEl = document.getElementById("world-lab-task-status");
+
+if (worldLabBtn && worldLabModal) {
+  worldLabBtn.addEventListener("click", () => {
+    worldLabModal.classList.remove("hidden");
+    refreshWorldLabStatus();
+    refreshWorldLabDevices();
+  });
+  worldLabClose.addEventListener("click", () => worldLabModal.classList.add("hidden"));
+  worldLabModal.addEventListener("click", (e) => {
+    if (e.target === worldLabModal) worldLabModal.classList.add("hidden");
+  });
+}
+
+async function refreshWorldLabStatus() {
+  if (!worldLabStatusInfoEl) return;
+  worldLabStatusInfoEl.textContent = "Loading… / 読み込み中…";
+  try {
+    const res = await fetch("/v1/world-lab/status");
+    const info = await res.json();
+    const en = info.enabled ? "ENABLED (pairing)" : "disabled";
+    const ja = info.enabled ? "有効(ペアリング)" : "無効";
+    worldLabStatusInfoEl.textContent =
+      `Status: ${en}, paired devices: ${info.paired_device_count ?? 0} / ` +
+      `状態: ${ja}、ペアリング済みデバイス数: ${info.paired_device_count ?? 0}\n${info.disclosure_en || ""}\n${info.disclosure_ja || ""}`;
+  } catch (e) {
+    worldLabStatusInfoEl.textContent = `Failed to load status: ${e.message} / 状態の取得に失敗しました: ${e.message}`;
+  }
+}
+
+async function refreshWorldLabDevices() {
+  if (!worldLabDeviceListEl) return;
+  worldLabDeviceListEl.textContent = "Loading… / 読み込み中…";
+  try {
+    const res = await fetch("/v1/world-lab/devices");
+    const body = await res.json();
+    if (!res.ok || !body.ok) {
+      worldLabDeviceListEl.textContent = `${body.error || "unknown error"} / ${body.error || "不明なエラー"}`;
+      return;
+    }
+    const devices = Array.isArray(body.devices) ? body.devices : [];
+    if (devices.length === 0) {
+      worldLabDeviceListEl.textContent = "No devices paired yet. / まだペアリング済みのデバイスはありません。";
+      return;
+    }
+    worldLabDeviceListEl.textContent = "";
+    devices.forEach((d) => {
+      const row = document.createElement("div");
+      const when = new Date(d.paired_at_unix * 1000).toLocaleString();
+      row.textContent = `${d.device_name} (${d.connection}, id=${d.device_id}, paired ${when}) `;
+      const unpairBtn = document.createElement("button");
+      unpairBtn.type = "button";
+      unpairBtn.className = "setup-btn";
+      unpairBtn.textContent = "✕ Unpair / 解除";
+      unpairBtn.addEventListener("click", async () => {
+        try {
+          const r = await fetch("/v1/world-lab/unpair", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ device_id: d.device_id }),
+          });
+          const rb = await r.json();
+          if (r.ok && rb.ok) refreshWorldLabDevices();
+        } catch (e) {
+          // 一覧の再読み込みで利用者に現状を見せれば十分——ここでは握りつぶす。
+        }
+      });
+      row.appendChild(unpairBtn);
+      worldLabDeviceListEl.appendChild(row);
+    });
+  } catch (e) {
+    worldLabDeviceListEl.textContent = `Failed to load devices: ${e.message} / デバイス一覧の取得に失敗しました: ${e.message}`;
+  }
+}
+
+if (worldLabRefreshBtn) {
+  worldLabRefreshBtn.addEventListener("click", () => {
+    refreshWorldLabStatus();
+    refreshWorldLabDevices();
+  });
+}
+
+if (worldLabPairBtn) {
+  worldLabPairBtn.addEventListener("click", async () => {
+    const token = (worldLabPairTokenEl?.value || "").trim();
+    const deviceName = (worldLabPairNameEl?.value || "").trim();
+    const connection = worldLabPairConnectionEl?.value || "wifi";
+    if (!token || !deviceName) {
+      worldLabPairStatusEl.textContent =
+        "Please enter both a pairing token and a device name. / ペアリングトークンとデバイス名の両方を入力してください。";
+      return;
+    }
+    worldLabPairStatusEl.textContent = "Pairing… / ペアリング中…";
+    try {
+      const res = await fetch("/v1/world-lab/pair", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token, device_name: deviceName, connection }),
+      });
+      const body = await res.json();
+      if (res.ok && body.ok) {
+        worldLabPairStatusEl.textContent =
+          `Paired. device_id=${body.device.device_id} / ペアリングしました。device_id=${body.device.device_id}`;
+        refreshWorldLabDevices();
+        refreshWorldLabStatus();
+      } else {
+        worldLabPairStatusEl.textContent = `Failed: ${body.error || "unknown error"} / 失敗しました: ${body.error || "不明なエラー"}`;
+      }
+    } catch (e) {
+      worldLabPairStatusEl.textContent = `Failed: ${e.message} / 失敗しました: ${e.message}`;
+    }
+  });
+}
+
+function arrayBufferToBase64(buf) {
+  let binary = "";
+  const bytes = new Uint8Array(buf);
+  for (let i = 0; i < bytes.byteLength; i += 1) binary += String.fromCharCode(bytes[i]);
+  return btoa(binary);
+}
+
+if (worldLabTaskRunBtn) {
+  worldLabTaskRunBtn.addEventListener("click", async () => {
+    const token = (worldLabPairTokenEl?.value || "").trim();
+    const file = worldLabTaskWasmEl?.files?.[0];
+    if (!token || !file) {
+      worldLabTaskStatusEl.textContent =
+        "Please enter a pairing token above and choose a .wasm file. / 上でペアリングトークンを入力し、.wasmファイルを選んでください。";
+      return;
+    }
+    worldLabTaskStatusEl.textContent = "Running (this may take a few seconds)… / 実行中(数秒かかる場合があります)…";
+    try {
+      const wasmBytes = await file.arrayBuffer();
+      const inputText = worldLabTaskInputEl?.value || "";
+      const wasmBase64 = arrayBufferToBase64(wasmBytes);
+      const inputBase64 = btoa(unescape(encodeURIComponent(inputText)));
+      const res = await fetch("/v1/world-lab/task/run", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token, wasm_base64: wasmBase64, input_base64: inputBase64 }),
+      });
+      const body = await res.json();
+      if (res.ok && body.ok) {
+        let outputText;
+        try {
+          outputText = decodeURIComponent(escape(atob(body.output_base64 || "")));
+        } catch (e) {
+          outputText = `(binary output, base64: ${body.output_base64})`;
+        }
+        worldLabTaskStatusEl.textContent =
+          `Done. fuel_consumed=${body.fuel_consumed}. Output: ${outputText} / ` +
+          `完了しました。fuel_consumed=${body.fuel_consumed}。出力: ${outputText}`;
+      } else {
+        worldLabTaskStatusEl.textContent = `Failed: ${body.error || "unknown error"} / 失敗しました: ${body.error || "不明なエラー"}`;
+      }
+    } catch (e) {
+      worldLabTaskStatusEl.textContent = `Failed: ${e.message} / 失敗しました: ${e.message}`;
+    }
+  });
+}
+
+// ============================================================================
 // 学年別・家庭教師コース(ユーザー指示、2026-08-23)
 // ----------------------------------------------------------------------------
 // 「学生向け家庭教師コースをインストールしたい」という利用者の操作に応えて、

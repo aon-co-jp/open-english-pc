@@ -113,6 +113,7 @@
     <button type="button" id="llm-recommend-btn" class="setup-btn">🧠 Recommend LLM / おすすめLLM</button>
     <button type="button" id="data-storage-btn" class="setup-btn">💾 Data & Model Storage / データ・モデルの保存先</button>
     <button type="button" id="ai-coding-btn" class="setup-btn">🖥️ AI Coding Assistant / AIでプログラミング</button>
+    <button type="button" id="world-lab-btn" class="setup-btn">🌐 world-lab (experimental) / world-lab(実験的機能)</button>
   </header>
 
   <div id="setup-modal" class="setup-modal hidden">
@@ -509,6 +510,84 @@ cd aruaru-db
       </label>
       <button type="button" id="ai-coding-tool-link-btn" class="setup-btn">🔗 Open official site / 公式サイトを開く</button>
       <p class="setup-note" id="ai-coding-tool-status"></p>
+    </div>
+  </div>
+
+  <div id="world-lab-modal" class="setup-modal hidden">
+    <div class="setup-panel">
+      <button type="button" id="world-lab-close" class="setup-close">✕</button>
+      <h2>world-lab (experimental) / world-lab(実験的機能)</h2>
+      <p class="setup-honest">
+        <strong>Honest disclosure:</strong> world-lab lets you pool idle CPU/GPU/NPU capacity from
+        spare devices (old phones/tablets/PCs, connected via USB/Wi-Fi/Bluetooth/LAN) to run
+        computation inside a WASM sandbox — no reward, mutual aid only. <strong>Disabled by
+        default on the server</strong> (two separate opt-in flags,
+        <code>OPEN_ENGLISH_WORLD_LAB_ENABLED</code> and
+        <code>OPEN_ENGLISH_WORLD_LAB_COMPUTE_ENABLED</code>). This app <strong>never relays
+        traffic on your behalf</strong> — there is no code path that forwards network traffic for
+        anyone, which is a deliberate design choice to avoid ever becoming a Winny-style relay for
+        someone else's abuse. If this server has it disabled, everything below will show an error
+        saying so — that is expected, not a bug.<br /><br />
+        <strong>正直な開示：</strong>world-labは、使わなくなったスマホ・タブレット・PC
+        (USB/Wi-Fi/Bluetooth/LAN経由で接続)の遊休CPU/GPU/NPUを、WASMサンドボックス内での
+        計算に持ち寄る実験的機能です——報酬は無く、相互扶助のみを目的としています。
+        <strong>サーバー側で既定は無効</strong>です(2つの独立したオプトインフラグ、
+        <code>OPEN_ENGLISH_WORLD_LAB_ENABLED</code>と
+        <code>OPEN_ENGLISH_WORLD_LAB_COMPUTE_ENABLED</code>)。このアプリは
+        <strong>通信を一切中継しません</strong>——誰かの代わりに通信を転送するコード自体が
+        存在せず、Winnyのような踏み台化を避けるための意図的な設計です。このサーバーで無効に
+        なっている場合、以下はすべて「無効です」というエラーを表示します——これは不具合では
+        なく想定どおりの挙動です。
+      </p>
+
+      <h3>📶 Status / 状態</h3>
+      <button type="button" id="world-lab-refresh-btn" class="setup-btn">🔄 Refresh / 再読み込み</button>
+      <p class="setup-note" id="world-lab-status-info">Loading… / 読み込み中…</p>
+
+      <h3>🔗 Pair a device / デバイスをペアリング</h3>
+      <p class="setup-note">
+        The pairing token is printed to this server's own startup log — it is never sent anywhere
+        automatically, and this page does not display it either (you must copy it from wherever
+        you started the server).<br />
+        ペアリングトークンはこのサーバー自身の起動ログに表示されます——自動的にどこかへ送信
+        されることはなく、この画面にも表示しません(サーバーを起動した場所からコピーして
+        ください)。
+      </p>
+      <input type="text" id="world-lab-pair-token" class="setup-input" placeholder="pairing token from server log / サーバーログのペアリングトークン" />
+      <input type="text" id="world-lab-pair-name" class="setup-input" placeholder="device name / デバイス名 (e.g. old-pixel-6)" />
+      <label class="settings-field">
+        Connection / 接続方式
+        <select id="world-lab-pair-connection">
+          <option value="usb">USB</option>
+          <option value="wifi">Wi-Fi</option>
+          <option value="bluetooth">Bluetooth</option>
+          <option value="lan">LAN (incl. crossover cable / クロスケーブル含む)</option>
+        </select>
+      </label>
+      <button type="button" id="world-lab-pair-btn" class="setup-btn">🔗 Pair / ペアリング</button>
+      <p class="setup-note" id="world-lab-pair-status"></p>
+
+      <h3>📋 Paired devices / ペアリング済みデバイス</h3>
+      <div id="world-lab-device-list" class="setup-note">—</div>
+
+      <h3>⚗ Run a compute task (advanced) / 計算タスクを実行(上級者向け)</h3>
+      <p class="setup-honest">
+        <strong>Honest disclosure:</strong> the guest module must export a linear memory named
+        <code>memory</code> and a function <code>run(in_ptr, in_len, out_ptr, out_cap) -&gt;
+        i32</code> — this is a deliberately minimal ABI, not a general-purpose WASI environment
+        (the module cannot access files/network/etc. — see the disclosure above). This is meant
+        for people who already know how to build such a <code>.wasm</code> file; there is no
+        code editor here.<br />
+        <strong>正直な開示：</strong>ゲストモジュールは線形メモリ<code>memory</code>と、
+        関数<code>run(in_ptr, in_len, out_ptr, out_cap) -&gt; i32</code>をエクスポートしている
+        必要があります——意図的に最小限のABIであり、汎用的なWASI環境ではありません
+        (ファイル・ネットワーク等へは一切アクセスできません、上の開示参照)。既にそのような
+        <code>.wasm</code>ファイルを作れる方向けの機能で、この画面にコードエディタはありません。
+      </p>
+      <input type="file" id="world-lab-task-wasm" accept=".wasm" class="setup-input" />
+      <textarea id="world-lab-task-input" class="setup-input" rows="3" placeholder="input text (UTF-8) / 入力テキスト(UTF-8)"></textarea>
+      <button type="button" id="world-lab-task-run-btn" class="setup-btn">▶ Run task / タスクを実行</button>
+      <p class="setup-note" id="world-lab-task-status"></p>
     </div>
   </div>
 
