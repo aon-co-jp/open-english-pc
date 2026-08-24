@@ -4851,6 +4851,16 @@ const AI_CODING_TOOL_LINKS = {
     label_en: "DeepSeek",
     label_ja: "DeepSeek",
   },
+  "copilot": {
+    url: "https://copilot.microsoft.com/",
+    label_en: "Microsoft Copilot",
+    label_ja: "Microsoft Copilot",
+  },
+  "github-copilot": {
+    url: "https://github.com/features/copilot",
+    label_en: "GitHub Copilot",
+    label_ja: "GitHub Copilot",
+  },
 };
 
 if (aiCodingToolLinkBtn) {
@@ -4883,8 +4893,12 @@ const worldLabPairTokenEl = document.getElementById("world-lab-pair-token");
 const worldLabPairNameEl = document.getElementById("world-lab-pair-name");
 const worldLabPairConnectionEl = document.getElementById("world-lab-pair-connection");
 const worldLabPairBtn = document.getElementById("world-lab-pair-btn");
+const worldLabPairKindEl = document.getElementById("world-lab-pair-kind");
+const worldLabPairCapGpuEl = document.getElementById("world-lab-pair-cap-gpu");
+const worldLabPairCapNpuEl = document.getElementById("world-lab-pair-cap-npu");
 const worldLabPairStatusEl = document.getElementById("world-lab-pair-status");
 const worldLabDeviceListEl = document.getElementById("world-lab-device-list");
+const WORLD_LAB_KIND_ICONS = { phone: "📱", tablet: "📲", pc: "🖥", other: "❓" };
 const worldLabTaskWasmEl = document.getElementById("world-lab-task-wasm");
 const worldLabTaskInputEl = document.getElementById("world-lab-task-input");
 const worldLabTaskRunBtn = document.getElementById("world-lab-task-run-btn");
@@ -4895,11 +4909,46 @@ if (worldLabBtn && worldLabModal) {
     worldLabModal.classList.remove("hidden");
     refreshWorldLabStatus();
     refreshWorldLabDevices();
+    autoDetectWorldLabPairFields();
   });
   worldLabClose.addEventListener("click", () => worldLabModal.classList.add("hidden"));
   worldLabModal.addEventListener("click", (e) => {
     if (e.target === worldLabModal) worldLabModal.classList.add("hidden");
   });
+}
+
+/// **このデバイス自身のハードウェア種別/能力の自動検出(2026-08-25
+/// 追加、ユーザー指示「ハードウェアによるハードウェアアクセラレータ
+/// サポートに自動対応して」への対応)**。
+///
+/// **正直な開示・意図的にやっていないこと(重要)**: これは「ペアリング
+/// フォームの入力欄を、既に画面上にある実測情報からあらかじめ埋めて
+/// 手間を減らす」だけの機能であり、**トークン無しでの自動ペアリング・
+/// 自動接続は行わない**——踏み台化防止のためペアリングには常に明示的な
+/// トークン入力+「ペアリング」ボタンのクリックが必要、という設計は
+/// 変更していない(このファイル冒頭のworld-lab関連コメント参照)。
+/// - デバイス種別: `navigator.userAgent`からの簡易推測(タブレット/
+///   スマホ/PC)。**推測に過ぎず、利用者はいつでもセレクトで上書き
+///   できる**。
+/// - GPU: 既に定期ポーリングしている`lastRuntimeInfo.gpu_in_use`
+///   (aruaru-llm側`GET /v1/runtime`の実測結果、新しいfetchは追加で
+///   発生させない)を流用。未接続・未計測なら何もチェックしない。
+/// - NPU: このアプリには信頼できる自動検出手段が無いため、常に
+///   未チェックのまま(利用者が知っていれば手動でチェックする)。
+function autoDetectWorldLabPairFields() {
+  if (worldLabPairKindEl) {
+    const ua = navigator.userAgent || "";
+    if (/iPad|Tablet(?!.*Mobile)/i.test(ua)) {
+      worldLabPairKindEl.value = "tablet";
+    } else if (/Mobi|Android.*Mobile|iPhone/i.test(ua)) {
+      worldLabPairKindEl.value = "phone";
+    } else {
+      worldLabPairKindEl.value = "pc";
+    }
+  }
+  if (worldLabPairCapGpuEl && lastRuntimeInfo && lastRuntimeInfo.gpu_in_use) {
+    worldLabPairCapGpuEl.checked = true;
+  }
 }
 
 async function refreshWorldLabStatus() {
@@ -4910,9 +4959,12 @@ async function refreshWorldLabStatus() {
     const info = await res.json();
     const en = info.enabled ? "ENABLED (pairing)" : "disabled";
     const ja = info.enabled ? "有効(ペアリング)" : "無効";
+    const byKind = info.paired_by_kind || {};
+    const kindSummary = `📱${byKind.phone ?? 0} 📲${byKind.tablet ?? 0} 🖥${byKind.pc ?? 0} ❓${byKind.other ?? 0}`;
     worldLabStatusInfoEl.textContent =
-      `Status: ${en}, paired devices: ${info.paired_device_count ?? 0} / ` +
-      `状態: ${ja}、ペアリング済みデバイス数: ${info.paired_device_count ?? 0}\n${info.disclosure_en || ""}\n${info.disclosure_ja || ""}`;
+      `Status: ${en}, paired devices: ${info.paired_device_count ?? 0} (${kindSummary}) / ` +
+      `状態: ${ja}、ペアリング済みデバイス数: ${info.paired_device_count ?? 0}(${kindSummary})\n` +
+      `${info.disclosure_en || ""}\n${info.disclosure_ja || ""}\n${info.capabilities_disclosure_en || ""}\n${info.capabilities_disclosure_ja || ""}\n${info.wan_disclosure_en || ""}\n${info.wan_disclosure_ja || ""}`;
   } catch (e) {
     worldLabStatusInfoEl.textContent = `Failed to load status: ${e.message} / 状態の取得に失敗しました: ${e.message}`;
   }
@@ -4937,7 +4989,9 @@ async function refreshWorldLabDevices() {
     devices.forEach((d) => {
       const row = document.createElement("div");
       const when = new Date(d.paired_at_unix * 1000).toLocaleString();
-      row.textContent = `${d.device_name} (${d.connection}, id=${d.device_id}, paired ${when}) `;
+      const icon = WORLD_LAB_KIND_ICONS[d.kind] || WORLD_LAB_KIND_ICONS.other;
+      const caps = Array.isArray(d.capabilities) && d.capabilities.length ? d.capabilities.join("+").toUpperCase() : "cpu (default) / 既定";
+      row.textContent = `${icon} ${d.device_name} (${d.kind || "other"}, ${d.connection}, ${caps}, id=${d.device_id}, paired ${when}) `;
       const unpairBtn = document.createElement("button");
       unpairBtn.type = "button";
       unpairBtn.className = "setup-btn";
@@ -4963,6 +5017,27 @@ async function refreshWorldLabDevices() {
   }
 }
 
+// 「関連ツール」導線(2026-08-25追加、ユーザー指示「world-labの標準
+// 機能にopen-englishやCopilot支援機能やaruaru-llm支援機能を」への
+// 対応)。**実体の無い連携を装わない**——world-lab側に新しいロジックは
+// 増やさず、既存の「⚙ Setup aruaru-llm」「🖥️ AI Coding Assistant」
+// パネル(Copilotのリンクも含む、上記`AI_CODING_TOOL_LINKS`参照)を
+// world-labモーダルを閉じてから開くだけの単純な導線。
+const worldLabGotoAruaruLlmBtn = document.getElementById("world-lab-goto-aruaru-llm-btn");
+const worldLabGotoAiCodingBtn = document.getElementById("world-lab-goto-ai-coding-btn");
+if (worldLabGotoAruaruLlmBtn) {
+  worldLabGotoAruaruLlmBtn.addEventListener("click", () => {
+    worldLabModal?.classList.add("hidden");
+    setupModal?.classList.remove("hidden");
+  });
+}
+if (worldLabGotoAiCodingBtn) {
+  worldLabGotoAiCodingBtn.addEventListener("click", () => {
+    worldLabModal?.classList.add("hidden");
+    aiCodingModal?.classList.remove("hidden");
+  });
+}
+
 if (worldLabRefreshBtn) {
   worldLabRefreshBtn.addEventListener("click", () => {
     refreshWorldLabStatus();
@@ -4975,6 +5050,10 @@ if (worldLabPairBtn) {
     const token = (worldLabPairTokenEl?.value || "").trim();
     const deviceName = (worldLabPairNameEl?.value || "").trim();
     const connection = worldLabPairConnectionEl?.value || "wifi";
+    const kind = worldLabPairKindEl?.value || "other";
+    const capabilities = ["cpu"];
+    if (worldLabPairCapGpuEl?.checked) capabilities.push("gpu");
+    if (worldLabPairCapNpuEl?.checked) capabilities.push("npu");
     if (!token || !deviceName) {
       worldLabPairStatusEl.textContent =
         "Please enter both a pairing token and a device name. / ペアリングトークンとデバイス名の両方を入力してください。";
@@ -4985,7 +5064,7 @@ if (worldLabPairBtn) {
       const res = await fetch("/v1/world-lab/pair", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token, device_name: deviceName, connection }),
+        body: JSON.stringify({ token, device_name: deviceName, connection, kind, capabilities }),
       });
       const body = await res.json();
       if (res.ok && body.ok) {
@@ -4998,6 +5077,52 @@ if (worldLabPairBtn) {
       }
     } catch (e) {
       worldLabPairStatusEl.textContent = `Failed: ${e.message} / 失敗しました: ${e.message}`;
+    }
+  });
+}
+
+const worldLabBulkPairNamesEl = document.getElementById("world-lab-bulk-pair-names");
+const worldLabBulkPairBtn = document.getElementById("world-lab-bulk-pair-btn");
+const worldLabBulkPairStatusEl = document.getElementById("world-lab-bulk-pair-status");
+
+if (worldLabBulkPairBtn) {
+  worldLabBulkPairBtn.addEventListener("click", async () => {
+    const token = (worldLabPairTokenEl?.value || "").trim();
+    const connection = worldLabPairConnectionEl?.value || "wifi";
+    const kind = worldLabPairKindEl?.value || "other";
+    const capabilities = ["cpu"];
+    if (worldLabPairCapGpuEl?.checked) capabilities.push("gpu");
+    if (worldLabPairCapNpuEl?.checked) capabilities.push("npu");
+    const names = (worldLabBulkPairNamesEl?.value || "")
+      .split("\n")
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0);
+    if (!token || names.length === 0) {
+      worldLabBulkPairStatusEl.textContent =
+        "Please enter a pairing token above and at least one device name below. / 上でペアリングトークンを、下に少なくとも1台のデバイス名を入力してください。";
+      return;
+    }
+    worldLabBulkPairStatusEl.textContent = `Pairing ${names.length} device(s)… / ${names.length}台をペアリング中…`;
+    try {
+      const devices = names.map((device_name) => ({ device_name, connection, kind, capabilities }));
+      const res = await fetch("/v1/world-lab/pair/bulk", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token, devices }),
+      });
+      const body = await res.json();
+      if (res.ok && body.ok) {
+        const failed = (body.results || []).filter((r) => !r.ok);
+        const failedSummary = failed.length ? ` Failed: ${failed.map((r) => `${r.device_name} (${r.error})`).join(", ")}` : "";
+        worldLabBulkPairStatusEl.textContent =
+          `Paired ${body.succeeded}/${body.total}.${failedSummary} / ${body.succeeded}/${body.total}台をペアリングしました。${failedSummary}`;
+        refreshWorldLabDevices();
+        refreshWorldLabStatus();
+      } else {
+        worldLabBulkPairStatusEl.textContent = `Failed: ${body.error || "unknown error"} / 失敗しました: ${body.error || "不明なエラー"}`;
+      }
+    } catch (e) {
+      worldLabBulkPairStatusEl.textContent = `Failed: ${e.message} / 失敗しました: ${e.message}`;
     }
   });
 }

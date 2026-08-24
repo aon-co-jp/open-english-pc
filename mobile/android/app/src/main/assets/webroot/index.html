@@ -506,6 +506,8 @@ cd aruaru-db
           <option value="chatgpt">ChatGPT / OpenAI</option>
           <option value="gemini">Google Gemini</option>
           <option value="deepseek">DeepSeek</option>
+          <option value="copilot">Microsoft Copilot</option>
+          <option value="github-copilot">GitHub Copilot</option>
         </select>
       </label>
       <button type="button" id="ai-coding-tool-link-btn" class="setup-btn">🔗 Open official site / 公式サイトを開く</button>
@@ -544,6 +546,19 @@ cd aruaru-db
       <button type="button" id="world-lab-refresh-btn" class="setup-btn">🔄 Refresh / 再読み込み</button>
       <p class="setup-note" id="world-lab-status-info">Loading… / 読み込み中…</p>
 
+      <h3>🧩 Related tools / 関連ツール</h3>
+      <p class="setup-note">
+        world-lab is about sharing idle hardware, not AI chat itself. For the AI backend this app
+        actually talks to, or for AI coding tool shortcuts (including Microsoft/GitHub Copilot),
+        use the panels below — they are not duplicated here.<br />
+        world-labは遊休ハードウェアの共有機能であり、AIチャット機能そのものではありません。
+        このアプリが実際に話しかけるAIバックエンドの設定や、AIコーディングツールの案内
+        (Microsoft/GitHub Copilotを含む)は下のパネルをご利用ください(ここには複製して
+        いません)。
+      </p>
+      <button type="button" id="world-lab-goto-aruaru-llm-btn" class="setup-btn">⚙ Setup aruaru-llm</button>
+      <button type="button" id="world-lab-goto-ai-coding-btn" class="setup-btn">🖥️ AI Coding Assistant (incl. Copilot) / AIでプログラミング(Copilot含む)</button>
+
       <h3>🔗 Pair a device / デバイスをペアリング</h3>
       <p class="setup-note">
         The pairing token is printed to this server's own startup log — it is never sent anywhere
@@ -562,10 +577,48 @@ cd aruaru-db
           <option value="wifi">Wi-Fi</option>
           <option value="bluetooth">Bluetooth</option>
           <option value="lan">LAN (incl. crossover cable / クロスケーブル含む)</option>
+          <option value="wan">WAN / Internet (⚠ no TLS yet, see disclosure / TLS未対応、開示参照)</option>
         </select>
+      </label>
+      <label class="settings-field">
+        Device type / デバイス種別
+        <select id="world-lab-pair-kind">
+          <option value="phone">📱 Phone / スマホ</option>
+          <option value="tablet">📲 Tablet / タブレット</option>
+          <option value="pc">🖥 PC</option>
+          <option value="other">❓ Other / その他</option>
+        </select>
+      </label>
+      <p class="setup-note">
+        Hardware this device claims to have (self-reported, not verified — see honest disclosure
+        above; actual compute tasks always run on CPU today).<br />
+        このデバイスが備えると自己申告するハードウェア(検証はしていません——上の開示参照。
+        実際の計算タスクは現状すべてCPUで実行されます)。
+      </p>
+      <label class="settings-field-inline">
+        <input type="checkbox" id="world-lab-pair-cap-cpu" checked disabled /> CPU
+      </label>
+      <label class="settings-field-inline">
+        <input type="checkbox" id="world-lab-pair-cap-gpu" /> GPU
+      </label>
+      <label class="settings-field-inline">
+        <input type="checkbox" id="world-lab-pair-cap-npu" /> NPU
       </label>
       <button type="button" id="world-lab-pair-btn" class="setup-btn">🔗 Pair / ペアリング</button>
       <p class="setup-note" id="world-lab-pair-status"></p>
+
+      <h3>🏢 Bulk pairing (offices, many PCs at once) / 一括ペアリング(オフィス等、多数のPCを一度に)</h3>
+      <p class="setup-note">
+        Paste one device name per line — they will all use the connection/type/capabilities
+        selected above. This is still an explicit, one-click action with the same token check per
+        device — not automatic discovery.<br />
+        1行に1台ずつデバイス名を貼り付けてください——上で選んだ接続方式/種別/能力が全台へ
+        適用されます。これも「明示的な1回の操作+1台ごとの同じトークン確認」であり、
+        自動発見ではありません。
+      </p>
+      <textarea id="world-lab-bulk-pair-names" class="setup-input" rows="4" placeholder="office-pc-01&#10;office-pc-02&#10;office-pc-03"></textarea>
+      <button type="button" id="world-lab-bulk-pair-btn" class="setup-btn">🏢 Pair all listed devices / 一覧の全デバイスをペアリング</button>
+      <p class="setup-note" id="world-lab-bulk-pair-status"></p>
 
       <h3>📋 Paired devices / ペアリング済みデバイス</h3>
       <div id="world-lab-device-list" class="setup-note">—</div>
