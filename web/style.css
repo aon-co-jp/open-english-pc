@@ -626,6 +626,35 @@ body {
   color: #ff9ecb;
 }
 
+/* 名言・ことわざ+モチベーションメッセージ(2026-08-24新設)。
+   キャリアガイダンス欄(`.tutor-career-box`/`.vschool-career`)の直後に
+   同じ見た目で続けて表示する。 */
+.tutor-quote-box,
+.tutor-motivation-box {
+  flex-basis: 100%;
+  margin: 6px 0 0;
+  padding: 8px 10px;
+  background: #241726;
+  border-left: 3px solid #ffd27a;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+.tutor-motivation-box {
+  border-left-color: #9ed6ff;
+}
+.tutor-quote-label {
+  margin: 0 0 4px;
+  font-weight: bold;
+  color: #ffd27a;
+}
+.tutor-motivation-box .tutor-quote-label {
+  color: #9ed6ff;
+}
+.tutor-quote-note {
+  opacity: 0.9;
+}
+
 /* バーチャルスクール / 職業訓練校の分野カード内に置くYouTube検索リンク
    (2026-08-24追加)。特定の動画ではなく検索結果ページへのリンク。 */
 .vschool-yt-link {

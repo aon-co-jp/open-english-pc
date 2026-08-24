@@ -4882,6 +4882,119 @@ const TUTOR_GRADES = [
 // (ドイツでも進路指導が本格化するのはRealschule/Gymnasium相当の学年から
 // であることを踏まえた判断)。小学校高学年(`elementaryUpper`)以上にのみ、
 // 学年段階(elementary/secondary/high)ごとに文面を分けて用意している。
+// 名言・ことわざ+モチベーションメッセージ(2026-08-24新設、ユーザー指示
+// 「名言・ことわざを授業内容に効果的に組み込む」「就職できる、転職できる、
+// 食っていける、どこに行っても通用する人に育てる、というメッセージを
+// 誇張しすぎず組み込む」への対応)。
+//
+// **表示先(3か所、いずれも既存のキャリアガイダンス表示の直後)**:
+// 学年別・家庭教師コースの教科選択一覧(`tutorCareerHtml`)、出題画面
+// (`tutorCareerGuidanceHtml`)、バーチャルスクール/職業訓練校の分野選択
+// (`vschoolCareerHtml`)。新しい表示の仕組みは増やさず、既存のキャリア
+// ガイダンス欄へ追記する形にしてある。
+//
+// **誠実さの方針(既存ルールを踏襲、絶対に弱めないこと)**: モチベーション
+// メッセージは「就職できる、転職できる、食っていける、どこに行っても
+// 通用する人に育てる」「どこに出しても恥ずかしくない人に育てる」
+// 「国際的で模範的な指導者が育つように」というユーザーの願いを、
+// 「〜を目指します」「〜を願っています」という運営側の姿勢・目標として
+// 表現する——「これを学べば必ずそうなれます」という学習者への断定的な
+// 保証にはしない(このアプリ全体の非断定方針と同じ)。
+const CAREER_MOTIVATION_QUOTES = [
+  {
+    ja: "鉄は熱いうちに打て。",
+    en: "Strike while the iron is hot.",
+    note_ja: "興味を持った今この瞬間に、少しでも手を動かしてみましょう。",
+    note_en: "While your interest is fresh, try putting it into practice right now.",
+  },
+  {
+    ja: "千里の道も一歩から。",
+    en: "A journey of a thousand miles begins with a single step.",
+    note_ja: "大きな目標も、今日の1問・1フレーズの積み重ねから始まります。",
+    note_en: "Even a big goal starts with today's single question or phrase.",
+  },
+  {
+    ja: "習うより慣れよ。",
+    en: "Practice makes perfect.",
+    note_ja: "説明を読むだけでなく、実際に声に出して使ってみることが上達の近道かもしれません。",
+    note_en: "Saying phrases out loud, not just reading about them, may be the shorter path to progress.",
+  },
+  {
+    ja: "石の上にも三年。",
+    en: "Rome wasn't built in a day.",
+    note_ja: "すぐに結果が出なくても、続けることに意味があるかもしれません。",
+    note_en: "Even without quick results, sticking with it may be worth something in itself.",
+  },
+  {
+    ja: "備えあれば憂いなし。",
+    en: "A stitch in time saves nine.",
+    note_ja: "基礎を今のうちに固めておくと、あとで役立つ場面があるかもしれません。",
+    note_en: "Building basics now may pay off later, when you least expect to need them.",
+  },
+  {
+    ja: "初心忘るべからず。",
+    en: "Always remember your beginner's mind.",
+    note_ja: "「なぜ学び始めたのか」を思い出すと、続ける力になるかもしれません。",
+    note_en: "Remembering why you started may help you keep going.",
+  },
+  {
+    ja: "案ずるより産むが易し。",
+    en: "Fortune favors the bold. / It's easier done than said to be feared.",
+    note_ja: "心配して立ち止まるより、まず一言話しかけてみる方が、案外うまくいくかもしれません。",
+    note_en: "Worrying about it often turns out harder than just trying it — speaking up first may go more smoothly than expected.",
+  },
+  {
+    ja: "失敗は成功のもと。",
+    en: "Failure teaches success. / You learn from your mistakes.",
+    note_ja: "間違えた問題こそ、次に活かせる材料になるかもしれません。",
+    note_en: "A question you got wrong may become the most useful material for next time.",
+  },
+];
+
+/** 教科ID(または分野ID)から、常に同じ名言を1件選ぶ(表示のたびに
+ *  変わって落ち着かない、ということがないよう簡易ハッシュで固定する)。
+ *  日英併記+短い一言(ja/en)を付けて返す。 */
+function pickCareerQuote(seedText) {
+  let hash = 0;
+  const s = String(seedText || "");
+  for (let i = 0; i < s.length; i++) {
+    hash = (hash * 31 + s.charCodeAt(i)) >>> 0;
+  }
+  return CAREER_MOTIVATION_QUOTES[hash % CAREER_MOTIVATION_QUOTES.length];
+}
+
+/** 名言+一言コメントのHTML断片(既存の`.vschool-career`と同じ見た目の
+ *  クラスを流用、`style.css`に`.tutor-quote-box`を追加)。 */
+function careerQuoteHtml(seedText) {
+  const q = pickCareerQuote(seedText);
+  return (
+    '<div class="tutor-quote-box">' +
+    '<p class="tutor-quote-label">💬 今日の一言 / Quote of the day</p>' +
+    `<p>「${q.ja}」<br>"${q.en}"</p>` +
+    `<p class="tutor-quote-note">${q.note_ja}<br>${q.note_en}</p>` +
+    "</div>"
+  );
+}
+
+// **モチベーションメッセージ(固定文、誇張しすぎないトーン)**。
+// ユーザーの願い(就職・転職・食っていける・どこに出しても恥ずかしくない・
+// 国際的で模範的な指導者)を、運営側の目標・姿勢として表現している
+// (学習者への保証ではない、この一文を弱めないこと)。
+const CAREER_MOTIVATION_MESSAGE = {
+  ja: "私たちは、学んだ先にある「就職できる、転職できる、食っていける、どこに行っても通用する人に育つ」ことを目指して、この教材を作っています。どこに出しても恥ずかしくない実力、そして国際的な場面でも落ち着いて対応できる力が育つように、という願いを込めています。もちろん、学習だけで結果が保証されるわけではありませんが、日々の積み重ねが土台になるはずです。",
+  en: "We build this material hoping it leads somewhere real: being employable, being able to change careers, making a living, and holding your own wherever you go. We hope it helps build skills you can be proud of anywhere, and the composure to handle international settings well. Of course, study alone doesn't guarantee outcomes — but day-by-day practice should give you a solid foundation to build on.",
+};
+
+function careerMotivationHtml() {
+  return (
+    '<div class="tutor-motivation-box">' +
+    '<p class="tutor-quote-label">🌱 育ってほしい姿 / What we hope you grow into</p>' +
+    `<p>${CAREER_MOTIVATION_MESSAGE.ja}</p>` +
+    `<p>${CAREER_MOTIVATION_MESSAGE.en}</p>` +
+    "</div>"
+  );
+}
+
 const TUTOR_CAREER = {
   japanese: {
     elementary: {
@@ -4967,6 +5080,22 @@ const TUTOR_CAREER = {
       en: "Programming skill may help not just at IT companies but in digitalization work across many industries. Going further, it could open a path toward full-stack engineering or IT architecture roles.",
     },
   },
+  // 「話し方・質問の仕方(建設的コミュニケーション)」(2026-08-24新設、
+  // ユーザー指示「曖昧な話・仮説的な話を建設的に行う方法、問題点を指摘した
+  // 上で相手の意見を求める話法、大胆かつ繊細さの重要性を、英語表現として
+  // 教材化」への対応)。中学・高校段階のみに用意している(小学校段階には
+  // 交渉・議論のニュアンスがまだ早いと判断、他教科の`elementary`枠を
+  // あえて設けていない)。
+  communication: {
+    secondary: {
+      ja: "問題点を整理して伝え、相手の意見を尋ねる話し方は、部活動やグループ学習でのリーダー的な役割で役立つかもしれません。さらに極めると、生徒会や司会進行のような役割を目指せる可能性があります。",
+      en: "Clearly stating a problem and then asking for others' input may help in leadership roles within clubs or group work. Going further, it could open a path toward student-council or facilitation roles.",
+    },
+    high: {
+      ja: "曖昧な提案・仮説を整理して話す力や、建設的なフィードバックの技法は、会議・接客・国際交流など、あらゆる仕事の土台になるかもしれません。さらに極めると、ファシリテーターや管理職、国際的な場で活躍する人材を目指せる可能性があります。",
+      en: "The ability to organize a vague idea or hypothetical proposal, and the technique of giving constructive feedback, may become a foundation for meetings, customer service, and international exchange in almost any job. Going further, it could open a path toward facilitation, management, or roles that work well in international settings.",
+    },
+  },
 };
 
 /** VSCHOOLの`vschoolCareerHtml`と同じ表示形式(日英併記・非断定)。
@@ -4979,7 +5108,9 @@ function tutorCareerHtml(subject) {
     '<p class="vschool-career-label">🎓 キャリアガイダンス / Career guidance</p>' +
     "<p>" + subject.career.ja + "</p>" +
     "<p>" + subject.career.en + "</p>" +
-    "</div>"
+    "</div>" +
+    careerQuoteHtml(subject.id) +
+    careerMotivationHtml()
   );
 }
 
@@ -5012,6 +5143,7 @@ const TUTOR_SUBJECTS_BY_STAGE = {
     { id: "social", ja: "社会", en: "Social studies", career: TUTOR_CAREER.social.secondary },
     { id: "english", ja: "英語", en: "English", career: TUTOR_CAREER.english.secondary },
     { id: "programming", ja: "プログラミング", en: "Programming", career: TUTOR_CAREER.programming.secondary },
+    { id: "communication", ja: "話し方・質問の仕方", en: "Communication & Questioning Skills", career: TUTOR_CAREER.communication.secondary },
   ],
   high: [
     { id: "japanese", ja: "国語(現代文・古文)", en: "Japanese (modern & classical)", career: TUTOR_CAREER.japanese.high },
@@ -5020,6 +5152,7 @@ const TUTOR_SUBJECTS_BY_STAGE = {
     { id: "social", ja: "地理歴史・公民", en: "Geography, history & civics", career: TUTOR_CAREER.social.high },
     { id: "english", ja: "英語", en: "English", career: TUTOR_CAREER.english.high },
     { id: "programming", ja: "プログラミング", en: "Programming", career: TUTOR_CAREER.programming.high },
+    { id: "communication", ja: "話し方・質問の仕方", en: "Communication & Questioning Skills", career: TUTOR_CAREER.communication.high },
   ],
 };
 
@@ -5167,6 +5300,12 @@ const TUTOR_CAREER_GUIDANCE = {
     advanced: "プログラミングをさらに極めると、Webエンジニア・システムエンジニア・ゲームプログラマー・データエンジニアのような、開発を専門的に担う上級職種を目指せる可能性があります。",
     advancedEn: "Going much further with programming may open paths toward advanced roles such as web engineer, systems engineer, game programmer, or data engineer.",
   },
+  communication: {
+    ja: "曖昧な話や仮説を整理して伝える力、問題点を指摘した上で相手の意見を求める話し方は、会議・接客・チームでの共同作業など、あらゆる場面で役立つかもしれません。",
+    en: "The ability to organize a vague or hypothetical idea, and to point out a problem clearly before asking for others' opinions, may help in meetings, customer service, and teamwork of almost any kind.",
+    advanced: "建設的なコミュニケーション力をさらに極めると、ファシリテーター・管理職・国際会議の進行役のような、対話を導く上級職種を目指せる可能性があります。",
+    advancedEn: "Mastering constructive communication further may open paths toward advanced roles such as facilitator, manager, or someone who runs international meetings.",
+  },
 };
 
 /**
@@ -5185,7 +5324,9 @@ function tutorCareerGuidanceHtml(subjectId) {
     "ドイツの職業教育制度(デュアルシステム)の「学習内容と職業・上級資格が結びついている」という考え方を参考に、" +
     "参考情報として補足しているものです。 / This is general reference information, not a guarantee of employment " +
     "or qualification. It is offered as a supplementary note inspired by how Germany's dual vocational training " +
-    "system links subjects to specific occupations and further qualifications.</p>"
+    "system links subjects to specific occupations and further qualifications.</p>" +
+    careerQuoteHtml(subjectId) +
+    careerMotivationHtml()
   );
 }
 
@@ -5528,6 +5669,63 @@ const TUTOR_QUESTIONS = {
     },
     { q: "次の文の主語はどれですか。「昨日、友人の兄が 荷物を 届けてくれた。」", choices: ["昨日", "友人の", "兄が", "荷物を"], answer: 2 },
   ],
+  // 「話し方・質問の仕方」入門(2026-08-24新設)。日本語の説明はしつつ、
+  // **問われている内容自体は実際に使える英語フレーズ**にしてある
+  // (ユーザー指示「英語表現として教材化すること」への対応)。仮説的な話・
+  // 建設的なフィードバック・大胆さと繊細さの3テーマをやさしいレベルで
+  // 扱う(高校版はより踏み込んだ表現)。
+  "j1:communication": [
+    {
+      q: "「もし仮に〜だとしたら」と、断定せずに仮説の話を切り出す英語表現はどれですか。",
+      choices: ["\"If, hypothetically, ...\"", "\"It is a fact that ...\"", "\"You must ...\"", "\"Never do that.\""],
+      answer: 0,
+      easier: {
+        q: "「〜かもしれません」という、断定を避けるやわらかい言い方はどれですか。",
+        choices: ["\"It might be ...\"", "\"It is definitely ...\"", "\"That's wrong.\"", "\"Do it now.\""],
+        answer: 0,
+      },
+    },
+    {
+      q: "問題点を指摘したあとに、相手の意見を求める丁寧な言い方はどれですか。",
+      choices: [
+        "\"This is clearly wrong. Fix it.\"",
+        "\"I think the problem here is X. What do you think we should do, Ken?\"",
+        "\"I don't care about your opinion.\"",
+        "\"Whatever.\"",
+      ],
+      answer: 1,
+      easier: {
+        q: "みんなに意見を求めるときの丁寧な言い方はどれですか。",
+        choices: ["\"Everyone, could you share your thoughts?\"", "\"Nobody cares.\"", "\"Just decide for me.\"", "\"Stop talking.\""],
+        answer: 0,
+      },
+    },
+    {
+      q: "消極的すぎず、かといって乱暴でもない「大胆かつ繊細」な提案の仕方はどれですか。",
+      choices: [
+        "\"Um, maybe, I don't know, nevermind...\"",
+        "\"Do exactly what I say, no questions.\"",
+        "\"I'd like to suggest an idea — please let me know what you think.\"",
+        "\"...\" (何も言わない)",
+      ],
+      answer: 2,
+    },
+    {
+      q: "相手の意見を否定せずに、別の見方を丁寧に加える言い方はどれですか。",
+      choices: [
+        "\"That's a good point. Could I add another perspective?\"",
+        "\"You're completely wrong.\"",
+        "\"That doesn't matter.\"",
+        "\"I already knew that.\"",
+      ],
+      answer: 0,
+    },
+    {
+      q: "グループでの話し合いの最初に、みんなへ意見を求める定番の一言はどれですか。",
+      choices: ["\"Everyone, I'd love to hear your thoughts.\"", "\"Just agree with me.\"", "\"I'll decide alone.\"", "\"Silence, please.\""],
+      answer: 0,
+    },
+  ],
   "j3:math": [
     {
       q: "(x + 3)(x - 5) を展開すると?",
@@ -5659,6 +5857,76 @@ const TUTOR_QUESTIONS = {
     },
     { q: "「いと をかし」の「をかし」の意味に最も近いものはどれですか。", choices: ["趣がある", "おかしくて笑える", "気の毒だ", "恐ろしい"], answer: 0 },
     { q: "評論文で、筆者の主張を読み取る手がかりとして最も適切なものはどれですか。", choices: ["具体例の細かい数字", "「つまり」「このように」などの後の一文", "登場人物の会話", "本文中の固有名詞の数"], answer: 1 },
+  ],
+  // 「話し方・質問の仕方」高校版(2026-08-24新設)。j1版より一歩踏み込んで、
+  // Hypothetical Discussion(仮説的な話)・Constructive Feedback(建設的な
+  // 指摘)・大胆さと繊細さを両立する英語フレーズを扱う。
+  "h1:communication": [
+    {
+      q: "「仮に〜だとしたら、どうなるでしょうか」と、断定せず仮説を投げかける会議向けの英語表現はどれですか。",
+      choices: [
+        "\"Hypothetically speaking, what would happen if we changed this?\"",
+        "\"This is exactly what will happen.\"",
+        "\"You are wrong about this.\"",
+        "\"I refuse to discuss this.\"",
+      ],
+      answer: 0,
+      easier: {
+        q: "「これはあくまで仮の話ですが」と前置きする表現はどれですか。",
+        choices: ["\"This is just a hypothetical, but ...\"", "\"This is a fact.\"", "\"Trust me blindly.\"", "\"No comment.\""],
+        answer: 0,
+      },
+    },
+    {
+      q: "問題点を明確に指摘したうえで、特定の人へ丁寧に解決策を求める、構造化された話法はどれですか。",
+      choices: [
+        "\"You always mess this up.\"",
+        "\"The problem here is clearly the deadline. I think we could extend it — Sato-san, could you suggest a solution?\"",
+        "\"It's not my problem.\"",
+        "\"Figure it out yourself.\"",
+      ],
+      answer: 1,
+      easier: {
+        q: "問題点を伝えたあとに使う、意見を求める丁寧なつなぎの表現はどれですか。",
+        choices: ["\"What would you suggest?\"", "\"I don't want to know.\"", "\"Just fix it.\"", "\"Not my job.\""],
+        answer: 0,
+      },
+    },
+    {
+      q: "会議やチームでの発言について、「大胆かつ繊細に」話すことの利点として最も適切な説明はどれですか。",
+      choices: [
+        "消極的すぎると意見が届かず失敗しやすいが、思いやりのある言葉選びをすれば率直な意見も受け止められやすくなる",
+        "とにかく強く主張すれば、内容が正しくなくても常にうまくいく",
+        "何も言わずに黙っていれば、誤解されることはない",
+        "繊細さは弱さの表れなので、ビジネスの場では不要である",
+      ],
+      answer: 0,
+    },
+    {
+      q: "建設的なフィードバックを伝える際、相手の努力を認めたうえで改善点を添える英語表現はどれですか。",
+      choices: [
+        "\"This is completely wrong, start over.\"",
+        "\"I can see the effort you put into this. One thing that could make it even stronger is ...\"",
+        "\"I have nothing to say.\"",
+        "\"Whatever works for you.\"",
+      ],
+      answer: 1,
+      easier: {
+        q: "相手の良い点を先に伝える表現はどれですか。",
+        choices: ["\"I really like how you ...\"", "\"That's terrible.\"", "\"I don't care.\"", "\"No.\""],
+        answer: 0,
+      },
+    },
+    {
+      q: "会議の終わりに、全員へ改めて意見を求める丁寧な締めの一言はどれですか。",
+      choices: [
+        "\"Everyone, please feel free to share any thoughts before we close.\"",
+        "\"Meeting's over, don't bother me.\"",
+        "\"I've already decided, so it doesn't matter.\"",
+        "\"No questions allowed.\"",
+      ],
+      answer: 0,
+    },
   ],
 };
 
@@ -6897,7 +7165,9 @@ function vschoolCareerHtml(field) {
     '<p class="vschool-career-label">🎓 キャリアガイダンス / Career guidance</p>' +
     "<p>" + field.career.ja + "</p>" +
     "<p>" + field.career.en + "</p>" +
-    "</div>"
+    "</div>" +
+    careerQuoteHtml(field.id) +
+    careerMotivationHtml()
   );
 }
 
