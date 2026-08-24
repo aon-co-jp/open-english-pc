@@ -4997,7 +4997,7 @@ const CAREER_MOTIVATION_QUOTES = [
   },
   {
     ja: "案ずるより産むが易し。",
-    en: "Fortune favors the bold. / It's easier done than said to be feared.",
+    en: "Fretting over it is often harder than actually doing it.",
     note_ja: "心配して立ち止まるより、まず一言話しかけてみる方が、案外うまくいくかもしれません。",
     note_en: "Worrying about it often turns out harder than just trying it — speaking up first may go more smoothly than expected.",
   },
