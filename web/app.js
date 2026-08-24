@@ -904,6 +904,7 @@ async function advanceTrainingMode(userText) {
   reply += await newsSuffix(userText);
   reply += troubledSuffix(userText);
   reply += nuclearDeterrenceSuffix(userText);
+  reply += egovSuffix(userText);
   appendMessage("trainer", reply);
   speakBilingual(reply);
   trainingStepIndex = Math.min(trainingStepIndex + 1, trainingSteps.length - 1);
@@ -1122,6 +1123,7 @@ async function askTrainer(userText) {
   reply += await newsSuffix(userText);
   reply += troubledSuffix(userText);
   reply += nuclearDeterrenceSuffix(userText);
+  reply += egovSuffix(userText);
   return reply;
 }
 
@@ -1534,6 +1536,62 @@ function nuclearDeterrenceOpinionText() {
 function nuclearDeterrenceSuffix(userText) {
   if (!mentionsNuclearDeterrenceTopic(userText)) return "";
   return nuclearDeterrenceOpinionText();
+}
+
+// 政府の機能性・eガバメントについての議論トピック例(ユーザー指示、
+// 2026-08-24)。核抑止・同盟関係の議論トピック(`nuclearDeterrenceSuffix`)と
+// 完全に同じ設計——(1)発言者名を明記しつつ人物評価には踏み込まず発言内容
+// のみを教材化する、(2)ユーザー個人の政策的主張は「一意見」として提示し
+// 客観的事実として断定しない、という2つの誠実さの担保を弱めないこと。
+const EGOV_TOPIC_KEYWORDS_JA = [
+  "eガバメント", "電子政府", "デジタルガバメント", "デジタル政府",
+  "電子申請", "行政のデジタル化", "国際貿易システム",
+];
+const EGOV_TOPIC_KEYWORDS_EN = [
+  "e-government", "egovernment", "digital government",
+  "digital governance", "electronic government",
+];
+
+function mentionsEgovTopic(userText) {
+  const lower = userText.toLowerCase();
+  return (
+    EGOV_TOPIC_KEYWORDS_JA.some((k) => userText.includes(k)) ||
+    EGOV_TOPIC_KEYWORDS_EN.some((k) => lower.includes(k))
+  );
+}
+
+function egovOpinionText() {
+  const noteJa =
+    "※これは賛否両論があるテーマについての、ユーザー様個人の見解です。" +
+    "客観的な事実として提示するものではありません。";
+  const noteEn =
+    "Note: This is one user's personal opinion on a topic with differing " +
+    "views, not presented as objective fact.";
+  const ja =
+    "【議論トピック例(ユーザー様の一意見)】\n" +
+    "バラク・オバマ元大統領の発言として知られていますが、彼は以前、" +
+    "「政府とは大きいか小さいかではなく、機能するかしないかだ」と" +
+    "おっしゃったことがあります(人物の評価とは切り離した、発言内容" +
+    "そのものについての紹介です)。それを踏まえ、eガバメント・" +
+    "デジタルガバメントも、世界中でオンライン貿易システムと共に、" +
+    "格安の出店出品料金で早急に開発する必要がある、という見方が" +
+    "あります。";
+  const en =
+    "[Discussion topic example (one user's opinion)]\n" +
+    "This is widely attributed to former U.S. President Barack Obama: " +
+    "\"The question we ask today is not whether our government is too " +
+    "big or too small, but whether it works.\" (This is offered purely " +
+    "as the content of the remark, separate from any judgment of the " +
+    "person.) Building on that idea, there is a view that e-government " +
+    "and digital government should be developed urgently worldwide, " +
+    "together with online international trade systems and low-cost " +
+    "seller/listing fees.";
+  return `\n\n🗣️ ${noteJa}\n${ja}\n\n${noteEn}\n${en}`;
+}
+
+function egovSuffix(userText) {
+  if (!mentionsEgovTopic(userText)) return "";
+  return egovOpinionText();
 }
 
 // 正直な開示: 対話ファインチューニングを受けていない素のGPT-2(貪欲
