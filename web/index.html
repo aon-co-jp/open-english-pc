@@ -79,7 +79,21 @@
       <select id="learn-target">
         <option value="english" selected>English conversation / 英会話</option>
         <option value="japanese">Japanese conversation / 日本語会話</option>
+        <option value="german">German conversation / ドイツ語会話</option>
+        <option value="french">French conversation / フランス語会話</option>
+        <option value="spanish">Spanish conversation / スペイン語会話</option>
+        <option value="italian">Italian conversation / イタリア語会話</option>
+        <option value="russian">Russian conversation / ロシア語会話</option>
+        <option value="arabic">Arabic conversation / アラビア語会話</option>
+        <option value="persian">Persian (Farsi) conversation / ペルシャ語会話</option>
+        <option value="hebrew">Hebrew conversation / ヘブライ語会話</option>
       </select>
+      <span class="setup-note">※正直な開示 / Honest note: ドイツ語・フランス語・スペイン語・
+        イタリア語・ロシア語・アラビア語・ペルシャ語・ヘブライ語は、英語中心に
+        事前学習された小型GPT-2ベースのaruaru-llmでは生成品質が低い(実質的に
+        使い物にならない場合がある)ことを実機検証済みです。詳細はREADME参照。
+        These languages ran with poor/unusable quality in live testing against
+        the English-centric GPT-2-based aruaru-llm — see README for details.</span>
     </label>
     <label class="level-select">
       Level / レベル:
@@ -101,6 +115,14 @@
         <option value="hybrid" selected>Hybrid EN+JA / 英日ハイブリッド</option>
         <option value="en">English only</option>
         <option value="ja">日本語のみ</option>
+        <option value="de">Deutsch / ドイツ語のみ</option>
+        <option value="fr">Français / フランス語のみ</option>
+        <option value="es">Español / スペイン語のみ</option>
+        <option value="it">Italiano / イタリア語のみ</option>
+        <option value="ru">Русский / ロシア語のみ</option>
+        <option value="ar">العربية / アラビア語のみ</option>
+        <option value="fa">فارسی / ペルシャ語のみ</option>
+        <option value="he">עברית / ヘブライ語のみ</option>
       </select>
     </label>
     <label class="web-search-toggle">

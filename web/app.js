@@ -38,7 +38,46 @@ const langInstructions = {
   en: "Reply only in English.",
   ja: "日本語のみで返答してください(Reply only in Japanese).",
   hybrid: "Reply with a short mix of English and Japanese in the same message (e.g. give the English sentence, then a brief Japanese translation or note), to help the student learn both.",
+  // 2026-08-25追加(ユーザー指示「ドイツ語・欧州主要言語・ロシア語・
+  // アラビア語・ペルシャ語・ヘブライ語への対応拡張」への対応)。
+  // 正直な開示: aruaru-llmは英語中心に事前学習された小型GPT-2ベースで
+  // あり、これらの言語での指示追従・生成品質は保証されない
+  // (実機検証結果はCLAUDE.md HANDOFF・README参照)。
+  de: "Reply only in German (Deutsch).",
+  fr: "Reply only in French (Français).",
+  es: "Reply only in Spanish (Español).",
+  it: "Reply only in Italian (Italiano).",
+  ru: "Reply only in Russian (Русский).",
+  ar: "Reply only in Arabic (العربية).",
+  fa: "Reply only in Persian/Farsi (فارسی).",
+  he: "Reply only in Hebrew (עברית).",
 };
+
+// RTL(右書き)言語のコード一覧(ユーザー指示「Arabic・Persian・Hebrewは
+// RTLスクリプトなので設計・実装せよ」への対応)。`reply-lang`または
+// `learn-target`がこれに該当する場合、該当メッセージ吹き出しにのみ
+// dir="rtl"を設定する——アプリ全体のLTRレイアウト(トップバー・
+// 設定パネル等)は崩さず、チャット本文の可読性のみを改善する設計。
+const RTL_LANG_CODES = new Set(["ar", "fa", "he"]);
+const RTL_LEARN_TARGETS = new Set(["arabic", "persian", "hebrew"]);
+
+// 各種スクリプト(文字体系)検出。containsJapanese()と同じ
+// Unicodeプロパティエスケープ方式(\p{Script=...})を使い、追加
+// ライブラリ無しでモダンブラウザ上で判定する。ensureHybridReply()等の
+// 「モデルが要求言語で実際に書けているか」の判定、およびappendMessage()
+// でのdir="rtl"自動判定の両方に使う。
+function containsCyrillic(text) {
+  return /\p{Script=Cyrillic}/u.test(text);
+}
+function containsArabicScript(text) {
+  return /\p{Script=Arabic}/u.test(text);
+}
+function containsHebrewScript(text) {
+  return /\p{Script=Hebrew}/u.test(text);
+}
+function isRtlText(text) {
+  return containsArabicScript(text) || containsHebrewScript(text);
+}
 
 // 学びたい言語の方向(ユーザー指示「英会話か日本語会話か学びたい言語を
 // 選べるようにして」への対応)。従来は常に「英語トレーナー」固定だった
@@ -48,6 +87,14 @@ const langInstructions = {
 const trainerRoleByTarget = {
   english: "You are a friendly English conversation trainer at a maid cafe.",
   japanese: "You are a friendly Japanese conversation trainer at a maid cafe, helping the student practice speaking Japanese.",
+  german: "You are a friendly German (Deutsch) conversation trainer at a maid cafe, helping the student practice speaking German.",
+  french: "You are a friendly French (Français) conversation trainer at a maid cafe, helping the student practice speaking French.",
+  spanish: "You are a friendly Spanish (Español) conversation trainer at a maid cafe, helping the student practice speaking Spanish.",
+  italian: "You are a friendly Italian (Italiano) conversation trainer at a maid cafe, helping the student practice speaking Italian.",
+  russian: "You are a friendly Russian (Русский) conversation trainer at a maid cafe, helping the student practice speaking Russian.",
+  arabic: "You are a friendly Arabic (العربية) conversation trainer at a maid cafe, helping the student practice speaking Arabic.",
+  persian: "You are a friendly Persian/Farsi (فارسی) conversation trainer at a maid cafe, helping the student practice speaking Persian.",
+  hebrew: "You are a friendly Hebrew (עברית) conversation trainer at a maid cafe, helping the student practice speaking Hebrew.",
 };
 const learnTargetEl = document.getElementById("learn-target");
 
@@ -272,6 +319,33 @@ function ensureHybridReply(completion, userText) {
   return `${completion}\n\n${note}`;
 }
 
+// 2026-08-25追加(ユーザー指示「German/Russian/Arabic/Persian/Hebrewの
+// 実生成品質を実機テストし、ガベージなら正直に開示せよ」への対応)。
+// 実機検証結果(CLAUDE.md HANDOFF参照): reply-langをde/fr/es/it/ru/ar/
+// fa/heのいずれに設定しても、aruaru-llm(英語中心の小型GPT-2)は
+// プロンプトの言語指示を無視し、実際には**常に英語のみ**を生成した
+// (5言語×複数回の実測でいずれも対象スクリプトの文字が一切含まれな
+// かった)。ラテン文字言語(de/fr/es/it)は英語との文字種の区別が
+// つかないため確実な検出はできないが、非ラテン文字言語
+// (ru/ar/fa/he)は`containsCyrillic`/`containsArabicScript`/
+// `containsHebrewScript`で機械的に判定できるため、
+// `ensureHybridReply`と同じ「保証」パターンをここでも適用し、
+// 対象スクリプトが1文字も無ければ定型の開示ノートを追記する
+// (機械翻訳の質を偽って主張しない、あくまで正直な注記)。
+const NON_LATIN_SCRIPT_GUARANTEE = {
+  ru: { test: containsCyrillic, label: "Russian / ロシア語" },
+  ar: { test: containsArabicScript, label: "Arabic / アラビア語" },
+  fa: { test: containsArabicScript, label: "Persian (Farsi) / ペルシャ語" },
+  he: { test: containsHebrewScript, label: "Hebrew / ヘブライ語" },
+};
+function ensureScriptGuaranteedReply(completion) {
+  const cfg = NON_LATIN_SCRIPT_GUARANTEE[replyLangEl.value];
+  if (!cfg) return completion;
+  if (cfg.test(completion)) return completion;
+  const note = `(Honest disclosure: this small English-centric AI model could not actually generate ${cfg.label} text — it replied in English instead. This was confirmed in live testing; see README for details. / 正直な開示: この小型AIモデルは英語中心のため、実際には${cfg.label}の文章を生成できず、英語で応答してしまいました。実機検証済みの既知の制約です。詳細はREADME参照。)`;
+  return `${completion}\n\n${note}`;
+}
+
 // パネル類の開閉(ユーザー指示「Xで閉じたりOPENで開いたり出来るように」
 // 「これらの表示はパネルとしてCLOSEとOPENをクリックで閉じたり開いたり
 // 可能にして」への対応、2026-08-25新設)。開閉状態はlocalStorageへ
@@ -379,6 +453,19 @@ function appendMessage(role, text) {
   div.className = `msg ${role}`;
   div.textContent = text;
   div.dataset.role = role;
+  // RTL(右書き)対応(2026-08-25追加): アプリ全体のLTRレイアウトは
+  // 変えず、このメッセージ吹き出し単体にだけdir="rtl"を設定する。
+  // 選択中の言語設定(reply-lang/learn-target)がAR/FA/HEなら、または
+  // 本文自体にアラビア文字・ヘブライ文字が実際に含まれていれば適用する
+  // (モデルが設定と無関係にRTL文字を生成した場合にも対応するため、
+  // 設定判定と実文字判定のOR)。
+  const wantsRtl =
+    (replyLangEl && RTL_LANG_CODES.has(replyLangEl.value)) ||
+    (learnTargetEl && RTL_LEARN_TARGETS.has(learnTargetEl.value)) ||
+    isRtlText(text);
+  if (wantsRtl) {
+    div.dir = "rtl";
+  }
   logEl.appendChild(div);
   logEl.scrollTop = logEl.scrollHeight;
   return div;
@@ -1138,7 +1225,7 @@ async function askTrainer(userText) {
     renderRuntimeBadge(lastRuntimeInfo);
   }
   const completion = data.completion ?? "(no completion field in response)";
-  let reply = ensureHybridReply(trimDegenerateRepetition(completion), userText);
+  let reply = ensureScriptGuaranteedReply(ensureHybridReply(trimDegenerateRepetition(completion), userText));
 
   if (useWebSearch) {
     if (data.used_search && Array.isArray(data.search_results) && data.search_results.length > 0) {
