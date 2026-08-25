@@ -5320,6 +5320,31 @@ if (worldLabGotoAiCodingBtn) {
   });
 }
 
+// open-cg-cad(AI工務店&AI建設)への導線(2026-08-25追加、open-cg-cad側の
+// HANDOFF「open-english側からopen-cg-cadへのリンク・インストール導線が
+// 未着手」への対応)。open-cg-cadは別アプリ(別サーバー/別ポート)のため
+// 上記2つと違いモーダル切替ではなく実際に別タブで開く。**正直な開示**:
+// 専用の連携APIは無く、単純な外部リンク+localStorage経由のURLヒント
+// 受け渡しのみ(open-cg-cad/server/src/index.htmlが読む
+// "open-cg-cad.openEnglishBase"キーに、自分自身のURLを書き込んでおく
+// ことで、easy-web.tokyo等の同一オリジン配下にpath prefixで両アプリが
+// 同居している本番環境では、open-cg-cad側の「← open-englishへ戻る」
+// リンクが正しい戻り先を指せるようにする——ローカル開発時(別ポート=
+// 別オリジン)はlocalStorageが共有されないため効果が無いが実害も無い)。
+const worldLabGotoCgCadBtn = document.getElementById("world-lab-goto-cg-cad-btn");
+if (worldLabGotoCgCadBtn) {
+  worldLabGotoCgCadBtn.addEventListener("click", () => {
+    const defaultCgCadBase = "http://127.0.0.1:4701/";
+    let cgCadBase = defaultCgCadBase;
+    try {
+      cgCadBase = localStorage.getItem("open-english.cgCadBase") || defaultCgCadBase;
+      const ownBase = location.origin + location.pathname.replace(/[^/]*$/, "");
+      localStorage.setItem("open-cg-cad.openEnglishBase", ownBase);
+    } catch (e) { /* localStorage不可でも既定URLでのリンクは機能する */ }
+    window.open(cgCadBase, "_blank", "noopener");
+  });
+}
+
 if (worldLabRefreshBtn) {
   worldLabRefreshBtn.addEventListener("click", () => {
     refreshWorldLabStatus();
