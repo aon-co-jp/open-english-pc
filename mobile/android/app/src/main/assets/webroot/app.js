@@ -272,34 +272,41 @@ function ensureHybridReply(completion, userText) {
   return `${completion}\n\n${note}`;
 }
 
-// 正直な開示ボックスの開閉(ユーザー指示「Xで閉じたりOPENで開いたり
-// 出来るように」への対応、2026-08-25新設)。開閉状態はlocalStorageへ
+// パネル類の開閉(ユーザー指示「Xで閉じたりOPENで開いたり出来るように」
+// 「これらの表示はパネルとしてCLOSEとOPENをクリックで閉じたり開いたり
+// 可能にして」への対応、2026-08-25新設)。開閉状態はlocalStorageへ
 // 保存し、次回訪問時も維持する(既存の設定永続化の慣習に合わせた)。
-const DISCLOSURE_COLLAPSED_KEY = "open-english.disclosureCollapsed";
-const disclosureBox = document.getElementById("disclosure-box");
-const disclosureToggleBtn = document.getElementById("disclosure-toggle-btn");
-function setDisclosureCollapsed(collapsed) {
-  if (!disclosureBox || !disclosureToggleBtn) return;
-  disclosureBox.classList.toggle("hidden", collapsed);
-  disclosureToggleBtn.textContent = collapsed ? "ℹ OPEN / 開示を開く" : "✕ Hide disclosure / 開示を閉じる";
-  try {
-    localStorage.setItem(DISCLOSURE_COLLAPSED_KEY, collapsed ? "1" : "0");
-  } catch (e) {
-    /* localStorage不可でも開閉自体は機能させる */
+// 汎用ヘルパー化し、正直な開示ボックス以外の複数パネル(スマホ活用
+// バナー・多言語案内バナー・設定+ボタン一覧のトップバー)にも同じ
+// 仕組みを適用する。
+function makeCollapsiblePanel(boxId, btnId, storageKeySuffix, closedLabel, openLabel) {
+  const box = document.getElementById(boxId);
+  const btn = document.getElementById(btnId);
+  if (!box || !btn) return;
+  const storageKey = "open-english.collapsed." + storageKeySuffix;
+  function setCollapsed(collapsed) {
+    box.classList.toggle("hidden", collapsed);
+    btn.textContent = collapsed ? openLabel : closedLabel;
+    try {
+      localStorage.setItem(storageKey, collapsed ? "1" : "0");
+    } catch (e) {
+      /* localStorage不可でも開閉自体は機能させる */
+    }
   }
-}
-if (disclosureToggleBtn) {
   let collapsed = false;
   try {
-    collapsed = localStorage.getItem(DISCLOSURE_COLLAPSED_KEY) === "1";
+    collapsed = localStorage.getItem(storageKey) === "1";
   } catch (e) {
     /* 既定は開いた状態 */
   }
-  setDisclosureCollapsed(collapsed);
-  disclosureToggleBtn.addEventListener("click", () => {
-    setDisclosureCollapsed(!disclosureBox.classList.contains("hidden"));
-  });
+  setCollapsed(collapsed);
+  btn.addEventListener("click", () => setCollapsed(!box.classList.contains("hidden")));
 }
+
+makeCollapsiblePanel("disclosure-box", "disclosure-toggle-btn", "disclosure", "✕ Hide disclosure / 開示を閉じる", "ℹ OPEN / 開示を開く");
+makeCollapsiblePanel("phone-accel-banner", "phone-accel-banner-toggle", "phoneAccelBanner", "✕ CLOSE", "＋ OPEN");
+makeCollapsiblePanel("world-language-banner", "world-language-banner-toggle", "worldLanguageBanner", "✕ CLOSE", "＋ OPEN");
+makeCollapsiblePanel("topbar", "topbar-toggle", "topbar", "✕ CLOSE", "＋ OPEN");
 
 const logEl = document.getElementById("log");
 const formEl = document.getElementById("chat-form");

@@ -246,6 +246,18 @@ body {
   padding: 4px 10px;
 }
 
+.collapsible-toggle-btn {
+  display: block;
+  margin: 4px 8px 0;
+  font-size: 0.75rem;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid #5a3a5a;
+  background: #241726;
+  color: var(--text);
+  cursor: pointer;
+}
+
 .log {
   background: var(--panel);
   border-radius: 8px;
