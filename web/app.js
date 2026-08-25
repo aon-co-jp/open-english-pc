@@ -123,7 +123,8 @@ const learnTargetEl = document.getElementById("learn-target");
 (function showMaintenanceBanner() {
   const banner = document.getElementById("maintenance-banner");
   const countdownEl = document.getElementById("maintenance-countdown");
-  if (!banner || !countdownEl) return;
+  const messageEl = document.getElementById("maintenance-banner-message");
+  if (!banner || !countdownEl || !messageEl) return;
   banner.classList.remove("hidden");
   // メンテナンス中の待ち時間を使い、サーバー接続国のニュースを収集
   // しておく(ユーザー指示、2026-08-17「メンテナンス時にその人のIPアドレス
@@ -145,7 +146,14 @@ const learnTargetEl = document.getElementById("learn-target");
     countdownEl.textContent = String(Math.max(remaining, 0));
     if (remaining <= 0) {
       clearInterval(timer);
-      banner.classList.add("hidden");
+      // カウントダウン終了後、日英併記の「終了しました」メッセージへ差し替える
+      // (ユーザー指示「終わったら、メンテナンスが終わりましたと英語と日本語で
+      // 表示して」への対応)。すぐに隠さず、しばらく表示してから自動的に
+      // 閉じる——利用者が見逃さないようにするため。
+      messageEl.textContent = "✅ Maintenance has ended. Thank you for waiting! / メンテナンスが終わりました。お待たせしました!";
+      setTimeout(() => {
+        banner.classList.add("hidden");
+      }, 5000);
     }
   }, 1000);
 })();
@@ -381,6 +389,7 @@ makeCollapsiblePanel("disclosure-box", "disclosure-toggle-btn", "disclosure", "�
 makeCollapsiblePanel("phone-accel-banner", "phone-accel-banner-toggle", "phoneAccelBanner", "✕ CLOSE", "＋ OPEN");
 makeCollapsiblePanel("world-language-banner", "world-language-banner-toggle", "worldLanguageBanner", "✕ CLOSE", "＋ OPEN");
 makeCollapsiblePanel("topbar", "topbar-toggle", "topbar", "✕ CLOSE", "＋ OPEN");
+makeCollapsiblePanel("maintenance-banner-detail", "maintenance-banner-toggle", "maintenanceBannerDetail", "✕ CLOSE", "＋ OPEN");
 
 const logEl = document.getElementById("log");
 const formEl = document.getElementById("chat-form");
@@ -394,6 +403,25 @@ const apiBaseEl = document.getElementById("api-base");
 if (apiBaseEl && location.hostname && location.hostname !== "localhost" && location.hostname !== "127.0.0.1") {
   apiBaseEl.value = `http://${location.hostname}:4600`;
 }
+// 2026-08-25新設: VPS等のリバースプロキシ配下デプロイでは、上記の
+// hostname:4600推測が届かないことが多い(ファイアウォール/TLSの都合)。
+// サーバー側`GET /v1/config`が`aruaru_llm_base_url`を返す場合(デプロイ側で
+// `OPEN_ENGLISH_ARUARU_LLM_BASE_URL`環境変数を設定した場合のみ)は、
+// それを最優先の既定値として使う。未設定(ローカルPC版の既定)なら
+// 上記のhostname:4600推測をそのまま使う。
+(async function applyDeploymentAruaruLlmBase() {
+  if (!apiBaseEl) return;
+  try {
+    const res = await fetch("/v1/config", { cache: "no-store" });
+    if (!res.ok) return;
+    const data = await res.json();
+    if (data.aruaru_llm_base_url) {
+      apiBaseEl.value = data.aruaru_llm_base_url;
+    }
+  } catch (e) {
+    // `/v1/config`未提供の配信形態(file://直開き等)では黙って既定のまま。
+  }
+})();
 const statusEl = document.getElementById("status");
 const trainerEl = document.getElementById("trainer");
 const bubbleEl = document.getElementById("speech-bubble");
@@ -1195,6 +1223,20 @@ async function askTrainer(userText) {
   // 従来挙動よりは遥かにましだが、「速くなる」わけではない(正直な開示)。
   const timeoutMs = useWebSearch ? 90000 : 60000;
   const startedAt = performance.now();
+  // 2026-08-25追加: Google検索補強がONの場合、このブラウザに保存された
+  // 訪問者自身のAPIキー/cx(あれば)を同梱する——これによりaruaru-llm側は
+  // グローバル共有設定(開発者が別途設定したキー)を消費せず、この訪問者
+  // 自身のキーだけをこのリクエスト限りで使う(`web_search.rs`の
+  // `search_with_credentials`参照)。未設定なら送らず、既定のフォール
+  // バック(グローバル設定があればそれ、無ければ検索無し)に任せる。
+  const ownGoogleSearchCreds = useWebSearch && typeof loadOwnGoogleSearchCredentials === "function"
+    ? loadOwnGoogleSearchCredentials()
+    : null;
+  const requestBody = { prompt, max_new_tokens: 24 };
+  if (ownGoogleSearchCreds) {
+    requestBody.google_search_api_key = ownGoogleSearchCreds.api_key;
+    requestBody.google_search_cx = ownGoogleSearchCreds.cx;
+  }
   const res = await fetchWithTimeout(`${base}${endpoint}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -1203,7 +1245,7 @@ async function askTrainer(userText) {
     // ほぼ一定時間かかるため、トークン数を減らすことがそのまま応答時間の
     // 短縮になる——ファインチューニング無しの素のモデルであるという
     // 制約自体は変わらない。
-    body: JSON.stringify({ prompt, max_new_tokens: 24 }),
+    body: JSON.stringify(requestBody),
   }, timeoutMs);
   if (!res.ok) {
     // 本文にaruaru-llm側の`error`フィールドが入っていることがあるので、
@@ -3342,17 +3384,39 @@ const googleSearchSaveBtn = document.getElementById("google-search-save");
 const googleSearchClearBtn = document.getElementById("google-search-clear");
 const googleSearchStatusEl = document.getElementById("google-search-status");
 
-async function refreshGoogleSearchStatus() {
+// 2026-08-25変更(ユーザー指示「ブラウザ版は各自Google検索のAPIキーとIDを
+// 各自で設定してもらう様に…開発者が設定したAPIキーとIDは、アクセス者は
+// 使わない、消費しない様に」への対応): 従来は`POST /v1/settings/
+// google-search`でaruaru-llmプロセス全体が共有するグローバル設定を
+// 書き換えていたが、これは複数の訪問者が同じaruaru-llmインスタンス
+// (例: VPS上の共有デプロイ)へアクセスする場合、**ある訪問者が自分の
+// キーを設定すると他の全訪問者の検索もそのキーへ切り替わってしまう**
+// (意図しない共有・消費)という設計上の欠陥があった。
+// 修正後は、各自のキー/cxを**このブラウザのlocalStorageにのみ**保存し、
+// リクエストのたびに`google_search_api_key`/`google_search_cx`として
+// 本文に含めて送る(`aruaru-llm`側`main.rs`の`generate_with_search`が
+// 2026-08-25新設、リクエストに同梱されたキーがあればグローバル設定
+// には一切触れずそのリクエスト限りで使う設計)。開発者がこのサーバーに
+// 別途キーを設定していても、ここで自分のキーを入力した訪問者の
+// リクエストはそのグローバルなキーを使わない・消費しない。
+const GOOGLE_SEARCH_LOCAL_KEY = "open-english.googleSearchApiKey";
+const GOOGLE_SEARCH_LOCAL_CX = "open-english.googleSearchCx";
+
+function loadOwnGoogleSearchCredentials() {
   try {
-    const base = apiBaseEl.value.trim();
-    const res = await fetch(`${base}/v1/settings/google-search`);
-    const data = await res.json();
-    googleSearchStatusEl.textContent = data.configured
-      ? "✅ Configured / 設定済みです"
-      : "⚪ Not configured yet / まだ設定されていません";
-  } catch (err) {
-    googleSearchStatusEl.textContent = `⚠ Could not check status / 状態を確認できませんでした: ${err.message}`;
+    const api_key = localStorage.getItem(GOOGLE_SEARCH_LOCAL_KEY) || "";
+    const cx = localStorage.getItem(GOOGLE_SEARCH_LOCAL_CX) || "";
+    return api_key && cx ? { api_key, cx } : null;
+  } catch (e) {
+    return null;
   }
+}
+
+function refreshGoogleSearchStatus() {
+  const creds = loadOwnGoogleSearchCredentials();
+  googleSearchStatusEl.textContent = creds
+    ? "✅ Your own key is saved in this browser / このブラウザにご自身のキーが保存されています"
+    : "⚪ Not set yet — search will not run for you / まだ設定されていません(検索は行われません)";
 }
 
 if (googleSearchBtn && googleSearchModal) {
@@ -3364,35 +3428,28 @@ if (googleSearchBtn && googleSearchModal) {
   googleSearchModal.addEventListener("click", (e) => {
     if (e.target === googleSearchModal) googleSearchModal.classList.add("hidden");
   });
-  googleSearchSaveBtn.addEventListener("click", async () => {
-    const base = apiBaseEl.value.trim();
+  googleSearchSaveBtn.addEventListener("click", () => {
     const api_key = googleSearchApiKeyEl.value.trim();
     const cx = googleSearchCxEl.value.trim();
     try {
-      const res = await fetch(`${base}/v1/settings/google-search`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ api_key, cx }),
-      });
-      const data = await res.json();
-      googleSearchStatusEl.textContent = data.configured
-        ? "✅ Saved and configured / 保存・設定できました"
-        : "⚠ Saved but not configured (empty key/cx?) / 保存しましたが未設定のままです(キー/cxが空?)";
-      // 保存後は入力欄をクリアする(画面上に平文で残さない配慮)。
+      if (api_key && cx) {
+        localStorage.setItem(GOOGLE_SEARCH_LOCAL_KEY, api_key);
+        localStorage.setItem(GOOGLE_SEARCH_LOCAL_CX, cx);
+        googleSearchStatusEl.textContent = "✅ Saved in this browser only / このブラウザにのみ保存しました";
+      } else {
+        googleSearchStatusEl.textContent = "⚠ Both fields are required / 両方の欄を入力してください";
+      }
       googleSearchApiKeyEl.value = "";
       googleSearchCxEl.value = "";
     } catch (err) {
       googleSearchStatusEl.textContent = `⚠ Failed to save / 保存に失敗しました: ${err.message}`;
     }
   });
-  googleSearchClearBtn.addEventListener("click", async () => {
-    const base = apiBaseEl.value.trim();
+  googleSearchClearBtn.addEventListener("click", () => {
     try {
-      const res = await fetch(`${base}/v1/settings/google-search`, { method: "DELETE" });
-      const data = await res.json();
-      googleSearchStatusEl.textContent = data.configured
-        ? "⚠ Still configured (unexpected) / まだ設定されたままです(想定外)"
-        : "🗑 Cleared / 消去しました";
+      localStorage.removeItem(GOOGLE_SEARCH_LOCAL_KEY);
+      localStorage.removeItem(GOOGLE_SEARCH_LOCAL_CX);
+      googleSearchStatusEl.textContent = "🗑 Cleared from this browser / このブラウザから消去しました";
     } catch (err) {
       googleSearchStatusEl.textContent = `⚠ Failed to clear / 消去に失敗しました: ${err.message}`;
     }
@@ -3706,6 +3763,18 @@ async function renderExamPrepQuiz() {
     const extra = await loadExtraExamPrepQuestions();
     pool = (EXAM_PREP_QUESTIONS[exam] || []).concat(extra[exam] || []);
   }
+  if (pool.length === 0) {
+    // プールが空の場合、押しても何も始まらないように見えるBUGを修正
+    // (「開始」ボタンを押しても画面が空のままだった)——正直な案内を
+    // 表示し、「開始」ボタンも隠す(既存のvschool側と同じパターン)。
+    currentExamPrepQuiz = [];
+    examPrepQuizEl.innerHTML = "";
+    examPrepResultEl.textContent =
+      "現在この試験区分の問題は準備中です。 / Questions for this exam are not ready yet.";
+    examPrepSubmitBtn.classList.add("hidden");
+    examPrepPracticeBtn.classList.add("hidden");
+    return;
+  }
   // プール全体からランダムに抽出した上で出題順もシャッフルし、各問の
   // 選択肢の並び(正解の位置)も毎回シャッフルする——正解が常に同じ
   // 位置に来る/常に同じ問題の組み合わせで出題される、という予測可能性を
@@ -3991,6 +4060,16 @@ async function fetchWorldLanguages() {
     const res = await fetch("/v1/world-languages", { cache: "no-store" });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
+    // 2026-08-25新設: メモリ/ディスク容量が限られたデプロイ(VPS等)向けの
+    // 制限モード。サーバー側が`limited:true`を返した場合、追加言語選択
+    // ボタンを隠して代わりに正直な案内(日英併記)を表示する。
+    const noticeEl = document.getElementById("world-language-limited-notice");
+    const chooseBtn = document.getElementById("world-language-banner-btn");
+    if (data.limited && noticeEl) {
+      noticeEl.textContent = `${data.notice_ja || ""} / ${data.notice_en || ""}`;
+      noticeEl.classList.remove("hidden");
+      if (chooseBtn) chooseBtn.classList.add("hidden");
+    }
     return Array.isArray(data.languages) ? data.languages : [];
   } catch (e) {
     // APIが無い配信形態(`file://`直開き等)では静的JSONへフォールバックする。

@@ -388,6 +388,14 @@ body {
   display: none;
 }
 
+/* `.setup-note`は既定で暗い背景(#3a2a1a)を持つため、周囲の
+   `.maintenance-banner`の文字色(#222、暗い背景を想定)をそのまま
+   継承すると暗背景に暗文字で読めなくなる(ユーザー報告により発見・
+   修正、2026-08-25)。ここでは白色を明示する。 */
+#maintenance-banner-detail .setup-note {
+  color: #ffffff;
+}
+
 .free-tier-banner {
   background: var(--panel);
   color: var(--text);
@@ -826,6 +834,13 @@ body {
 }
 @media (max-width: 600px) {
   .world-language-banner-main { font-size: 1rem; }
+}
+.world-language-limited-notice {
+  margin: 8px 0 0;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: #3a1a2a;
+  font-style: italic;
 }
 
 /* 追加言語パック選択UI(2026-08-22追加)。 */

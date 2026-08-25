@@ -13,10 +13,17 @@
 </head>
 <body>
   <div id="maintenance-banner" class="maintenance-banner hidden">
-    <p>
+    <p id="maintenance-banner-message">
       🛠️ Under maintenance. Please wait about 1 minute. / ただいまメンテナンス中です。1分ほどお待ち下さい。
       (<span id="maintenance-countdown">60</span>s)
     </p>
+    <button type="button" id="maintenance-banner-toggle" class="setup-btn">✕ CLOSE</button>
+    <div id="maintenance-banner-detail">
+      <p class="setup-note">
+        このメンテナンス中は、サーバー接続国のニュースを収集し、話題についていけるよう準備しています。この待ち時間は固定のカウントダウン表示であり、実際のバックエンド処理の完了時刻と厳密には連動していません。 /
+        During this maintenance window, we gather local news for your region so the trainer can keep up with current topics. This countdown is a simple fixed timer and is not strictly tied to the actual completion time of backend processing.
+      </p>
+    </div>
   </div>
   <div id="free-tier-banner" class="free-tier-banner hidden">
     <button type="button" id="free-tier-toggle" class="free-tier-toggle">
@@ -53,6 +60,7 @@
     <button type="button" id="world-language-banner-btn" class="setup-btn">
       🌐 追加する言語を選ぶ / Choose additional languages
     </button>
+    <p id="world-language-limited-notice" class="world-language-limited-notice hidden"></p>
   </div>
   <div id="network-status-badge" class="network-status-badge" title="Click for details / クリックで詳細">
     <span id="network-status-text">🔒 Checking… / 確認中…</span>
@@ -271,13 +279,28 @@ cargo run --release</pre>
       <p class="setup-honest">
         <strong>Honest disclosure:</strong> This uses the Google Custom Search JSON API.
         You need your own API key and Search Engine ID (cx) — this app does not include or
-        acquire one for you, and never sends it anywhere except your own local aruaru-llm
-        server (kept in memory only, never written to disk).<br /><br />
+        acquire one for you.<br /><br />
         <strong>正直な開示:</strong> Google Custom Search JSON APIを使用します。
         APIキーと検索エンジンID(cx)はご自身で取得してください——このアプリは
-        キーを同梱・取得代行しません。入力した値はお使いのPC上のaruaru-llm
-        サーバーへのみ送信され、メモリ上にのみ保持されます(ディスクへの保存は
-        行いません)。
+        キーを同梱・取得代行しません。
+      </p>
+      <p class="setup-honest">
+        <strong>Browser (shared-server) version:</strong> If you are using this app in a web
+        browser via a shared/rental server (e.g. easy-web.tokyo), please set up your <strong>own</strong>
+        Google Search API key and Search Engine ID (cx) below. Your key is saved only in
+        <em>this browser's local storage</em> and sent only with your own search requests —
+        it is never uploaded to the server as a shared setting. If the developer has configured
+        their own key on this server for other purposes, your requests using your own key here
+        will <strong>not</strong> use or consume the developer's key/quota, and vice versa.<br /><br />
+        <strong>ブラウザ版(共有サーバー)をご利用の場合:</strong>
+        easy-web.tokyo等の共有・レンタルサーバー上でブラウザからご利用の場合は、
+        <strong>ご自身の</strong>Google検索APIキーと検索エンジンID(cx)を以下に
+        設定してください。入力したキーは<em>このブラウザのローカルストレージ
+        にのみ</em>保存され、ご自身の検索リクエストにのみ添付されます——
+        サーバー側の共有設定として送信されることはありません。開発者がこの
+        サーバーに別途キーを設定していたとしても、ここでご自身のキーを設定
+        した場合、あなたのリクエストが開発者のキー・クォータを使用・消費する
+        ことはありません(逆も同様です)。
       </p>
       <ol class="setup-steps">
         <li>
