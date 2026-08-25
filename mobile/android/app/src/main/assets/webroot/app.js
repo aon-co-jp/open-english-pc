@@ -8530,6 +8530,432 @@ const VSCHOOL_QUESTIONS = {
 
 const VSCHOOL_QUESTIONS_PER_ROUND = 3;
 
+// アメリカのデータサイエンティスト擬似模擬TESTの多言語版(ユーザー指示
+// 「英語・日本語をデフォルトに全世界の言語へ対応、まず主要10〜20言語
+// 程度から段階的に着手」への対応、2026-08-25新設)。
+// **正直な開示**: 全世界の言語(130言語)を一度に翻訳することは
+// 現実的ではないため、まず主要8言語(スペイン語・フランス語・
+// ドイツ語・ポルトガル語・ロシア語・中国語(簡体字)・韓国語・
+// ヒンディー語)を追加した(既定の英語/日本語と合わせて計10言語)。
+// 訳文はネイティブレビューを受けていない最善努力の翻訳であり、
+// 統計・機械学習用語は分野で広く使われる表記(英語表記を残す場合を
+// 含む)を優先した。UI上にもこの開示を表示する。未収録言語を選ぶ
+// UI自体を用意していない(選べるのはこの配列にある言語のみ)ため、
+// 「対応していないのに対応済みに見せる」ことは無い。今後言語を
+// 追加する場合はこの配列へ言語オブジェクトを1つ足すだけでよい
+// (`vschoolDataScientistLangSelectEl`が自動的に選択肢へ反映する)。
+const VSCHOOL_DATASCIENTIST_I18N = [
+  { code: "default", label: "English / 日本語 (default)" },
+  {
+    code: "es",
+    label: "Español",
+    questions: [
+      {
+        q: '¿Cuál de las siguientes describe mejor el "sobreajuste" (overfitting) en el aprendizaje automático?',
+        choices: [
+          "Un modelo se ajusta demasiado a los datos de entrenamiento y funciona mal con datos nuevos",
+          "Un modelo es demasiado simple para captar el patrón",
+          "Un modelo entrena más rápido de lo esperado",
+          "Un modelo usa muy pocos datos",
+        ],
+        why: "El sobreajuste significa que el modelo memoriza el ruido de los datos de entrenamiento en lugar de aprender patrones generalizables.",
+      },
+      {
+        q: "En estadística, ¿para qué sirve el valor p?",
+        choices: [
+          "Para evaluar si un resultado observado es probable por azar bajo la hipótesis nula",
+          "El tamaño exacto de un efecto",
+          "Cuántos datos se recolectaron",
+          "El promedio del conjunto de datos",
+        ],
+        why: "Un valor p pequeño sugiere que el resultado observado es poco probable bajo la hipótesis nula.",
+      },
+      {
+        q: "¿Qué cláusula de SQL se usa para filtrar filas después de agrupar?",
+        choices: ["HAVING", "WHERE", "ORDER BY", "SELECT"],
+        why: "WHERE filtra antes de agrupar; HAVING filtra después de GROUP BY.",
+      },
+      {
+        q: "¿Cuál es el propósito principal de dividir los datos en entrenamiento/prueba?",
+        choices: [
+          "Estimar cómo se comportará el modelo con datos no vistos",
+          "Reducir el tamaño del conjunto de datos para ahorrar almacenamiento",
+          "Eliminar filas duplicadas",
+          "Acelerar la recolección de datos",
+        ],
+        why: "Evaluar con datos no usados en el entrenamiento aproxima la generalización en el mundo real.",
+      },
+      {
+        q: "¿Cuál es una forma común de tratar los valores faltantes en un conjunto de datos?",
+        choices: [
+          "Imputación (por ejemplo, rellenar con la media o la mediana)",
+          "Eliminar siempre todo el conjunto de datos",
+          "Ignorar los nombres de las columnas",
+          "Renombrar todas las variables al azar",
+        ],
+        why: "La imputación, la eliminación de filas afectadas o el tratamiento basado en el modelo son enfoques estándar; eliminar todo el conjunto de datos no lo es.",
+      },
+    ],
+  },
+  {
+    code: "fr",
+    label: "Français",
+    questions: [
+      {
+        q: 'Laquelle de ces propositions décrit le mieux le "surapprentissage" (overfitting) en apprentissage automatique ?',
+        choices: [
+          "Un modèle s'ajuste trop étroitement aux données d'entraînement et se comporte mal sur de nouvelles données",
+          "Un modèle est trop simple pour capturer le motif",
+          "Un modèle s'entraîne plus vite que prévu",
+          "Un modèle utilise trop peu de données",
+        ],
+        why: "Le surapprentissage signifie que le modèle mémorise le bruit des données d'entraînement plutôt que d'apprendre des motifs généralisables.",
+      },
+      {
+        q: "En statistique, à quoi sert la valeur p ?",
+        choices: [
+          "À évaluer si un résultat observé est probablement dû au hasard sous l'hypothèse nulle",
+          "La taille exacte d'un effet",
+          "Le nombre de points de données collectés",
+          "La moyenne du jeu de données",
+        ],
+        why: "Une petite valeur p suggère que le résultat observé est peu probable sous l'hypothèse nulle.",
+      },
+      {
+        q: "Quelle clause SQL sert à filtrer les lignes après un regroupement ?",
+        choices: ["HAVING", "WHERE", "ORDER BY", "SELECT"],
+        why: "WHERE filtre avant le regroupement ; HAVING filtre après GROUP BY.",
+      },
+      {
+        q: "Quel est le principal objectif de la division entraînement/test ?",
+        choices: [
+          "Estimer comment le modèle se comportera sur des données inédites",
+          "Réduire la taille du jeu de données pour le stockage",
+          "Supprimer les lignes en double",
+          "Accélérer la collecte de données",
+        ],
+        why: "Tester sur des données non utilisées à l'entraînement approxime la généralisation en conditions réelles.",
+      },
+      {
+        q: "Quelle est une méthode courante pour traiter les valeurs manquantes dans un jeu de données ?",
+        choices: [
+          "L'imputation (par exemple en remplissant avec la moyenne ou la médiane)",
+          "Toujours supprimer l'intégralité du jeu de données",
+          "Ignorer les noms de colonnes",
+          "Renommer toutes les variables aléatoirement",
+        ],
+        why: "L'imputation, la suppression des lignes concernées ou un traitement basé sur un modèle sont des approches standard ; supprimer tout le jeu de données ne l'est pas.",
+      },
+    ],
+  },
+  {
+    code: "de",
+    label: "Deutsch",
+    questions: [
+      {
+        q: 'Was beschreibt "Overfitting" (Überanpassung) im maschinellen Lernen am besten?',
+        choices: [
+          "Ein Modell passt sich zu eng an die Trainingsdaten an und funktioniert bei neuen Daten schlecht",
+          "Ein Modell ist zu einfach, um das Muster zu erfassen",
+          "Ein Modell trainiert schneller als erwartet",
+          "Ein Modell verwendet zu wenige Daten",
+        ],
+        why: "Overfitting bedeutet, dass sich das Modell das Rauschen der Trainingsdaten merkt, statt verallgemeinerbare Muster zu lernen.",
+      },
+      {
+        q: "Wozu dient der p-Wert in der Statistik?",
+        choices: [
+          "Um zu beurteilen, ob ein beobachtetes Ergebnis unter der Nullhypothese wahrscheinlich zufällig ist",
+          "Die genaue Effektgröße",
+          "Wie viele Datenpunkte gesammelt wurden",
+          "Der Mittelwert des Datensatzes",
+        ],
+        why: "Ein kleiner p-Wert deutet darauf hin, dass das beobachtete Ergebnis unter der Nullhypothese unwahrscheinlich ist.",
+      },
+      {
+        q: "Welche SQL-Klausel filtert Zeilen nach dem Gruppieren?",
+        choices: ["HAVING", "WHERE", "ORDER BY", "SELECT"],
+        why: "WHERE filtert vor der Gruppierung; HAVING filtert nach GROUP BY.",
+      },
+      {
+        q: "Was ist der Hauptzweck einer Trainings-/Testaufteilung?",
+        choices: [
+          "Abzuschätzen, wie sich das Modell bei unbekannten Daten verhält",
+          "Den Datensatz für die Speicherung zu verkleinern",
+          "Doppelte Zeilen zu entfernen",
+          "Die Datenerfassung zu beschleunigen",
+        ],
+        why: "Das Testen mit nicht im Training verwendeten Daten approximiert die Generalisierung in der realen Welt.",
+      },
+      {
+        q: "Was ist eine gängige Methode zum Umgang mit fehlenden Werten in einem Datensatz?",
+        choices: [
+          "Imputation (z. B. Auffüllen mit Mittelwert oder Median)",
+          "Immer den gesamten Datensatz löschen",
+          "Spaltennamen ignorieren",
+          "Alle Variablen zufällig umbenennen",
+        ],
+        why: "Imputation, das Löschen betroffener Zeilen oder modellbasierte Verfahren sind Standardansätze; das Löschen des gesamten Datensatzes nicht.",
+      },
+    ],
+  },
+  {
+    code: "pt",
+    label: "Português",
+    questions: [
+      {
+        q: 'Qual das alternativas melhor descreve "overfitting" (sobreajuste) em aprendizado de máquina?',
+        choices: [
+          "Um modelo se ajusta demais aos dados de treino e tem desempenho ruim em novos dados",
+          "Um modelo é simples demais para captar o padrão",
+          "Um modelo treina mais rápido que o esperado",
+          "Um modelo usa poucos dados",
+        ],
+        why: "Overfitting significa que o modelo memoriza o ruído dos dados de treino em vez de aprender padrões generalizáveis.",
+      },
+      {
+        q: "Em estatística, para que serve o valor-p?",
+        choices: [
+          "Avaliar se um resultado observado é provavelmente devido ao acaso sob a hipótese nula",
+          "O tamanho exato de um efeito",
+          "Quantos pontos de dados foram coletados",
+          "A média do conjunto de dados",
+        ],
+        why: "Um valor-p pequeno sugere que o resultado observado é pouco provável sob a hipótese nula.",
+      },
+      {
+        q: "Qual cláusula SQL é usada para filtrar linhas após o agrupamento?",
+        choices: ["HAVING", "WHERE", "ORDER BY", "SELECT"],
+        why: "WHERE filtra antes do agrupamento; HAVING filtra depois do GROUP BY.",
+      },
+      {
+        q: "Qual é o principal objetivo da divisão treino/teste?",
+        choices: [
+          "Estimar como o modelo se comportará com dados nunca vistos",
+          "Reduzir o tamanho do conjunto de dados para armazenamento",
+          "Remover linhas duplicadas",
+          "Acelerar a coleta de dados",
+        ],
+        why: "Testar com dados não usados no treino aproxima a generalização no mundo real.",
+      },
+      {
+        q: "Qual é uma forma comum de tratar valores ausentes em um conjunto de dados?",
+        choices: [
+          "Imputação (por exemplo, preenchendo com a média ou mediana)",
+          "Excluir sempre o conjunto de dados inteiro",
+          "Ignorar os nomes das colunas",
+          "Renomear todas as variáveis aleatoriamente",
+        ],
+        why: "Imputação, exclusão das linhas afetadas ou tratamento baseado em modelo são abordagens padrão; excluir todo o conjunto de dados não é.",
+      },
+    ],
+  },
+  {
+    code: "ru",
+    label: "Русский",
+    questions: [
+      {
+        q: "Что лучше всего описывает «переобучение» (overfitting) в машинном обучении?",
+        choices: [
+          "Модель слишком точно подстраивается под обучающие данные и плохо работает на новых данных",
+          "Модель слишком проста, чтобы уловить закономерность",
+          "Модель обучается быстрее, чем ожидалось",
+          "Модель использует слишком мало данных",
+        ],
+        why: "Переобучение означает, что модель запоминает шум обучающих данных вместо изучения обобщаемых закономерностей.",
+      },
+      {
+        q: "Для чего в статистике используется p-значение?",
+        choices: [
+          "Чтобы оценить, вероятен ли наблюдаемый результат случайно при нулевой гипотезе",
+          "Точный размер эффекта",
+          "Сколько точек данных было собрано",
+          "Среднее значение набора данных",
+        ],
+        why: "Малое p-значение говорит о том, что наблюдаемый результат маловероятен при нулевой гипотезе.",
+      },
+      {
+        q: "Какое предложение SQL используется для фильтрации строк после группировки?",
+        choices: ["HAVING", "WHERE", "ORDER BY", "SELECT"],
+        why: "WHERE фильтрует до группировки; HAVING фильтрует после GROUP BY.",
+      },
+      {
+        q: "Какова основная цель разделения данных на обучающую/тестовую выборки?",
+        choices: [
+          "Оценить, как модель будет работать на новых данных",
+          "Уменьшить размер набора данных для хранения",
+          "Удалить повторяющиеся строки",
+          "Ускорить сбор данных",
+        ],
+        why: "Тестирование на данных, не использованных при обучении, приближённо оценивает обобщающую способность в реальных условиях.",
+      },
+      {
+        q: "Какой распространённый способ обработки пропущенных значений в наборе данных?",
+        choices: [
+          "Импутация (например, заполнение средним или медианой)",
+          "Всегда удалять весь набор данных",
+          "Игнорировать названия столбцов",
+          "Случайно переименовывать все переменные",
+        ],
+        why: "Импутация, удаление затронутых строк или обработка на основе модели — стандартные подходы; удаление всего набора данных — нет.",
+      },
+    ],
+  },
+  {
+    code: "zh",
+    label: "中文(简体)",
+    questions: [
+      {
+        q: "以下哪项最能描述机器学习中的「过拟合」(overfitting)?",
+        choices: [
+          "模型过度贴合训练数据,在新数据上表现不佳",
+          "模型过于简单,无法捕捉规律",
+          "模型训练速度比预期快",
+          "模型使用的数据太少",
+        ],
+        why: "过拟合是指模型记住了训练数据中的噪声,而不是学到了可泛化的规律。",
+      },
+      {
+        q: "在统计学中,p值有助于评估什么?",
+        choices: [
+          "在零假设下,观察到的结果是否可能是偶然发生的",
+          "效应的确切大小",
+          "收集了多少数据点",
+          "数据集的平均值",
+        ],
+        why: "p值越小,说明在零假设下观察到该结果的可能性越低。",
+      },
+      {
+        q: "分组后用于筛选行的SQL子句是哪个?",
+        choices: ["HAVING", "WHERE", "ORDER BY", "SELECT"],
+        why: "WHERE在分组前筛选;HAVING在GROUP BY之后筛选。",
+      },
+      {
+        q: "在数据科学流程中,训练集/测试集划分的主要目的是什么?",
+        choices: [
+          "估计模型在未见过的数据上的表现",
+          "为节省存储空间而缩小数据集",
+          "删除重复行",
+          "加快数据收集速度",
+        ],
+        why: "在未用于训练的数据上进行测试,可以近似评估模型在真实场景中的泛化能力。",
+      },
+      {
+        q: "处理数据集中缺失值的常见方法是什么?",
+        choices: [
+          "插补(例如用均值或中位数填充)",
+          "总是删除整个数据集",
+          "忽略列名",
+          "随机重命名所有变量",
+        ],
+        why: "插补、删除受影响的行或基于模型的处理是标准做法;删除整个数据集则不是。",
+      },
+    ],
+  },
+  {
+    code: "ko",
+    label: "한국어",
+    questions: [
+      {
+        q: "머신러닝에서 「과적합」(overfitting)을 가장 잘 설명하는 것은?",
+        choices: [
+          "모델이 훈련 데이터에 지나치게 맞춰져 새로운 데이터에서는 성능이 떨어지는 것",
+          "모델이 너무 단순해서 패턴을 포착하지 못하는 것",
+          "모델의 학습이 예상보다 빨리 끝나는 것",
+          "모델이 사용하는 데이터가 너무 적은 것",
+        ],
+        why: "과적합이란 모델이 일반화 가능한 패턴을 배우는 대신 훈련 데이터의 잡음을 암기하는 상태를 말합니다.",
+      },
+      {
+        q: "통계학에서 p값은 무엇을 평가하는 데 도움이 됩니까?",
+        choices: [
+          "귀무가설 하에서 관측된 결과가 우연히 발생했을 가능성이 있는지",
+          "효과의 정확한 크기",
+          "수집된 데이터 포인트의 수",
+          "데이터셋의 평균값",
+        ],
+        why: "p값이 작을수록 귀무가설 하에서 그 결과가 발생할 가능성이 낮음을 시사합니다.",
+      },
+      {
+        q: "그룹화 이후 행을 필터링하는 데 사용하는 SQL 절은 무엇입니까?",
+        choices: ["HAVING", "WHERE", "ORDER BY", "SELECT"],
+        why: "WHERE는 그룹화 이전에 필터링하고, HAVING은 GROUP BY 이후에 필터링합니다.",
+      },
+      {
+        q: "데이터 과학 작업에서 훈련/테스트 데이터 분할의 주요 목적은 무엇입니까?",
+        choices: [
+          "모델이 보지 못한 데이터에서 어떻게 동작할지 추정하기 위해",
+          "저장 용량을 위해 데이터셋을 줄이기 위해",
+          "중복 행을 제거하기 위해",
+          "데이터 수집 속도를 높이기 위해",
+        ],
+        why: "훈련에 사용하지 않은 데이터로 평가하면 실제 환경에서의 일반화 성능을 근사할 수 있습니다.",
+      },
+      {
+        q: "데이터셋의 결측값을 처리하는 일반적인 방법은 무엇입니까?",
+        choices: [
+          "대치(예: 평균값이나 중앙값으로 채우기)",
+          "항상 데이터셋 전체를 삭제하기",
+          "열 이름을 무시하기",
+          "모든 변수의 이름을 무작위로 바꾸기",
+        ],
+        why: "대치, 해당 행 삭제, 모델 기반 처리가 표준적인 방법이며, 데이터셋 전체 삭제는 표준적인 방법이 아닙니다.",
+      },
+    ],
+  },
+  {
+    code: "hi",
+    label: "हिन्दी",
+    questions: [
+      {
+        q: "मशीन लर्निंग में \"ओवरफिटिंग\" का सबसे अच्छा वर्णन कौन सा है?",
+        choices: [
+          "मॉडल प्रशिक्षण डेटा में बहुत अधिक फिट हो जाता है और नए डेटा पर खराब प्रदर्शन करता है",
+          "मॉडल पैटर्न को पकड़ने के लिए बहुत सरल है",
+          "मॉडल अपेक्षा से तेज़ प्रशिक्षित होता है",
+          "मॉडल बहुत कम डेटा का उपयोग करता है",
+        ],
+        why: "ओवरफिटिंग का मतलब है कि मॉडल सामान्यीकरण योग्य पैटर्न सीखने के बजाय प्रशिक्षण डेटा के शोर को याद कर लेता है।",
+      },
+      {
+        q: "सांख्यिकी में, p-मान किसका मूल्यांकन करने में मदद करता है?",
+        choices: [
+          "क्या शून्य परिकल्पना के तहत देखा गया परिणाम संयोग से होने की संभावना है",
+          "प्रभाव का सटीक आकार",
+          "कितने डेटा बिंदु एकत्र किए गए",
+          "डेटासेट का औसत",
+        ],
+        why: "एक छोटा p-मान बताता है कि शून्य परिकल्पना के तहत देखा गया परिणाम असंभावित है।",
+      },
+      {
+        q: "समूहीकरण के बाद पंक्तियों को फ़िल्टर करने के लिए किस SQL क्लॉज़ का उपयोग किया जाता है?",
+        choices: ["HAVING", "WHERE", "ORDER BY", "SELECT"],
+        why: "WHERE समूहीकरण से पहले फ़िल्टर करता है; HAVING GROUP BY के बाद फ़िल्टर करता है।",
+      },
+      {
+        q: "डेटा साइंस वर्कफ़्लो में ट्रेन/टेस्ट स्प्लिट का मुख्य उद्देश्य क्या है?",
+        choices: [
+          "यह अनुमान लगाना कि मॉडल अनदेखे डेटा पर कैसा प्रदर्शन करेगा",
+          "भंडारण के लिए डेटासेट को छोटा करना",
+          "डुप्लिकेट पंक्तियों को हटाना",
+          "डेटा संग्रह को तेज़ करना",
+        ],
+        why: "प्रशिक्षण में उपयोग न किए गए डेटा पर परीक्षण वास्तविक दुनिया में सामान्यीकरण का अनुमान देता है।",
+      },
+      {
+        q: "डेटासेट में अनुपलब्ध मानों को संभालने का एक सामान्य तरीका क्या है?",
+        choices: [
+          "इम्प्यूटेशन (जैसे, माध्य या माध्यिका से भरना)",
+          "हमेशा पूरे डेटासेट को हटाना",
+          "कॉलम नामों को अनदेखा करना",
+          "सभी चरों का नाम बेतरतीब ढंग से बदलना",
+        ],
+        why: "इम्प्यूटेशन, प्रभावित पंक्तियों को हटाना, या मॉडल-आधारित उपचार मानक तरीके हैं; पूरे डेटासेट को हटाना मानक नहीं है।",
+      },
+    ],
+  },
+];
+
 function vschoolHasQuestions(trackId, fieldId) {
   const list = VSCHOOL_QUESTIONS[trackId + ":" + fieldId];
   return Array.isArray(list) && list.length > 0;
@@ -8702,6 +9128,11 @@ function renderVschoolFields() {
       sampleCodeEl.addEventListener("click", (e) => e.stopPropagation());
       label.appendChild(sampleCodeEl);
     }
+    const langSelectEl = buildVschoolLangSelectElement(vschoolSelectedTrack, field);
+    if (langSelectEl) {
+      langSelectEl.addEventListener("click", (e) => e.stopPropagation());
+      label.appendChild(langSelectEl);
+    }
     vschoolFieldListEl.appendChild(label);
   });
   // その区分にまだ1分野も問題が無いときは、選ばせる前に正直に伝える
@@ -8767,9 +9198,61 @@ function refreshVschoolPracticeSection() {
 
 /** インストール済み分野からランダムに数問出題する
  *  (家庭教師コースと同じく`shuffledCopy`を使い、選択肢の並びも毎回変える)。 */
+// アメリカのデータサイエンティストTESTの言語選択状態(既定は
+// "default"=英語/日本語併記の元データをそのまま使う)。
+let vschoolDataScientistLangCode = "default";
+
+// データサイエンティスト分野にのみ、言語選択セレクトを表示する
+// (VSCHOOL_DATASCIENTIST_I18Nを持つ唯一の分野、2026-08-25新設)。
+function buildVschoolLangSelectElement(trackId, field) {
+  if (trackId !== "uscert" || !field || field.id !== "dataScientist") return null;
+  const wrap = document.createElement("div");
+  wrap.className = "vschool-sample-code";
+  const labelP = document.createElement("p");
+  labelP.className = "vschool-career-label";
+  labelP.textContent = "🌐 出題言語を選択 / Choose the quiz language";
+  wrap.appendChild(labelP);
+  const note = document.createElement("p");
+  note.className = "setup-note";
+  note.textContent =
+    "正直な開示: 英語・日本語以外の訳文はネイティブレビューを受けていない最善努力の翻訳です。まず主要8言語から開始し、今後追加していきます。 / " +
+    "Honest disclosure: translations other than English/Japanese are best-effort and have not been reviewed by native speakers. Starting with 8 major languages, more to be added over time.";
+  wrap.appendChild(note);
+  const select = document.createElement("select");
+  select.className = "setup-input vschool-lang-select";
+  VSCHOOL_DATASCIENTIST_I18N.forEach((entry) => {
+    const opt = document.createElement("option");
+    opt.value = entry.code;
+    opt.textContent = entry.label;
+    select.appendChild(opt);
+  });
+  select.value = vschoolDataScientistLangCode;
+  select.addEventListener("change", () => {
+    vschoolDataScientistLangCode = select.value;
+    renderVschoolQuiz();
+  });
+  select.addEventListener("click", (e) => e.stopPropagation());
+  wrap.appendChild(select);
+  return wrap;
+}
+
+// トラック/分野に応じた出題プール(通常は`VSCHOOL_QUESTIONS`、
+// データサイエンティスト分野で英日以外の言語を選んでいれば
+// `VSCHOOL_DATASCIENTIST_I18N`側の訳文を使う)。
+function vschoolQuestionsPool(trackId, fieldId) {
+  const base = VSCHOOL_QUESTIONS[trackId + ":" + fieldId] || [];
+  if (trackId === "uscert" && fieldId === "dataScientist" && vschoolDataScientistLangCode !== "default") {
+    const entry = VSCHOOL_DATASCIENTIST_I18N.find((e) => e.code === vschoolDataScientistLangCode);
+    if (entry && Array.isArray(entry.questions)) {
+      return entry.questions.map((item) => ({ q: item.q, choices: item.choices, answer: 0, why: item.why || "" }));
+    }
+  }
+  return base;
+}
+
 function renderVschoolQuiz() {
   const fieldId = vschoolPracticeFieldEl.value;
-  const pool = VSCHOOL_QUESTIONS[vschoolSelectedTrack + ":" + fieldId] || [];
+  const pool = vschoolQuestionsPool(vschoolSelectedTrack, fieldId);
   const field = vschoolField(vschoolSelectedTrack, fieldId);
   vschoolResultEl.textContent = "";
   vschoolReviewBtn.classList.add("hidden");
