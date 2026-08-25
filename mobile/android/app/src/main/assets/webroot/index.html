@@ -103,14 +103,14 @@
     </label>
     <button type="button" id="google-search-settings-btn" class="setup-btn">🔎 Setup Google Search.</button>
     <button type="button" id="setup-btn" class="setup-btn">⚙ Setup aruaru-llm.</button>
+    <button type="button" id="aruaru-db-setup-btn" class="setup-btn">🗄 Setup aruaru-db.</button>
     <button type="button" id="exam-prep-btn" class="setup-btn">📝 Exam Prep / 資格対策</button>
     <button type="button" id="language-pack-btn" class="setup-btn">🌐 Languages / 言語のインストール</button>
     <button type="button" id="tutor-course-btn" class="setup-btn">🎓 Install the student tutor course / 学生向け家庭教師コースをインストール</button>
-    <button type="button" id="vschool-btn" class="setup-btn">🏫 バーチャルスクール(高等教育) / Virtual school</button>
-    <button type="button" id="vvoc-btn" class="setup-btn">🛠 バーチャル職業訓練校 / Virtual vocational school</button>
+    <button type="button" id="vschool-btn" class="setup-btn">🏫 バーチャルスクール(学生向け教育) / Virtual school (for students)</button>
+    <button type="button" id="vvoc-btn" class="setup-btn">🛠 バーチャルオンライン職業訓練校 / Virtual online vocational school</button>
     <button type="button" id="uscert-btn" class="setup-btn">🇺🇸 アメリカの資格(擬似模擬) / US certifications (mock)</button>
     <button type="button" id="briefing-btn" class="setup-btn">🗞 話題ブリーフィング / Topic briefing</button>
-    <button type="button" id="aruaru-db-setup-btn" class="setup-btn">🗄 Setup aruaru-db</button>
     <button type="button" id="llm-recommend-btn" class="setup-btn">🧠 Recommend LLM / おすすめLLM</button>
     <button type="button" id="data-storage-btn" class="setup-btn">💾 Data & Model Storage / データ・モデルの保存先</button>
     <button type="button" id="ai-coding-btn" class="setup-btn">🖥️ AI Coding Assistant / AIでプログラミング</button>
@@ -121,6 +121,12 @@
     <div class="setup-card">
       <button type="button" id="setup-close" class="setup-close">✕</button>
       <h2>Easy setup for aruaru-llm / aruaru-llmの簡単セットアップ</h2>
+      <p class="setup-note setup-already-connected hidden" id="setup-already-connected-banner">
+        ✅ <strong>Already installed and connected — you don't need to do anything below.</strong>
+        aruaru-llm is running and this app is talking to it right now.<br />
+        ✅ <strong>既にインストール・接続済みです——以下の手順を行う必要はありません。</strong>
+        aruaru-llmは起動中で、このアプリは現在それと通信できています。
+      </p>
       <p class="setup-honest">
         <strong>Honest disclosure (updated 2026-08-17):</strong> A prebuilt
         binary download is now available below (no Git/Rust/terminal script
@@ -182,6 +188,24 @@
         「Permission denied」になります)で実行してください。ユーザー
         フォルダ内にクローンされます。
       </p>
+      <p class="setup-note">
+        <strong>One line, paste once and press Enter</strong> — no need to copy/paste line by
+        line.<br />
+        <strong>1行だけ</strong>です。1行ずつコピー&amp;ペーストする必要はありません。
+      </p>
+      <pre class="setup-script" data-script="win-oneline">cd $env:USERPROFILE; git clone https://github.com/aon-co-jp/open-cuda; git clone https://github.com/aon-co-jp/RS-SmartTCP; git clone https://github.com/aon-co-jp/open-web-server; git clone https://github.com/aon-co-jp/RPoem; git clone https://github.com/aon-co-jp/aruaru-llm; cd aruaru-llm; cargo run --release</pre>
+      <button type="button" class="copy-btn" data-target="win-oneline">Copy</button>
+
+      <p class="setup-note">Linux / macOS (bash), one line / Linux・macOS(bash)、1行:</p>
+      <pre class="setup-script" data-script="unix-oneline">cd ~ && git clone https://github.com/aon-co-jp/open-cuda && git clone https://github.com/aon-co-jp/RS-SmartTCP && git clone https://github.com/aon-co-jp/open-web-server && git clone https://github.com/aon-co-jp/RPoem && git clone https://github.com/aon-co-jp/aruaru-llm && cd aruaru-llm && cargo run --release</pre>
+      <button type="button" class="copy-btn" data-target="unix-oneline">Copy</button>
+
+      <p class="setup-note">
+        (Same commands, shown one per line for readability only — copying the one-liner above is
+        all you need.)<br />
+        (同じ内容を読みやすく1行ずつ表示しているだけです——実行には上の1行版をコピーすれば
+        十分です。)
+      </p>
       <pre class="setup-script" data-script="win">cd $env:USERPROFILE
 git clone https://github.com/aon-co-jp/open-cuda
 git clone https://github.com/aon-co-jp/RS-SmartTCP
@@ -190,7 +214,6 @@ git clone https://github.com/aon-co-jp/RPoem
 git clone https://github.com/aon-co-jp/aruaru-llm
 cd aruaru-llm
 cargo run --release</pre>
-      <button type="button" class="copy-btn" data-target="win">Copy</button>
 
       <p class="setup-note">Linux / macOS (bash):</p>
       <pre class="setup-script" data-script="unix">cd ~
@@ -201,7 +224,6 @@ git clone https://github.com/aon-co-jp/RPoem
 git clone https://github.com/aon-co-jp/aruaru-llm
 cd aruaru-llm
 cargo run --release</pre>
-      <button type="button" class="copy-btn" data-target="unix">Copy</button>
 
       <p class="setup-note">
         Once it's running, this page will show <strong>aruaru-llm: connected</strong>
@@ -383,16 +405,26 @@ cd aruaru-db
         Move the local database file to another folder (e.g. a microSD card or external drive).<br />
         データベースファイルを別のフォルダ(microSDや外部ドライブなど)へ移動します。
       </p>
-      <input type="text" id="data-storage-new-path" class="setup-input" placeholder="e.g. D:\open-english-data\open-english.sqlite3" />
+      <div class="setup-path-row">
+        <input type="text" id="data-storage-new-path" class="setup-input" placeholder="e.g. D:\open-english-data\open-english.sqlite3" />
+        <button type="button" class="setup-btn browse-btn" data-target-input="data-storage-new-path" data-filename="open-english.sqlite3">📁 Browse… / 参照…</button>
+      </div>
       <button type="button" id="data-storage-relocate-btn" class="setup-btn">📁 Move here / ここへ移動</button>
       <p class="setup-note" id="data-storage-relocate-status"></p>
 
       <h3>Backup via RSync / RSyncで同期バックアップ</h3>
       <p class="setup-note">
-        Local path or <code>user@host:/path</code>.<br />
-        ローカルパス、または<code>user@host:/path</code>を指定してください。
+        Local path or <code>user@host:/path</code>. Use "Browse…" for a local folder — remote
+        <code>user@host:/path</code> destinations must still be typed by hand (there is no way to
+        browse another machine's filesystem from here).<br />
+        ローカルパス、または<code>user@host:/path</code>を指定してください。「参照…」はローカルの
+        フォルダ選択用です——リモートの<code>user@host:/path</code>は他のマシンのファイル
+        システムのため、引き続き手入力が必要です。
       </p>
-      <input type="text" id="data-storage-rsync-dest" class="setup-input" placeholder="e.g. /mnt/usb-backup/ or user@host:/backups/" />
+      <div class="setup-path-row">
+        <input type="text" id="data-storage-rsync-dest" class="setup-input" placeholder="e.g. /mnt/usb-backup/ or user@host:/backups/" />
+        <button type="button" class="setup-btn browse-btn" data-target-input="data-storage-rsync-dest">📁 Browse… / 参照…</button>
+      </div>
       <button type="button" id="data-storage-backup-btn" class="setup-btn">💾 Backup now / 今すぐバックアップ</button>
       <button type="button" id="data-storage-install-rsync-btn" class="setup-btn hidden">⬇ Install RSync / RSyncをインストール</button>
       <p class="setup-note" id="data-storage-backup-status"></p>
@@ -409,7 +441,10 @@ cd aruaru-db
         <code>aruaru-db</code>側は稼働中のデータファイルを直接コピーすると破損リスクがあるため、
         <code>pg_dump</code>(一貫性のあるスナップショットダンプ)経由で書き出します。
       </p>
-      <input type="text" id="data-storage-rsync-dest-all" class="setup-input" placeholder="e.g. /mnt/usb-backup/ or user@host:/backups/" />
+      <div class="setup-path-row">
+        <input type="text" id="data-storage-rsync-dest-all" class="setup-input" placeholder="e.g. /mnt/usb-backup/ or user@host:/backups/" />
+        <button type="button" class="setup-btn browse-btn" data-target-input="data-storage-rsync-dest-all">📁 Browse… / 参照…</button>
+      </div>
       <button type="button" id="data-storage-backup-all-btn" class="setup-btn">🔄 Backup both now / 両方を今すぐバックアップ</button>
       <p class="setup-note" id="data-storage-backup-all-status"></p>
 
@@ -513,6 +548,33 @@ cd aruaru-db
       </label>
       <button type="button" id="ai-coding-tool-link-btn" class="setup-btn">🔗 Open official site / 公式サイトを開く</button>
       <p class="setup-note" id="ai-coding-tool-status"></p>
+    </div>
+  </div>
+
+  <!-- 2026-08-25新設(ユーザー指示「バックアップ先入力欄が1本のテキスト
+       欄だけでは分かりにくいので、エクスプローラーの様な物を」への対応)。
+       サーバー側の新規GET /v1/fs/list-dir(読み取り専用、フォルダ名のみ
+       返す)を使ったフォルダブラウザ。ブラウザ標準のFile System Access
+       APIは選んだフォルダの絶対パス文字列をJSへ渡さない設計のため
+       (セキュリティ上の理由)、rsync等に必要な実際のパス文字列を得る
+       にはこの方式が必要だった。 -->
+  <div id="folder-browser-modal" class="setup-modal hidden">
+    <div class="setup-panel">
+      <button type="button" id="folder-browser-close" class="setup-close">✕</button>
+      <h2>📁 Choose a folder / フォルダを選択</h2>
+      <p class="setup-honest">
+        <strong>Honest disclosure:</strong> This lists folders on <em>this machine</em> (where the
+        server is running) — it cannot browse another computer. For a remote
+        <code>user@host:/path</code> destination, type it in by hand instead.<br />
+        <strong>正直な開示：</strong>これは<em>このサーバーが動いているマシン</em>上のフォルダ
+        一覧です——他のPCの中は見られません。リモートの<code>user@host:/path</code>を指定
+        したい場合は、引き続き手入力してください。
+      </p>
+      <p class="setup-note" id="folder-browser-current-path">/</p>
+      <button type="button" id="folder-browser-up-btn" class="setup-btn">⬆ Up one level / 一つ上へ</button>
+      <div id="folder-browser-list" class="folder-browser-list">Loading… / 読み込み中…</div>
+      <button type="button" id="folder-browser-select-btn" class="setup-btn">✅ Select this folder / このフォルダを選択</button>
+      <p class="setup-note" id="folder-browser-status"></p>
     </div>
   </div>
 

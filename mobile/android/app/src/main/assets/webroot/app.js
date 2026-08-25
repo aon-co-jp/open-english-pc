@@ -967,6 +967,11 @@ async function checkHealth() {
     wasConnected = false;
     renderRuntimeBadge(null);
   }
+  // パネルが開いている間に接続状態が変わった場合(例: セットアップ手順を
+  // 実行してaruaru-llmが起動した)も、ポーリングのたびにバナー表示を
+  // 追従させる(`updateSetupAlreadyConnectedBanner`はこの関数より後で
+  // 定義されるが、呼び出し時点〈checkHealth実行時〉には既に定義済み)。
+  if (typeof updateSetupAlreadyConnectedBanner === "function") updateSetupAlreadyConnectedBanner();
 }
 
 // 定期的に自動で接続確認する(ユーザー指示: インストール後の自動認識)。
@@ -2756,12 +2761,30 @@ const setupModal = document.getElementById("setup-modal");
 const setupClose = document.getElementById("setup-close");
 const setupRecheck = document.getElementById("setup-recheck");
 
-setupBtn.addEventListener("click", () => setupModal.classList.remove("hidden"));
+// 2026-08-25修正(バグ報告「既にaruaru-llmをインストール済みなのに、
+// 再度インストールするようにメッセージが出る」): このパネルは接続状態を
+// 一切見ずに常にビルド手順を表示していた。パネルを開くたびに現在の
+// 接続状態を確認し、既に接続済みなら「既に接続済みです」というバナーを
+// 表示する(手順自体は再インストール・アップデート時にも使えるため
+// 消さず、バナーで補足するだけに留めた)。
+const setupAlreadyConnectedBannerEl = document.getElementById("setup-already-connected-banner");
+function updateSetupAlreadyConnectedBanner() {
+  if (!setupAlreadyConnectedBannerEl) return;
+  setupAlreadyConnectedBannerEl.classList.toggle("hidden", !wasConnected);
+}
+
+setupBtn.addEventListener("click", () => {
+  setupModal.classList.remove("hidden");
+  updateSetupAlreadyConnectedBanner();
+});
 setupClose.addEventListener("click", () => setupModal.classList.add("hidden"));
 setupModal.addEventListener("click", (e) => {
   if (e.target === setupModal) setupModal.classList.add("hidden");
 });
-setupRecheck.addEventListener("click", checkHealth);
+setupRecheck.addEventListener("click", async () => {
+  await checkHealth();
+  updateSetupAlreadyConnectedBanner();
+});
 
 // aruaru-db & PostgreSQLセットアップ案内(ユーザー指示「open-easy-web
 // とPostgreSQLとaruaru-dbをSETUPして頂きますと、将来大量の情報をより
@@ -2860,6 +2883,101 @@ if (dataStorageBtn && dataStorageModal) {
   });
 }
 if (dataStorageRefreshBtn) dataStorageRefreshBtn.addEventListener("click", refreshDataStorageInfo);
+
+// フォルダブラウザ(2026-08-25新設、ユーザー指示「バックアップ先入力欄が
+// 1本のテキスト欄だけでは分かりにくいので、エクスプローラーの様な物を」
+// への対応)。`GET /v1/fs/list-dir`(サーバー側新設、読み取り専用・
+// フォルダ名のみ)を辿り、選んだフォルダの実際のパス文字列を対象の
+// テキスト入力欄へ書き戻す。**正直な開示**: ブラウザ標準のFile System
+// Access APIでは絶対パス文字列を取得できない(セキュリティ上の意図的な
+// 制約)ため、この用途にはサーバー側APIが必要だった。
+const folderBrowserModal = document.getElementById("folder-browser-modal");
+const folderBrowserClose = document.getElementById("folder-browser-close");
+const folderBrowserCurrentPathEl = document.getElementById("folder-browser-current-path");
+const folderBrowserUpBtn = document.getElementById("folder-browser-up-btn");
+const folderBrowserListEl = document.getElementById("folder-browser-list");
+const folderBrowserSelectBtn = document.getElementById("folder-browser-select-btn");
+const folderBrowserStatusEl = document.getElementById("folder-browser-status");
+let folderBrowserTargetInputId = null;
+let folderBrowserCurrentPath = "";
+let folderBrowserCurrentParent = null;
+
+async function folderBrowserLoad(path) {
+  folderBrowserListEl.textContent = "Loading… / 読み込み中…";
+  folderBrowserStatusEl.textContent = "";
+  try {
+    const url = path ? `/v1/fs/list-dir?path=${encodeURIComponent(path)}` : "/v1/fs/list-dir";
+    const res = await fetch(url);
+    const body = await res.json();
+    if (!res.ok || !body.ok) {
+      folderBrowserListEl.textContent = "";
+      folderBrowserStatusEl.textContent = `Failed: ${body.error || "unknown error"} / 失敗しました: ${body.error || "不明なエラー"}`;
+      return;
+    }
+    folderBrowserCurrentPath = body.path || "";
+    folderBrowserCurrentParent = body.parent || null;
+    folderBrowserCurrentPathEl.textContent = folderBrowserCurrentPath || "(drives / ドライブ一覧)";
+    folderBrowserUpBtn.disabled = !folderBrowserCurrentPath;
+    folderBrowserListEl.innerHTML = "";
+    const entries = Array.isArray(body.entries) ? body.entries : [];
+    if (entries.length === 0) {
+      const empty = document.createElement("p");
+      empty.className = "setup-note";
+      empty.textContent = "(no subfolders / サブフォルダはありません)";
+      folderBrowserListEl.appendChild(empty);
+    }
+    entries.forEach((entry) => {
+      if (!entry.name) return; // Unix root ("/")自身を表す空エントリはスキップ。
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "folder-browser-entry";
+      btn.textContent = "📁 " + entry.name;
+      btn.addEventListener("click", () => {
+        const sep = folderBrowserCurrentPath.endsWith("\\") || folderBrowserCurrentPath.endsWith("/") || folderBrowserCurrentPath === "" ? "" : /[\\/]/.test(folderBrowserCurrentPath) && folderBrowserCurrentPath.includes("\\") ? "\\" : "/";
+        const next = folderBrowserCurrentPath ? folderBrowserCurrentPath + sep + entry.name : entry.name + (entry.name.endsWith(":") ? "\\" : "");
+        folderBrowserLoad(next);
+      });
+      folderBrowserListEl.appendChild(btn);
+    });
+  } catch (e) {
+    folderBrowserListEl.textContent = "";
+    folderBrowserStatusEl.textContent = `Failed: ${e.message} / 失敗しました: ${e.message}`;
+  }
+}
+
+function openFolderBrowser(targetInputId, startPath) {
+  folderBrowserTargetInputId = targetInputId;
+  folderBrowserModal.classList.remove("hidden");
+  folderBrowserLoad(startPath || "");
+}
+
+if (folderBrowserModal) {
+  folderBrowserClose.addEventListener("click", () => folderBrowserModal.classList.add("hidden"));
+  folderBrowserModal.addEventListener("click", (e) => {
+    if (e.target === folderBrowserModal) folderBrowserModal.classList.add("hidden");
+  });
+  folderBrowserUpBtn.addEventListener("click", () => {
+    if (folderBrowserCurrentParent !== null) folderBrowserLoad(folderBrowserCurrentParent);
+    else folderBrowserLoad(""); // ドライブ一覧(Windows)/ルート(Unix)へ。
+  });
+  folderBrowserSelectBtn.addEventListener("click", () => {
+    if (!folderBrowserTargetInputId) return;
+    const input = document.getElementById(folderBrowserTargetInputId);
+    if (input) {
+      const btn = document.querySelector(`.browse-btn[data-target-input="${folderBrowserTargetInputId}"]`);
+      const filename = btn ? btn.getAttribute("data-filename") : null;
+      const sep = folderBrowserCurrentPath.includes("\\") ? "\\" : "/";
+      input.value = filename ? folderBrowserCurrentPath + sep + filename : folderBrowserCurrentPath;
+    }
+    folderBrowserModal.classList.add("hidden");
+  });
+  document.querySelectorAll(".browse-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const targetInputId = btn.getAttribute("data-target-input");
+      openFolderBrowser(targetInputId, "");
+    });
+  });
+}
 
 if (dataStorageRelocateBtn) {
   dataStorageRelocateBtn.addEventListener("click", async () => {
@@ -7530,6 +7648,14 @@ const VSCHOOL_FIELDS = {
         ja: "統計・機械学習・データ分析の基礎を身につけると、データアナリストやBIエンジニアの仕事で役立つかもしれません。さらに極めると、データサイエンティストやMLエンジニアのような職種を目指せる可能性があります。米国には単一の政府公認資格は無く、CertNexus・DASCA・IABAC等の民間資格が代表例として挙げられます。",
         en: "Mastering statistics, machine learning, and data-analysis basics may help with data analyst or BI engineer work. Going further, it could open a path toward data scientist or ML engineer roles. The US has no single government-issued license for this field — CertNexus, DASCA, and IABAC are representative vendor-neutral certifications.",
       },
+      // 2026-08-25追加(ユーザー指示「有料のCourseraと言うサイトを
+      // オススメして」への対応)。**正直な開示**: Courseraはこのアプリと
+      // 提携・アフィリエイト関係には無い、単なる外部サイトの案内。
+      // 有料である旨(無料監査は一部あるが修了証は有料)も明記する。
+      resources: {
+        ja: "Coursera(有料の学習プラットフォーム、一部コースは聴講無料・修了証は有料)には、IBM Data Science Professional Certificate・Google Advanced Data Analytics Professional Certificate・CertNexus Certified Data Science Practitioner Professional Certificate等の講座があります(2026-08-25時点、当アプリとCourseraの間に提携・紹介料等の金銭的関係はありません)。",
+        en: "Coursera (a paid learning platform — auditing some courses is free, but certificates cost money) offers courses such as the IBM Data Science Professional Certificate, Google Advanced Data Analytics Professional Certificate, and CertNexus Certified Data Science Practitioner Professional Certificate (as of 2026-08-25; this app has no partnership or referral-fee relationship with Coursera).",
+      },
     },
     {
       id: "architectAre",
@@ -7537,8 +7663,28 @@ const VSCHOOL_FIELDS = {
       en: "Architect Registration Examination (US, NCARB ARE)",
       yt: "NCARB ARE 5.0 exam prep",
       career: {
-        ja: "建築設計・構造・法規の基礎を身につけると、設計事務所やゼネコンの実務補助で役立つかもしれません。さらに極めて米国でARE(全6区分)に合格し州の免許要件を満たすと、登録建築士(Licensed Architect)を目指せる可能性があります。日本の一級建築士とは制度の枠組みが異なり、米国は州ごとの免許+NCARBの相互承認という仕組みです。",
-        en: "Mastering building design, structural, and code basics may help with junior roles at design or construction firms. Going further — passing all six ARE divisions and meeting a state's licensure requirements — could open a path toward becoming a Licensed Architect. The US system differs structurally from Japan's Ikkyu Kenchikushi: licensure is per-state, with NCARB providing reciprocity across states.",
+        ja: "建築設計・構造・法規の基礎を身につけると、設計事務所やゼネコンの実務補助で役立つかもしれません。さらに極めて米国でARE(全6区分)に合格し州の免許要件を満たすと、登録建築士(Licensed Architect)を目指せる可能性があります。日本の一級建築士とは制度の枠組みが異なり、米国は州ごとの免許+NCARBの相互承認という仕組みです。**正直な開示**: 日本の「管理建築士」(建築士事務所の登録に必要な、実務経験+講習修了を要する別枠の資格)に直接対応する単一の米国資格は見当たりませんでした(2026-08-25 WebSearch確認)——米国はそもそも建築士に一級・二級のような等級を設けておらず、建築士事務所を主宰・登録する際の要件は州ごとに異なります。「一級建築士の管理士に相当する資格」として断定的に特定の米国資格を案内することは、誤情報を伝えるおそれがあるため見送りました。",
+        en: "Mastering building design, structural, and code basics may help with junior roles at design or construction firms. Going further — passing all six ARE divisions and meeting a state's licensure requirements — could open a path toward becoming a Licensed Architect. The US system differs structurally from Japan's Ikkyu Kenchikushi: licensure is per-state, with NCARB providing reciprocity across states. **Honest disclosure**: we could not find a single US credential that directly corresponds to Japan's \"Kanri Kenchikushi\" (supervising architect, a separate qualification required to register an architectural office, requiring extra practical experience plus a course) — the US does not grade architects into tiers the way Japan does, and the requirements to head a registered architecture firm vary by state. We chose not to name a specific US credential as \"the equivalent,\" to avoid spreading inaccurate information.",
+      },
+    },
+    // 2026-08-25追加(ユーザー指示「大工さんの資格…の擬似的模擬的な
+    // TEST」への対応)。**正直な開示**: 米国には「マスター大工」のような
+    // 全米共通の免許・国家資格は存在しない(電気工事士・配管工とは異なり
+    // 標準化された州免許試験が無い、2026-08-25 WebSearch確認)。
+    // NCCER(全米建設教育研究センター)のCarpentry認定が、複数州の
+    // 教育機関で認知されている代表的な民間認定として挙げられる。
+    {
+      id: "carpenter",
+      ja: "大工(米国、NCCER Carpentry認定を参考例として)",
+      en: "Carpenter (US, referencing the NCCER Carpentry credential)",
+      yt: "NCCER carpentry certification study guide",
+      career: {
+        ja: "木工・採寸・基礎的な建築構造の知識を身につけると、住宅建築や内装工事の現場作業員として役立つかもしれません。経験を積むと、現場監督や独立した請負業者を目指せる可能性があります。**正直な開示**: 米国には電気工事士・配管工のような全米共通の「大工」免許・国家資格は存在しません。NCCER(全米建設教育研究センター)のCarpentry認定は、多くの教育機関・企業で認知されている代表的な民間認定の一例です。",
+        en: "Learning woodworking, measurement, and basic structural concepts may help with entry-level residential construction or finish-carpentry work. With experience, it could lead toward a site supervisor role or independent contracting. **Honest disclosure**: unlike electricians or plumbers, there is no single nationwide \"carpenter\" license or government credential in the US. The NCCER (National Center for Construction Education and Research) Carpentry credential is one widely recognized representative example among private certifications.",
+      },
+      resources: {
+        ja: "NCCER公式サイト(nccer.org)に認定の詳細があります。Courseraには大工技能に特化した講座は見当たりませんでした(2026-08-25時点)——他分野と異なりCourseraでの案内は行っていません。",
+        en: "See the official NCCER site (nccer.org) for credential details. We did not find carpentry-specific courses on Coursera as of 2026-08-25 — unlike the other fields here, we are not recommending Coursera for this one.",
       },
     },
   ],
@@ -7577,8 +7723,25 @@ function vschoolCareerHtml(field) {
     "<p>" + field.career.ja + "</p>" +
     "<p>" + field.career.en + "</p>" +
     "</div>" +
+    vschoolResourcesHtml(field) +
     careerQuoteHtml(field.id) +
     careerMotivationHtml()
+  );
+}
+
+// 2026-08-25追加(ユーザー指示「有料のCourseraと言うサイトをオススメして」
+// への対応)。**正直な開示**: これは外部の有料学習プラットフォームへの
+// 案内であり、このアプリはCourseraと提携・アフィリエイト関係には無い
+// (紹介料等の金銭的関係は一切無い)。field.resources が無い分野では
+// 何も表示しない(無理に埋めない)。
+function vschoolResourcesHtml(field) {
+  if (!field || !field.resources) return "";
+  return (
+    '<div class="vschool-resources">' +
+    '<p class="vschool-career-label">📚 参考になりそうな学習リソース / Related learning resources</p>' +
+    "<p>" + field.resources.ja + "</p>" +
+    "<p>" + field.resources.en + "</p>" +
+    "</div>"
   );
 }
 
@@ -8042,6 +8205,60 @@ const VSCHOOL_QUESTIONS = {
       why: "The IBC is a model code that most US states and localities adopt (often with local amendments), not a directly binding international law. / IBCはモデル基準であり、米国の多くの州・自治体が(しばしば独自の修正を加えて)採用していますが、直接拘束力を持つ国際法ではありません。",
     },
   ],
+
+  // --- 大工(米国、NCCER Carpentry認定を参考例として) ---
+  "uscert:carpenter": [
+    {
+      q: "What does \"NCCER\" stand for? / 「NCCER」は何の略ですか。",
+      choices: [
+        "National Center for Construction Education and Research / 全米建設教育研究センター",
+        "National Council for Carpentry Excellence Regulation / 全米大工技能優秀性規制協議会",
+        "New Construction Code and Engineering Registry / 新建設基準・工学登録機関",
+        "National Committee for Carpenter Employment Rights / 全米大工雇用権利委員会",
+      ],
+      answer: 0,
+      why: "NCCER (National Center for Construction Education and Research) provides widely recognized craft credentials, including Carpentry. / NCCER(全米建設教育研究センター)は大工を含む、広く認知された技能認定を提供しています。",
+    },
+    {
+      q: "How many levels does the NCCER Carpentry curriculum span? / NCCERの大工(Carpentry)カリキュラムは何レベルにわたりますか。",
+      choices: ["Four / 4レベル", "One / 1レベル", "Ten / 10レベル", "Two / 2レベル"],
+      answer: 0,
+      why: "The NCCER Carpentry curriculum spans four levels, each requiring a written exam and a performance verification. / NCCERの大工カリキュラムは4レベルにわたり、各レベルで筆記試験と実技検証の両方が求められます。",
+    },
+    {
+      q: "Is there a single, nationwide \"master carpenter\" government license in the US? / 米国全体で通用する単一の「マスター大工」政府免許は存在しますか。",
+      choices: [
+        "No — unlike electricians or plumbers, there is no standardized nationwide license for the title / いいえ——電気工事士や配管工と異なり、この称号に対する全米標準化された免許はありません",
+        "Yes, issued directly by the federal government / はい、連邦政府が直接発行しています",
+        "Yes, but only in one specific state / はい、ただし特定の一州のみで発行されています",
+        "Yes, and it is required before any carpentry work at all / はい、いかなる大工仕事の前にも必須です",
+      ],
+      answer: 0,
+      why: "Carpentry in the US has no standardized state licensing exam for a \"master carpenter\" title, unlike some other trades. / 米国の大工には、他の一部の職種と異なり「マスター大工」という称号に対する標準化された州免許試験がありません。",
+    },
+    {
+      q: "What is a \"stud\" in residential wood-frame construction? / 木造軸組住宅の建築における「スタッド(stud)」とは何ですか。",
+      choices: [
+        "A vertical framing member in a wall / 壁の垂直方向の骨組み部材",
+        "A type of roofing shingle / 屋根葺き材の一種",
+        "A horizontal beam under the floor / 床下の水平な梁",
+        "A metal fastener used only in plumbing / 配管専用の金属製留め具",
+      ],
+      answer: 0,
+      why: "Studs are the vertical framing members (commonly 2x4 or 2x6 lumber) that make up the structure of a wall. / スタッドは壁の構造を構成する垂直方向の骨組み部材(一般に2x4材や2x6材)です。",
+    },
+    {
+      q: "Why is it important to check local building codes before starting a carpentry project? / 大工仕事を始める前に地域の建築基準を確認することが重要なのはなぜですか。",
+      choices: [
+        "Building codes vary by state/locality and govern safety requirements like framing and load-bearing rules / 建築基準は州・自治体ごとに異なり、軸組や耐力に関する安全要件を定めているため",
+        "Building codes are identical everywhere in the world, so checking is a formality / 建築基準は世界中どこでも同一なため、確認は形式的なものに過ぎない",
+        "Building codes only apply to plumbing, never to carpentry / 建築基準は配管にのみ適用され、大工仕事には適用されない",
+        "Building codes are optional suggestions with no legal weight / 建築基準は法的拘束力のない任意の提案に過ぎない",
+      ],
+      answer: 0,
+      why: "Building codes are locally adopted (often based on model codes like the IBC) and set enforceable safety requirements. / 建築基準は各地域で採用されており(しばしばIBCのようなモデル基準に基づく)、法的強制力のある安全要件を定めています。",
+    },
+  ],
 };
 
 const VSCHOOL_QUESTIONS_PER_ROUND = 3;
@@ -8396,7 +8613,7 @@ const VSCHOOL_MODE_LABELS = {
     step1: "1. 資格を選んでください / Choose a certification",
   },
   school: {
-    title: "🏫 バーチャルスクール(高等教育) / Virtual school (higher education)",
+    title: "🏫 バーチャルスクール(学生向け教育) / Virtual school (for students)",
     step1: "1. 区分を選んでください / Choose a category",
   },
 };
