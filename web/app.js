@@ -272,6 +272,35 @@ function ensureHybridReply(completion, userText) {
   return `${completion}\n\n${note}`;
 }
 
+// 正直な開示ボックスの開閉(ユーザー指示「Xで閉じたりOPENで開いたり
+// 出来るように」への対応、2026-08-25新設)。開閉状態はlocalStorageへ
+// 保存し、次回訪問時も維持する(既存の設定永続化の慣習に合わせた)。
+const DISCLOSURE_COLLAPSED_KEY = "open-english.disclosureCollapsed";
+const disclosureBox = document.getElementById("disclosure-box");
+const disclosureToggleBtn = document.getElementById("disclosure-toggle-btn");
+function setDisclosureCollapsed(collapsed) {
+  if (!disclosureBox || !disclosureToggleBtn) return;
+  disclosureBox.classList.toggle("hidden", collapsed);
+  disclosureToggleBtn.textContent = collapsed ? "ℹ OPEN / 開示を開く" : "✕ Hide disclosure / 開示を閉じる";
+  try {
+    localStorage.setItem(DISCLOSURE_COLLAPSED_KEY, collapsed ? "1" : "0");
+  } catch (e) {
+    /* localStorage不可でも開閉自体は機能させる */
+  }
+}
+if (disclosureToggleBtn) {
+  let collapsed = false;
+  try {
+    collapsed = localStorage.getItem(DISCLOSURE_COLLAPSED_KEY) === "1";
+  } catch (e) {
+    /* 既定は開いた状態 */
+  }
+  setDisclosureCollapsed(collapsed);
+  disclosureToggleBtn.addEventListener("click", () => {
+    setDisclosureCollapsed(!disclosureBox.classList.contains("hidden"));
+  });
+}
+
 const logEl = document.getElementById("log");
 const formEl = document.getElementById("chat-form");
 const inputEl = document.getElementById("chat-input");
@@ -7518,6 +7547,76 @@ const VSCHOOL_FIELDS = {
         ja: "しっかり身につけると、システムエンジニアやITサポートの仕事で役立つかもしれません。さらに極めると、プロジェクトリーダーやITコンサルタントのような職種を目指せる可能性があります。",
         en: "Mastering this may help with roles like systems engineer or IT support. Going further, it could open a path toward project lead or IT consultant roles.",
       },
+      // 2026-08-25追加(ユーザー指摘「サンプルのプログラムソースも好きな
+      // プログラム言語で表示するべき」への対応)。全く同じ最小API
+      // (「/hello」を叩くと挨拶メッセージのJSONを返すだけ)を、
+      // ユーザー推奨の4通りの言語/フレームワークで書き下ろした——
+      // どれも実際に動く最小構成のコード(雛形からの丸写しではなく
+      // 本アプリ用に簡潔化して書いたもの)。**正直な開示**: 実際に
+      // このアプリがこれらを実行・検証しているわけではなく、あくまで
+      // 「読んで学ぶための静的なサンプル」として提供している。
+      sampleCode: [
+        {
+          id: "python_fastapi",
+          label: "Python + FastAPI",
+          code:
+            "from fastapi import FastAPI\n\n" +
+            "app = FastAPI()\n\n" +
+            '@app.get("/hello")\n' +
+            "def hello():\n" +
+            '    return {"message": "Hello from FastAPI!"}\n\n' +
+            "# 実行: pip install fastapi uvicorn\n" +
+            "#       uvicorn main:app --reload\n",
+        },
+        {
+          id: "php_laravel",
+          label: "PHP + Laravel",
+          code:
+            "// routes/web.php\n" +
+            "use Illuminate\\Support\\Facades\\Route;\n\n" +
+            'Route::get("/hello", function () {\n' +
+            '    return response()->json(["message" => "Hello from Laravel!"]);\n' +
+            "});\n\n" +
+            "// 実行: composer create-project laravel/laravel my-app\n" +
+            "//       php artisan serve\n",
+        },
+        {
+          id: "rust_poem",
+          label: "Rust + Poem",
+          code:
+            "use poem::{get, handler, listener::TcpListener, web::Json, Route, Server};\n" +
+            "use serde_json::json;\n\n" +
+            "#[handler]\n" +
+            "fn hello() -> Json<serde_json::Value> {\n" +
+            '    Json(json!({ "message": "Hello from Poem!" }))\n' +
+            "}\n\n" +
+            "#[tokio::main]\n" +
+            "async fn main() -> Result<(), std::io::Error> {\n" +
+            '    let app = Route::new().at("/hello", get(hello));\n' +
+            '    Server::new(TcpListener::bind("127.0.0.1:3000")).run(app).await\n' +
+            "}\n\n" +
+            "// 実行: cargo add poem tokio serde_json --features tokio/full\n" +
+            "//       cargo run\n",
+        },
+        {
+          id: "rust_rpoem",
+          label: "Rust + RPoem",
+          code:
+            "// RPoem(このプロジェクトのエコシステムで実際に使っている、\n" +
+            "// Poem風の自作フレームワーク互換レイヤー)での書き方の一例。\n" +
+            "// 実際のAPIはバージョンにより変わり得るため、詳細は\n" +
+            "// aon-co-jp/RPoem のソース・READMEを参照してください。\n" +
+            "use open_runo_poem_compat::{get, handler_fn, Response, Route, Server, StatusCode, TcpListener};\n\n" +
+            "async fn hello() -> Response {\n" +
+            '    Response::builder().status(StatusCode::OK).body(r#"{"message":"Hello from RPoem!"}"#)\n' +
+            "}\n\n" +
+            "#[tokio::main]\n" +
+            "async fn main() {\n" +
+            '    let app = Route::new().at("/hello", get(handler_fn(|_req, _p| async move { hello().await })));\n' +
+            '    Server::new(TcpListener::bind("127.0.0.1:3000")).run(app).await.unwrap();\n' +
+            "}\n",
+        },
+      ],
     },
     {
       id: "medoffice",
@@ -7871,6 +7970,46 @@ function vschoolResourcesHtml(field) {
     "<p>" + field.resources.en + "</p>" +
     "</div>"
   );
+}
+
+// サンプルプログラムの言語/フレームワーク選択欄(ユーザー指示「サンプルの
+// プログラムソースも好きなプログラム言語で表示するべき」への対応、
+// 2026-08-25新設)。`field.sampleCode`(配列)を持つ分野にのみ表示する。
+// **コードは必ず`textContent`で入れる**(`<`/`>`/引用符を含むため、
+// `innerHTML`へ文字列結合すると画面が壊れる・注入リスクがある——
+// `renderTutorProgrammingMaterials`と同じ徹底事項)。
+function buildVschoolSampleCodeElement(field) {
+  if (!field || !Array.isArray(field.sampleCode) || field.sampleCode.length === 0) return null;
+  const wrap = document.createElement("div");
+  wrap.className = "vschool-sample-code";
+
+  const labelP = document.createElement("p");
+  labelP.className = "vschool-career-label";
+  labelP.textContent = "💻 サンプルプログラム(言語を選択) / Sample program (choose a language)";
+  wrap.appendChild(labelP);
+
+  const select = document.createElement("select");
+  select.className = "setup-input vschool-lang-select";
+  field.sampleCode.forEach((entry) => {
+    const opt = document.createElement("option");
+    opt.value = entry.id;
+    opt.textContent = entry.label;
+    select.appendChild(opt);
+  });
+  wrap.appendChild(select);
+
+  const pre = document.createElement("pre");
+  pre.className = "vschool-sample-pre";
+  pre.textContent = field.sampleCode[0].code;
+  wrap.appendChild(pre);
+
+  select.addEventListener("change", () => {
+    const chosen = field.sampleCode.find((e) => e.id === select.value);
+    pre.textContent = chosen ? chosen.code : "";
+  });
+  select.addEventListener("click", (e) => e.stopPropagation());
+
+  return wrap;
 }
 
 // 模擬問題本体。キーは `<区分ID>:<分野ID>`。**ここに無い組み合わせは
@@ -8558,6 +8697,11 @@ function renderVschoolFields() {
       careerWrap.addEventListener("click", (e) => e.stopPropagation());
       label.appendChild(careerWrap);
     }
+    const sampleCodeEl = buildVschoolSampleCodeElement(field);
+    if (sampleCodeEl) {
+      sampleCodeEl.addEventListener("click", (e) => e.stopPropagation());
+      label.appendChild(sampleCodeEl);
+    }
     vschoolFieldListEl.appendChild(label);
   });
   // その区分にまだ1分野も問題が無いときは、選ばせる前に正直に伝える
@@ -8709,6 +8853,14 @@ function scoreVschoolQuiz() {
 }
 
 function reviewVschoolWithTrainer() {
+  // ユーザー報告(2026-08-25)「TESTを受けた後に講義を受けようとすると、
+  // 英語のメッセージだけで日本語がなかった」への対応。JLPT/世界の言語の
+  // 模擬試験後のトレーナー引き継ぎ(practiceExamPrepWithTrainer)は
+  // 既にreply-langを明示的に"hybrid"へ切り替えていたが、この
+  // バーチャルスクール/職業訓練校側の引き継ぎだけそれを行っておらず、
+  // 利用者が以前どこかで"English only"を選んだままだと、この解説依頼も
+  // 英語のみで返ってしまう抜け穴だった。ここでも明示的にhybridへ揃える。
+  if (replyLangEl) replyLangEl.value = "hybrid";
   const track = vschoolTrack(vschoolSelectedTrack);
   const field = vschoolField(vschoolSelectedTrack, vschoolPracticeFieldEl.value);
   const targets =

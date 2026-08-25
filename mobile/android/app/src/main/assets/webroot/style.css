@@ -240,6 +240,12 @@ body {
   line-height: 1.4;
 }
 
+.disclosure-toggle-btn {
+  margin-bottom: 6px;
+  font-size: 0.85rem;
+  padding: 4px 10px;
+}
+
 .log {
   background: var(--panel);
   border-radius: 8px;
@@ -699,6 +705,29 @@ body {
   font-weight: bold;
   color: #ff9ecb;
 }
+.vschool-sample-code {
+  flex-basis: 100%;
+  margin-top: 6px;
+  padding: 8px 10px;
+  background: #241726;
+  border-left: 3px solid #8ee6a1;
+  border-radius: 6px;
+}
+.vschool-sample-code select {
+  margin: 4px 0;
+}
+.vschool-sample-pre {
+  margin: 8px 0 0;
+  padding: 10px 12px;
+  background: #1b1219;
+  border-radius: 8px;
+  overflow-x: auto;
+  font-size: 0.85rem;
+  line-height: 1.45;
+  white-space: pre;
+  color: var(--text);
+}
+
 /* プログラミング教材のサンプルコード。長い行は横スクロールさせる。 */
 .tutor-code {
   margin: 8px 0;
