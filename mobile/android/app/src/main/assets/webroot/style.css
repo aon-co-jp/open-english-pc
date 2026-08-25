@@ -268,7 +268,8 @@ body {
 
 .msg.trainer {
   align-self: flex-start;
-  background: #5a3a5a;
+  background: #1a2452;
+  color: #ffffff;
 }
 
 .msg.system {
