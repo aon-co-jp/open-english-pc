@@ -209,6 +209,12 @@ body {
 .speech-bubble {
   margin-top: 12px;
   background: var(--panel);
+  /* 2026-08-25修正(バグ報告): 親の`.trainer`が薄いピンク背景向けに
+     濃い文字色`color: #3a1a2a`を指定しているため、暗い背景を持つこの
+     吹き出しがその色をそのまま継承すると「暗い背景に暗い文字」で
+     読めなくなる。`.trainer`側の色指定を打ち消し、`body`と同じ
+     `var(--text)`(ほぼ白)へ明示的に戻す。 */
+  color: var(--text);
   border: 2px solid var(--pink);
   border-radius: 10px;
   padding: 10px 12px;
