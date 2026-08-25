@@ -7252,6 +7252,11 @@ const VSCHOOL_TRACKS = [
   { id: "daigaku", mode: "school", ja: "大学(学部)", en: "University (undergraduate)" },
   { id: "daigakuin", mode: "school", ja: "大学院", en: "Graduate school" },
   { id: "voc", mode: "voc", ja: "オンライン職業訓練校", en: "Online vocational training" },
+  // 2026-08-25追加(ユーザー指示「アメリカのデータサイエンティストや
+  // 一級建築士…の資格の擬似的模擬的なTEST」への対応)。米国の資格制度は
+  // 日本の学校区分(専門学校・短大・大学・大学院)とは別軸のため、独立の
+  // モードとして新設した。
+  { id: "uscert", mode: "uscert", ja: "アメリカの資格(擬似模擬)", en: "US certifications (mock)" },
 ];
 
 // 区分ごとの分野。`yt`はYouTube検索に使う一般的なキーワード
@@ -7494,6 +7499,46 @@ const VSCHOOL_FIELDS = {
       career: {
         ja: "美容室やエステサロンの受付・アシスタント業務に役立つかもしれません。経験を積むと、スタイリストやサロン店長を目指せる可能性があります。",
         en: "May help with salon reception or assistant work. With experience, it could lead toward a stylist or salon manager role.",
+      },
+    },
+  ],
+  // 2026-08-25追加: アメリカの資格(擬似模擬、`uscert`モード)。
+  //
+  // **正直な開示(重要、誇張しないこと)**: 「データサイエンティスト」には
+  // 日本の医師国家試験のような単一の政府公認資格は存在しない
+  // (2026-08-25 WebSearch確認)——CertNexus CDSP・DASCA SDS/PDS・
+  // IABAC CDS・USDSI等、複数のベンダーニュートラルな民間資格が並立
+  // している。ここではその実態を隠さず「代表的な民間資格を参考にした
+  // 独自の模擬問題」として位置づける(特定の認定団体の公式試験問題の
+  // 転載・特定団体の代替と主張することは一切していない)。建築士は
+  // NCARB(全米建築士登録協議会)が運営する Architect Registration
+  // Examination(ARE、現行ARE 5.0、6区分)が全50州+DC+米領4地域で
+  // 採用されている実質的な標準試験(情報源:
+  // https://www.ncarb.org/pass-the-are 、
+  // https://en.wikipedia.org/wiki/Architect_Registration_Examination
+  // 、2026-08-25 WebSearch確認)。日本の「一級建築士」とは資格制度の
+  // 構造自体が異なる(米国は州ごとの免許+NCARB相互承認、単一の国家
+  // 資格ではない)ため、「一級建築士に相当する米国の代表的試験」という
+  // 位置づけで案内する。
+  uscert: [
+    {
+      id: "dataScientist",
+      ja: "データサイエンティスト(米国、民間資格の代表例)",
+      en: "Data Scientist (US, representative industry certifications)",
+      yt: "data scientist certification exam prep",
+      career: {
+        ja: "統計・機械学習・データ分析の基礎を身につけると、データアナリストやBIエンジニアの仕事で役立つかもしれません。さらに極めると、データサイエンティストやMLエンジニアのような職種を目指せる可能性があります。米国には単一の政府公認資格は無く、CertNexus・DASCA・IABAC等の民間資格が代表例として挙げられます。",
+        en: "Mastering statistics, machine learning, and data-analysis basics may help with data analyst or BI engineer work. Going further, it could open a path toward data scientist or ML engineer roles. The US has no single government-issued license for this field — CertNexus, DASCA, and IABAC are representative vendor-neutral certifications.",
+      },
+    },
+    {
+      id: "architectAre",
+      ja: "建築士登録試験(米国、NCARB ARE)",
+      en: "Architect Registration Examination (US, NCARB ARE)",
+      yt: "NCARB ARE 5.0 exam prep",
+      career: {
+        ja: "建築設計・構造・法規の基礎を身につけると、設計事務所やゼネコンの実務補助で役立つかもしれません。さらに極めて米国でARE(全6区分)に合格し州の免許要件を満たすと、登録建築士(Licensed Architect)を目指せる可能性があります。日本の一級建築士とは制度の枠組みが異なり、米国は州ごとの免許+NCARBの相互承認という仕組みです。",
+        en: "Mastering building design, structural, and code basics may help with junior roles at design or construction firms. Going further — passing all six ARE divisions and meeting a state's licensure requirements — could open a path toward becoming a Licensed Architect. The US system differs structurally from Japan's Ikkyu Kenchikushi: licensure is per-state, with NCARB providing reciprocity across states.",
       },
     },
   ],
@@ -7884,6 +7929,119 @@ const VSCHOOL_QUESTIONS = {
       why: "守秘義務は在職中だけでなく退職後も続くのが一般的です。",
     },
   ],
+
+  // --- アメリカの資格(擬似模擬、`uscert`モード)---
+  // 日英併記("English / 日本語訳"形式、このアプリの既存の会話文と同じ
+  // 規約)。**正直な開示**: いずれも本アプリ用に書き下ろしたオリジナル
+  // 問題で、CertNexus/DASCA/IABAC/NCARB等いずれの実際の試験問題の
+  // 転載でもない。難易度・出題範囲も公式試験のものではなく、あくまで
+  // 「代表的な出題テーマの入り口」を体験する位置づけ。
+  "uscert:dataScientist": [
+    {
+      q: "Which of these best describes \"overfitting\" in machine learning? / 機械学習における「過学習(オーバーフィッティング)」の説明として最も適切なものはどれですか。",
+      choices: [
+        "A model fits the training data too closely and performs poorly on new data / モデルが訓練データに適合しすぎて、新しいデータでは性能が落ちること",
+        "A model is too simple to capture the pattern / モデルが単純すぎてパターンを捉えられないこと",
+        "A model trains faster than expected / モデルの学習が想定より速く終わること",
+        "A model uses too little data / モデルが使うデータが少なすぎること",
+      ],
+      answer: 0,
+      why: "Overfitting means the model memorizes training data noise instead of learning generalizable patterns. / 過学習とは、モデルが汎化可能なパターンではなく訓練データのノイズを覚えてしまう状態です。",
+    },
+    {
+      q: "In statistics, what does a p-value help you evaluate? / 統計学において、p値は何を評価する助けになりますか。",
+      choices: [
+        "Whether an observed result is likely due to chance under a null hypothesis / 観測結果が帰無仮説のもとで偶然起こり得るかどうか",
+        "The exact size of an effect / 効果の正確な大きさ",
+        "How many data points were collected / 収集したデータ点の数",
+        "The average of the dataset / データセットの平均値",
+      ],
+      answer: 0,
+      why: "A small p-value suggests the observed result is unlikely under the null hypothesis. / p値が小さいほど、その結果が帰無仮説のもとでは起こりにくいことを示唆します。",
+    },
+    {
+      q: "Which SQL clause is used to filter rows after grouping? / グループ化した後に行を絞り込むために使うSQL句はどれですか。",
+      choices: ["HAVING", "WHERE", "ORDER BY", "SELECT"],
+      answer: 0,
+      why: "WHERE filters before grouping; HAVING filters after GROUP BY. / WHEREはグループ化の前に絞り込み、HAVINGはGROUP BYの後に絞り込みます。",
+    },
+    {
+      q: "What is the main purpose of a train/test split in a data science workflow? / データサイエンスの作業手順における訓練用/テスト用データ分割の主な目的は何ですか。",
+      choices: [
+        "To estimate how the model will perform on unseen data / モデルが未知のデータでどう振る舞うかを見積もるため",
+        "To make the dataset smaller for storage / 保存容量のためにデータセットを小さくするため",
+        "To remove duplicate rows / 重複行を除去するため",
+        "To speed up data collection / データ収集を高速化するため",
+      ],
+      answer: 0,
+      why: "Testing on held-out data approximates real-world generalization. / 訓練に使っていないデータで評価することで、実世界での汎化性能を近似できます。",
+    },
+    {
+      q: "Which of these is a common way to handle missing values in a dataset? / データセットの欠損値への対処としてよく使われる方法はどれですか。",
+      choices: [
+        "Imputation (e.g. filling with the mean or median) / 補完(平均値・中央値等で埋める)",
+        "Always deleting the entire dataset / 常にデータセット全体を削除する",
+        "Ignoring the column names / 列名を無視する",
+        "Renaming all variables randomly / すべての変数名をランダムに変更する",
+      ],
+      answer: 0,
+      why: "Imputation, deletion of affected rows, or model-based handling are standard approaches; deleting the whole dataset is not. / 補完・該当行の削除・モデルベースの処理が標準的な方法で、データセット全体の削除ではありません。",
+    },
+  ],
+
+  // --- アメリカの建築士登録試験(NCARB ARE、擬似模擬) ---
+  "uscert:architectAre": [
+    {
+      q: "Which organization develops and administers the Architect Registration Examination (ARE) in the US? / 米国の建築士登録試験(ARE)を開発・運営している団体はどれですか。",
+      choices: [
+        "NCARB (National Council of Architectural Registration Boards) / NCARB(全米建築士登録協議会)",
+        "AIA (American Institute of Architects) / AIA(米国建築家協会)",
+        "OSHA / OSHA(労働安全衛生局)",
+        "The U.S. Department of Labor / 米国労働省",
+      ],
+      answer: 0,
+      why: "NCARB develops the ARE and is used by all US jurisdictions as a licensure requirement. / NCARBがAREを開発しており、米国のすべての管轄区域が免許要件として採用しています。",
+    },
+    {
+      q: "In the current ARE 5.0, how many exam divisions must a candidate pass? / 現行のARE 5.0で、受験者が合格しなければならない区分数はいくつですか。",
+      choices: ["Six / 6区分", "Three / 3区分", "Ten / 10区分", "One / 1区分"],
+      answer: 0,
+      why: "ARE 5.0 consists of six divisions covering different aspects of architectural practice. / ARE 5.0は建築実務の異なる側面を扱う6区分から構成されています。",
+    },
+    {
+      q: "How does US architect licensure generally work across states? / 米国の建築士免許は、州をまたいでどのように扱われるのが一般的ですか。",
+      choices: [
+        "Licensure is granted per state, with NCARB certification enabling reciprocity / 免許は州ごとに発行され、NCARB認証により相互承認(リシプロシティ)が可能になる",
+        "A single national exam grants licensure valid in all 50 states automatically / 単一の全国試験で自動的に全50州で有効な免許が得られる",
+        "Architects do not need any license to practice / 建築士は開業に免許を必要としない",
+        "Only federal agencies can issue architect licenses / 連邦機関のみが建築士免許を発行できる",
+      ],
+      answer: 0,
+      why: "Each US state/jurisdiction issues its own license; NCARB certification helps architects gain reciprocal licensure in other states. / 米国の各州(管轄区域)が独自に免許を発行しますが、NCARB認証を取得すると他州でも相互承認により免許を得やすくなります。",
+    },
+    {
+      q: "What is a load-bearing wall? / 耐力壁(ロードベアリング・ウォール)とは何ですか。",
+      choices: [
+        "A wall that supports structural weight from the building above / 建物上部からの構造荷重を支える壁",
+        "A decorative wall with no structural function / 構造上の機能を持たない装飾用の壁",
+        "A wall used only for soundproofing / 防音のためだけに使う壁",
+        "A wall that can always be removed freely / 自由に撤去してよい壁",
+      ],
+      answer: 0,
+      why: "Load-bearing walls transfer structural loads to the foundation; removing one without proper support can cause structural failure. / 耐力壁は構造荷重を基礎へ伝達するため、適切な補強なしに撤去すると構造的な破損につながり得ます。",
+    },
+    {
+      q: "Why do US building codes commonly reference the International Building Code (IBC)? / 米国の建築基準法がしばしば国際建築基準(IBC)を参照するのはなぜですか。",
+      choices: [
+        "It provides a widely adopted model code that states/localities adapt into law / 州・自治体が法律に組み込むための、広く採用されているモデル基準を提供しているため",
+        "It is a mandatory worldwide law enforced by the United Nations / 国連が施行する世界共通の義務的法律だから",
+        "It only applies to bridges, not buildings / 橋梁のみに適用され、建物には適用されないため",
+        "It replaces the need for any state-level review / 州レベルの審査を一切不要にするため",
+      ],
+      answer: 0,
+      why: "The IBC is a model code that most US states and localities adopt (often with local amendments), not a directly binding international law. / IBCはモデル基準であり、米国の多くの州・自治体が(しばしば独自の修正を加えて)採用していますが、直接拘束力を持つ国際法ではありません。",
+    },
+  ],
 };
 
 const VSCHOOL_QUESTIONS_PER_ROUND = 3;
@@ -7910,6 +8068,7 @@ function vschoolYoutubeUrl(keyword) {
 
 const vschoolBtn = document.getElementById("vschool-btn");
 const vvocBtn = document.getElementById("vvoc-btn");
+const usCertBtn = document.getElementById("uscert-btn");
 const vschoolModal = document.getElementById("vschool-modal");
 const vschoolCloseBtn = document.getElementById("vschool-close");
 const vschoolTitleEl = document.getElementById("vschool-title");
@@ -8224,15 +8383,29 @@ function reviewVschoolWithTrainer() {
   formEl.dispatchEvent(new Event("submit", { cancelable: true }));
 }
 
+// 2026-08-25追加: `uscert`モード(アメリカの資格、擬似模擬)向けの
+// タイトル/手順文言。モードが3種類になったため、真偽値の分岐から
+// テーブル引きへ変更した。
+const VSCHOOL_MODE_LABELS = {
+  voc: {
+    title: "🛠 バーチャルオンライン職業訓練校 / Virtual online vocational school",
+    step1: "1. 訓練校を選んでください / Choose a training school",
+  },
+  uscert: {
+    title: "🇺🇸 アメリカの資格(擬似模擬) / US certifications (mock)",
+    step1: "1. 資格を選んでください / Choose a certification",
+  },
+  school: {
+    title: "🏫 バーチャルスクール(高等教育) / Virtual school (higher education)",
+    step1: "1. 区分を選んでください / Choose a category",
+  },
+};
+
 function openVschoolModal(mode) {
   vschoolMode = mode;
-  const isVoc = mode === "voc";
-  vschoolTitleEl.textContent = isVoc
-    ? "🛠 バーチャルオンライン職業訓練校 / Virtual online vocational school"
-    : "🏫 バーチャルスクール(高等教育) / Virtual school (higher education)";
-  vschoolStep1TitleEl.textContent = isVoc
-    ? "1. 訓練校を選んでください / Choose a training school"
-    : "1. 区分を選んでください / Choose a category";
+  const labels = VSCHOOL_MODE_LABELS[mode] || VSCHOOL_MODE_LABELS.school;
+  vschoolTitleEl.textContent = labels.title;
+  vschoolStep1TitleEl.textContent = labels.step1;
   // 別モードで選んでいた区分が残っていたら選び直させる。
   const cur = vschoolTrack(vschoolSelectedTrack);
   if (!cur || cur.mode !== mode) {
@@ -8250,6 +8423,7 @@ if (vschoolModal && vschoolBtn) {
   loadVschoolSettings();
   vschoolBtn.addEventListener("click", () => openVschoolModal("school"));
   if (vvocBtn) vvocBtn.addEventListener("click", () => openVschoolModal("voc"));
+  if (usCertBtn) usCertBtn.addEventListener("click", () => openVschoolModal("uscert"));
   vschoolCloseBtn.addEventListener("click", () => vschoolModal.classList.add("hidden"));
   vschoolModal.addEventListener("click", (e) => {
     if (e.target === vschoolModal) vschoolModal.classList.add("hidden");
