@@ -52,6 +52,9 @@
       🌐 追加する言語を選ぶ / Choose additional languages
     </button>
   </div>
+  <div id="network-status-badge" class="network-status-badge" title="Click for details / クリックで詳細">
+    <span id="network-status-text">🔒 Checking… / 確認中…</span>
+  </div>
   <header class="topbar">
     <h1>open-english <span class="phase-badge">Phase 0</span></h1>
     <label class="level-select">
@@ -115,6 +118,7 @@
     <button type="button" id="data-storage-btn" class="setup-btn">💾 Data & Model Storage / データ・モデルの保存先</button>
     <button type="button" id="ai-coding-btn" class="setup-btn">🖥️ AI Coding Assistant / AIでプログラミング</button>
     <button type="button" id="world-lab-btn" class="setup-btn">🌐 world-lab (experimental) / world-lab(実験的機能)</button>
+    <button type="button" id="custom-url-btn" class="setup-btn">🔗 Icon & Custom URL / アイコン起動・独自URL</button>
   </header>
 
   <div id="setup-modal" class="setup-modal hidden">
@@ -575,6 +579,73 @@ cd aruaru-db
       <div id="folder-browser-list" class="folder-browser-list">Loading… / 読み込み中…</div>
       <button type="button" id="folder-browser-select-btn" class="setup-btn">✅ Select this folder / このフォルダを選択</button>
       <p class="setup-note" id="folder-browser-status"></p>
+    </div>
+  </div>
+
+  <div id="custom-url-modal" class="setup-modal hidden">
+    <div class="setup-panel">
+      <button type="button" id="custom-url-close" class="setup-close">✕</button>
+      <h2>🔗 Icon & Custom URL / アイコン起動・独自URL</h2>
+
+      <h3>1. Launch from an icon / アイコンから起動</h3>
+      <p class="setup-note">
+        Windows/Linux/macOS installers already create a desktop shortcut/launcher that starts the
+        server and opens this page for you (see the "installer/" downloads on the project README).
+        On Android, install the app or add this page to your home screen (⋮ menu → "Add to Home
+        screen") for one-tap launch.<br />
+        Windows/Linux/macOS版インストーラーには、サーバー起動+このページを開くデスクトップ
+        ショートカット/ランチャーが既に同梱されています(プロジェクトREADMEの「installer/」を
+        参照)。Androidではアプリをインストールするか、ブラウザのメニュー(⋮)→
+        「ホーム画面に追加」でワンタップ起動できます。
+      </p>
+
+      <h3>2. Bookmark this page's URL / このページのURLをお気に入りに登録</h3>
+      <p class="setup-note">
+        You can simply bookmark this page's current address in your browser
+        (<span id="custom-url-current"></span>) — no extra setup is required for that.<br />
+        ブラウザでこのページの現在のアドレス(<span id="custom-url-current-ja"></span>)を
+        そのままお気に入り/ブックマークに登録するだけで構いません——特別な設定は不要です。
+      </p>
+
+      <h3>3. Assign a memorable domain via DuckDNS (or any other) / DuckDNS等で覚えやすいドメインを割り当て</h3>
+      <p class="setup-honest">
+        <strong>Honest disclosure:</strong> DuckDNS only points a domain name at your current IP
+        address. It does <strong>not</strong> open any router ports and does <strong>not</strong> by
+        itself make this server reachable from outside your home network — this server still binds to
+        <code>127.0.0.1</code> only unless you explicitly set <code>OPEN_ENGLISH_SERVER_BIND</code>,
+        and real internet (WAN) access still requires you to set up port forwarding and TLS yourself
+        (e.g. via <a href="https://github.com/aon-co-jp/open-web-server" target="_blank" rel="noopener noreferrer">open-web-server</a>
+        or <a href="https://github.com/aon-co-jp/open-easy-web" target="_blank" rel="noopener noreferrer">open-easy-web</a>).
+        We deliberately do not auto-configure port forwarding (UPnP), for the same "no stepping stone"
+        security reasons as world-lab.<br />
+        <strong>正直な開示：</strong>DuckDNSはドメイン名を現在のIPアドレスへ結びつけるだけです。
+        ルーターのポートは<strong>開きません</strong>し、それだけでは自宅ネットワーク外から
+        このサーバーへ到達できるようにも<strong>なりません</strong>——このサーバー自体も
+        <code>OPEN_ENGLISH_SERVER_BIND</code>を明示的に変更しない限り<code>127.0.0.1</code>限定の
+        ままで、実際にインターネット(WAN)から使うにはポートフォワーディングとTLSをご自身で
+        用意する必要があります(例:
+        <a href="https://github.com/aon-co-jp/open-web-server" target="_blank" rel="noopener noreferrer">open-web-server</a>や
+        <a href="https://github.com/aon-co-jp/open-easy-web" target="_blank" rel="noopener noreferrer">open-easy-web</a>)。
+        world-labと同じ「踏み台にならない」方針により、UPnP等での自動ポート開放はあえて実装して
+        いません。
+      </p>
+      <p class="setup-note">
+        Get a free domain first at <a href="https://www.duckdns.org" target="_blank" rel="noopener noreferrer">duckdns.org</a>
+        (sign in, add a subdomain, copy your token). Prefer a different dynamic DNS or your own
+        domain? Just point it at your IP yourself — this button is only a convenience for DuckDNS.<br />
+        まず<a href="https://www.duckdns.org" target="_blank" rel="noopener noreferrer">duckdns.org</a>
+        で無料のサブドメインを取得してください(サインイン→サブドメイン追加→トークンをコピー)。
+        他の動的DNSや独自ドメインをお使いになりたい場合は、ご自身でIPへ割り当ててください——
+        このボタンはDuckDNS向けの簡易ヘルパーに過ぎません。
+      </p>
+      <label>DuckDNS subdomain / サブドメイン (e.g. "your-name"):
+        <input type="text" id="duckdns-domain" class="setup-input" placeholder="your-name" />
+      </label>
+      <label>DuckDNS token / トークン:
+        <input type="password" id="duckdns-token" class="setup-input" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" />
+      </label>
+      <button type="button" id="duckdns-update-btn" class="setup-btn">🔄 Update DuckDNS now / 今すぐDuckDNSを更新</button>
+      <p class="setup-note" id="duckdns-status"></p>
     </div>
   </div>
 

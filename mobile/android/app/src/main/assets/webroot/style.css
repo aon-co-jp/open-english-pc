@@ -743,6 +743,24 @@ body {
 /* 世界の言語も選べることを大きく案内するバナー(2026-08-22追加、
    ユーザー指示「日本語と英語をデフォルトとして選択できますが、世界中の
    言語も選択可能ですと、日本語と英語で大きく表示して」)。 */
+.network-status-badge {
+  display: inline-block;
+  margin: 6px 8px 0;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  background: #24304a;
+  color: #cfe0ff;
+  border: 1px solid #3a5a8c;
+}
+.network-status-badge.is-public {
+  background: #4a2424;
+  color: #ffd8d8;
+  border-color: #8c3a3a;
+}
+
 .world-language-banner {
   background: linear-gradient(90deg, #fff2f8, #f2f6ff);
   border: 2px solid #f096be;

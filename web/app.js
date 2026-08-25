@@ -5002,6 +5002,134 @@ if (aiCodingToolLinkBtn) {
 // (二段階のオプトイン)なため、このUIから叩いても大抵は「無効です」と
 // 返ってくるのが正常な状態——それ自体をエラー扱いで壊れて見せないこと。
 // ============================================================================
+// ============================================================================
+// アイコン起動・独自URL(DuckDNS)パネル(2026-08-25新設、ユーザー指示
+// 「アイコンクリックで起動するか、URLをお気に入りに入れて、DuckDNSや
+// 好きなURLを割り当て可能に」への対応)。
+// バックエンドは`server/src/main.rs`の`POST /v1/duckdns/update`
+// (DuckDNSのIP更新APIをサーバー側から叩くだけの薄いプロキシ)。
+// **重要**: これはドメイン名をIPへ結びつけるだけで、ポート開放・
+// TLS終端は一切行わない(パネル内の`.setup-honest`に明記済み)。
+// ============================================================================
+// 公開/非公開の常時表示バッジ(ユーザー指示「公開サーバーか非公開サーバー
+// かはいつでも選択可能として、公開か非公開かは英語と日本語はいつでも
+// 表示して選択した言語でも表示して」への対応、2026-08-25新設)。
+// バックエンドは`GET /v1/network/status`(`server/src/main.rs`新設)。
+// **正直な開示**: 「選択可能」の実体は環境変数
+// `OPEN_ENGLISH_SERVER_BIND`+再起動であり、このボタン一発でその場
+// 切り替えはできない(ルーターのポート開放を伴わない安全設計、詳細は
+// custom-url-modalの開示文参照)——このバッジはあくまで「今どちらの
+// 状態か」を常時表示し、切り替え手順は詳細パネルへ案内する。
+const networkStatusBadge = document.getElementById("network-status-badge");
+const networkStatusTextEl = document.getElementById("network-status-text");
+// 「選択した言語でも表示」に対応する簡易辞書。既存の全対応言語を
+// 網羅する翻訳基盤は無いため(正直な開示)、既に他機能でも訳文を
+// 用意している主要言語のみをここでも収録し、未収録言語は英日併記の
+// 既定へフォールバックする。
+const NETWORK_STATUS_LABELS = {
+  es: { private: "Privado", public: "Público" },
+  fr: { private: "Privé", public: "Public" },
+  de: { private: "Privat", public: "Öffentlich" },
+  it: { private: "Privato", public: "Pubblico" },
+  pt: { private: "Privado", public: "Público" },
+  nl: { private: "Privé", public: "Openbaar" },
+  ru: { private: "Приватный", public: "Публичный" },
+  zh: { private: "私密", public: "公开" },
+  "zh-Hant": { private: "私密", public: "公開" },
+  ko: { private: "비공개", public: "공개" },
+  ar: { private: "خاص", public: "عام" },
+  hi: { private: "निजी", public: "सार्वजनिक" },
+  tr: { private: "Özel", public: "Herkese açık" },
+  vi: { private: "Riêng tư", public: "Công khai" },
+  th: { private: "ส่วนตัว", public: "สาธารณะ" },
+  id: { private: "Pribadi", public: "Publik" },
+};
+
+async function refreshNetworkStatus() {
+  if (!networkStatusBadge || !networkStatusTextEl) return;
+  try {
+    const res = await fetch(`${apiBaseEl ? apiBaseEl.value.replace(/\/$/, "") : ""}/v1/network/status`);
+    const data = await res.json();
+    const isPublic = !!data.is_public;
+    networkStatusBadge.classList.toggle("is-public", isPublic);
+    const langCode = quizPreferredLangCode();
+    const extra = langCode && NETWORK_STATUS_LABELS[langCode] ? ` / ${isPublic ? NETWORK_STATUS_LABELS[langCode].public : NETWORK_STATUS_LABELS[langCode].private}` : "";
+    const icon = isPublic ? "🌐" : "🔒";
+    const enJa = isPublic ? "Public / 公開" : "Private (loopback only) / 非公開(ループバック限定)";
+    networkStatusTextEl.textContent = `${icon} ${enJa}${extra}`;
+    networkStatusBadge.title = `${data.note_en || ""} / ${data.note_ja || ""}`;
+  } catch (e) {
+    networkStatusTextEl.textContent = "🔒 Private (server unreachable) / 非公開(サーバー未接続)";
+    networkStatusBadge.classList.remove("is-public");
+  }
+}
+
+if (networkStatusBadge) {
+  networkStatusBadge.addEventListener("click", () => {
+    const modal = document.getElementById("custom-url-modal");
+    if (modal) {
+      modal.classList.remove("hidden");
+      const here = window.location.href;
+      const currentEl = document.getElementById("custom-url-current");
+      const currentJaEl = document.getElementById("custom-url-current-ja");
+      if (currentEl) currentEl.textContent = here;
+      if (currentJaEl) currentJaEl.textContent = here;
+    }
+  });
+  refreshNetworkStatus();
+  setInterval(refreshNetworkStatus, 30000);
+}
+
+const customUrlBtn = document.getElementById("custom-url-btn");
+const customUrlModal = document.getElementById("custom-url-modal");
+const customUrlClose = document.getElementById("custom-url-close");
+const duckdnsDomainEl = document.getElementById("duckdns-domain");
+const duckdnsTokenEl = document.getElementById("duckdns-token");
+const duckdnsUpdateBtn = document.getElementById("duckdns-update-btn");
+const duckdnsStatusEl = document.getElementById("duckdns-status");
+
+if (customUrlBtn && customUrlModal) {
+  customUrlBtn.addEventListener("click", () => {
+    customUrlModal.classList.remove("hidden");
+    const here = window.location.href;
+    const currentEl = document.getElementById("custom-url-current");
+    const currentJaEl = document.getElementById("custom-url-current-ja");
+    if (currentEl) currentEl.textContent = here;
+    if (currentJaEl) currentJaEl.textContent = here;
+  });
+  customUrlClose.addEventListener("click", () => customUrlModal.classList.add("hidden"));
+  customUrlModal.addEventListener("click", (e) => {
+    if (e.target === customUrlModal) customUrlModal.classList.add("hidden");
+  });
+}
+
+if (duckdnsUpdateBtn) {
+  duckdnsUpdateBtn.addEventListener("click", async () => {
+    const domain = duckdnsDomainEl ? duckdnsDomainEl.value.trim() : "";
+    const token = duckdnsTokenEl ? duckdnsTokenEl.value.trim() : "";
+    if (!domain || !token) {
+      if (duckdnsStatusEl) duckdnsStatusEl.textContent = "Please enter both a subdomain and a token. / サブドメインとトークンの両方を入力してください。";
+      return;
+    }
+    if (duckdnsStatusEl) duckdnsStatusEl.textContent = "Updating… / 更新中…";
+    try {
+      const res = await fetch(`${apiBaseEl ? apiBaseEl.value.replace(/\/$/, "") : ""}/v1/duckdns/update`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ domain, token }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        duckdnsStatusEl.textContent = `Done! Your URL is ${data.assigned_url} — but see the honest disclosure above: this alone does not open your router or add TLS. / 完了しました！URLは ${data.assigned_url} です——ただし上記の正直な開示の通り、これだけではルーターのポートは開かずTLSも付きません。`;
+      } else {
+        duckdnsStatusEl.textContent = `Failed: ${data.duckdns_response || data.error || "unknown error"} / 失敗しました: ${data.duckdns_response || data.error || "不明なエラー"}`;
+      }
+    } catch (e) {
+      duckdnsStatusEl.textContent = `Failed to reach the server: ${e.message} / サーバーへ接続できませんでした: ${e.message}`;
+    }
+  });
+}
+
 const worldLabBtn = document.getElementById("world-lab-btn");
 const worldLabModal = document.getElementById("world-lab-modal");
 const worldLabClose = document.getElementById("world-lab-close");
