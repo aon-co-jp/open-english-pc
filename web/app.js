@@ -441,8 +441,10 @@ const LOGIN_PROMPT_SHOWN_KEY = "open-english.loginPromptShown";
 })();
 
 const loginEmailEl = document.getElementById("login-email");
+const loginEmail2El = document.getElementById("login-email2");
 const loginSendCodeBtn = document.getElementById("login-send-code-btn");
 const loginCodeSection = document.getElementById("login-code-section");
+const loginVerifyEmailEl = document.getElementById("login-verify-email");
 const loginCodeEl = document.getElementById("login-code");
 const loginVerifyBtn = document.getElementById("login-verify-btn");
 const loginStatusEl = document.getElementById("login-status");
@@ -450,6 +452,7 @@ const loginStatusEl = document.getElementById("login-status");
 if (loginSendCodeBtn) {
   loginSendCodeBtn.addEventListener("click", async () => {
     const email = loginEmailEl.value.trim();
+    const email2 = (loginEmail2El?.value || "").trim();
     if (!email) {
       loginStatusEl.textContent = "Please enter your email / メールアドレスを入力してください";
       return;
@@ -459,12 +462,17 @@ if (loginSendCodeBtn) {
       const res = await fetch("/v1/auth/request-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify(email2 ? { email, email2 } : { email }),
       });
       const data = await res.json();
       if (res.ok) {
-        loginStatusEl.textContent = "Code sent — check your email / コードを送信しました。メールをご確認ください";
+        loginStatusEl.textContent = email2
+          ? "Code sent to both addresses — check either inbox / 両方のメールアドレスへコードを送信しました。どちらか一方をご確認ください"
+          : "Code sent — check your email / コードを送信しました。メールをご確認ください";
         loginCodeSection.classList.remove("hidden");
+        // 検証欄には既定でメールアドレス1を入れておく(2つ目で受け取った
+        // 場合は利用者が書き換える、2026-08-27追加)。
+        if (loginVerifyEmailEl) loginVerifyEmailEl.value = email;
       } else {
         loginStatusEl.textContent = `⚠ ${data.error || "Failed to send code / コード送信に失敗しました"}`;
       }
@@ -475,7 +483,7 @@ if (loginSendCodeBtn) {
 }
 if (loginVerifyBtn) {
   loginVerifyBtn.addEventListener("click", async () => {
-    const email = loginEmailEl.value.trim();
+    const email = (loginVerifyEmailEl?.value || loginEmailEl.value).trim();
     const code = loginCodeEl.value.trim();
     loginStatusEl.textContent = "Verifying... / 確認中...";
     try {
