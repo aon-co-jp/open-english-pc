@@ -10928,6 +10928,13 @@ function freelanceLoadGithubToken() {
   const mode = freelanceGithubTokenModeEl?.value || "file";
   if (mode === "file") return freelanceGithubFileToken || "";
   if (mode === "encrypted") return freelanceGithubUnlockedToken || "";
+  // 2026-08-27防御的修正: ④vaultモードではキーの復号・使用はvault.html
+  // 内だけで完結させる設計のため、ここでは絶対に何も返さない
+  // (現状の呼び出し元`freelanceGithubCreateRepoAndPush`はvaultモード
+  // 時には呼ばれない設計だが、Google検索側で同種のフォールスルーが
+  // 実際にバグを引き起こしたため〈同日の別コミット参照〉、将来の
+  // 呼び出し追加に備えて明示的にブロックしておく)。
+  if (mode === "vault") return "";
   try {
     return window.localStorage.getItem(FREELANCE_GITHUB_TOKEN_LOCAL_KEY) || "";
   } catch {
