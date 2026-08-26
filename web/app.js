@@ -390,38 +390,94 @@ makeCollapsiblePanel("phone-accel-banner", "phone-accel-banner-toggle", "phoneAc
 makeCollapsiblePanel("world-language-banner", "world-language-banner-toggle", "worldLanguageBanner", "✕ CLOSE", "＋ OPEN");
 makeCollapsiblePanel("topbar", "topbar-toggle", "topbar", "✕ CLOSE", "＋ OPEN");
 makeCollapsiblePanel("maintenance-banner-detail", "maintenance-banner-toggle", "maintenanceBannerDetail", "✕ CLOSE", "＋ OPEN");
+makeCollapsiblePanel("download-recommend-banner", "download-recommend-banner-toggle", "downloadRecommendBanner", "✕ CLOSE", "＋ OPEN");
 
 const logEl = document.getElementById("log");
 const formEl = document.getElementById("chat-form");
 const inputEl = document.getElementById("chat-input");
 const apiBaseEl = document.getElementById("api-base");
-// LAN経由アクセス(スマホ等)対応: このページ自体が`localhost`以外の
-// ホスト名(PCのIPアドレス)で開かれている場合、`aruaru-llm`の既定接続先も
-// 同じホスト名を使うよう自動調整する(ユーザー報告: スマホのWebViewから
-// PC上のopen-english-serverへ接続できても、そのままだと`aruaru-llm`
-// 接続先が`localhost`=スマホ自身を指してしまい、接続に失敗していた)。
-if (apiBaseEl && location.hostname && location.hostname !== "localhost" && location.hostname !== "127.0.0.1") {
-  apiBaseEl.value = `http://${location.hostname}:4600`;
+// 2026-08-26改訂(ユーザー指示「open-englishはVPSレンタルサーバーで
+// 一応動きますが、aruaru-llmを手元の端末にダウンロードして頂いて、
+// それをVPSのopen-englishがインストールに成功してますと認識出来る
+// ように」への対応): このページがVPS等どのホストから配信されていても、
+// `http://localhost:4600`(=閲覧者自身の端末)への接続を常に最優先の
+// 既定値とする——ブラウザの`localhost`/`127.0.0.1`は常に「このページを
+// 開いている端末自身」を指すため、VPS配信時にこれをページのホスト名
+// (VPS自身)へ書き換えてしまうと、閲覧者が自分の端末へダウンロード・
+// インストールした`aruaru-llm`に永久に接続できなくなるバグだった
+// (旧実装はホスト名が`localhost`以外だと無条件で`ホスト名:4600`へ
+// 書き換えていたため、VPS配信時はVPS自身のポート4600を叩こうとして
+// いた——閲覧者の端末ではなく)。
+// `checkHealth()`(下記)がこの既定値へ定期的にヘルスチェックを行い、
+// 閲覧者が自分の端末で`aruaru-llm`を起動した瞬間に自動的に「接続
+// できました」を検知する——これが「VPSがインストール成功を認識する」
+// 仕組みの実体(新しい通知APIを追加したわけではなく、既存のヘルス
+// チェックが正しい既定接続先に対して機能するようにした)。
+//
+// 旧来のLANヒューリスティック(スマホのWebViewからPC上のopen-english-
+// server+aruaru-llmへ、PCのLAN IP経由で両方接続するケース)は、
+// `localhost:4600`が応答しない場合の**フォールバック候補**として
+// 維持する(`autoDetectAruaruLlmBase`が両方を実際に`/healthz`で
+// プローブし、応答した方を採用する)。
+async function autoDetectAruaruLlmBase() {
+  if (!apiBaseEl) return;
+  const candidates = ["http://localhost:4600"];
+  if (location.hostname && location.hostname !== "localhost" && location.hostname !== "127.0.0.1") {
+    candidates.push(`http://${location.hostname}:4600`);
+  }
+  for (const candidate of candidates) {
+    try {
+      const res = await fetchWithTimeout(`${candidate}/healthz`, { cache: "no-store" }, 2000);
+      if (res.ok) {
+        apiBaseEl.value = candidate;
+        return;
+      }
+    } catch (e) {
+      // この候補は応答しない、次を試す。
+    }
+  }
+  // どちらも応答しない場合は、閲覧者自身の端末を指す既定値
+  // (`localhost:4600`)のまま残す——後続の`checkHealth()`の定期
+  // ポーリング(5秒間隔)が、閲覧者が後からインストール・起動した
+  // タイミングで自動的に接続を検知する。
+  apiBaseEl.value = candidates[0];
 }
-// 2026-08-25新設: VPS等のリバースプロキシ配下デプロイでは、上記の
-// hostname:4600推測が届かないことが多い(ファイアウォール/TLSの都合)。
-// サーバー側`GET /v1/config`が`aruaru_llm_base_url`を返す場合(デプロイ側で
-// `OPEN_ENGLISH_ARUARU_LLM_BASE_URL`環境変数を設定した場合のみ)は、
-// それを最優先の既定値として使う。未設定(ローカルPC版の既定)なら
-// 上記のhostname:4600推測をそのまま使う。
-(async function applyDeploymentAruaruLlmBase() {
+
+// デプロイ運用者が明示的にVPS側でaruaru-llmを共同ホストしている場合
+// (`OPEN_ENGLISH_ARUARU_LLM_BASE_URL`環境変数を設定した場合)のみ、
+// その接続先を使う——ただし上記の「閲覧者自身の端末」検出が既に成功
+// している場合はそちらを優先する(明示的なオプトインの補完策)。
+async function applyDeploymentAruaruLlmBaseIfOwnDeviceUnavailable() {
   if (!apiBaseEl) return;
   try {
     const res = await fetch("/v1/config", { cache: "no-store" });
     if (!res.ok) return;
     const data = await res.json();
-    if (data.aruaru_llm_base_url) {
-      apiBaseEl.value = data.aruaru_llm_base_url;
+    if (!data.aruaru_llm_base_url) return;
+    // 閲覧者自身の端末への接続が既に確立できているなら、それを
+    // VPS側の共有インスタンスへ上書きしない(閲覧者ごとに独立した
+    // aruaru-llmを使わせる、という設計方針を優先する)。
+    try {
+      const probe = await fetchWithTimeout(`${apiBaseEl.value.trim()}/healthz`, { cache: "no-store" }, 1500);
+      if (probe.ok) return;
+    } catch (e) {
+      // 閲覧者自身の端末への接続はまだ確立していない、VPS側へフォールバック。
     }
+    apiBaseEl.value = data.aruaru_llm_base_url;
   } catch (e) {
     // `/v1/config`未提供の配信形態(file://直開き等)では黙って既定のまま。
   }
-})();
+}
+
+// 2つの初期化処理は互いに競合しないよう必ず順番に実行する
+// (`autoDetectAruaruLlmBase`が`apiBaseEl.value`を確定させてから、
+// `applyDeploymentAruaruLlmBaseIfOwnDeviceUnavailable`がそれを見て
+// 判断する——並行実行すると後者が前者の未確定な値を読んでしまう
+// レースコンディションになるため)。
+setTimeout(async () => {
+  await autoDetectAruaruLlmBase();
+  await applyDeploymentAruaruLlmBaseIfOwnDeviceUnavailable();
+}, 0);
 const statusEl = document.getElementById("status");
 const trainerEl = document.getElementById("trainer");
 const bubbleEl = document.getElementById("speech-bubble");
@@ -3414,10 +3470,24 @@ function loadOwnGoogleSearchCredentials() {
 
 function refreshGoogleSearchStatus() {
   const creds = loadOwnGoogleSearchCredentials();
-  googleSearchStatusEl.textContent = creds
-    ? "✅ Your own key is saved in this browser / このブラウザにご自身のキーが保存されています"
-    : "⚪ Not set yet — search will not run for you / まだ設定されていません(検索は行われません)";
+  if (googleSearchStatusEl) {
+    googleSearchStatusEl.textContent = creds
+      ? "✅ Your own key is saved in this browser / このブラウザにご自身のキーが保存されています"
+      : "⚪ Not set yet — search will not run for you / まだ設定されていません(検索は行われません)";
+  }
+  // トグル横にも簡潔なステータスを表示する(ユーザー指示「Google検索の
+  // APIキーも利用者の方が設定して御利用になる前提だと明記してその設定も
+  // 簡単になるようにして」への対応——モーダルを開かなくても一目で
+  // 「自分のキーが必要/既に設定済み」が分かるようにする)。
+  const inlineEl = document.getElementById("web-search-own-key-status");
+  if (inlineEl) {
+    inlineEl.textContent = creds
+      ? "✅ your key set / ご自身のキー設定済み"
+      : "⚠ set your own key to use search / 検索にはご自身のキー設定が必要";
+  }
 }
+// 起動時にも一度反映しておく(トグルを押す前から状態が見える)。
+refreshGoogleSearchStatus();
 
 if (googleSearchBtn && googleSearchModal) {
   googleSearchBtn.addEventListener("click", () => {
