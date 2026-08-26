@@ -382,17 +382,77 @@ cargo run --release</pre>
           (1日100件まで無料、無料枠の範囲では課金設定不要)。
         </li>
       </ol>
-      <label class="settings-field">
-        API Key / APIキー
-        <input type="password" id="google-search-api-key" autocomplete="off" placeholder="AIzaSy... (or AQ....)" />
+      <p class="setup-honest">
+        <strong>🔒 2026-08-27追記: このキーもより安全な受け渡し方法を選べます。</strong>
+        下記フォームへ直接入力してブラウザに保存する代わりに、①ローカルファイルから
+        毎回読み込む(保存しない、最も安全)、②パスフレーズで暗号化してから保存する、
+        という選択肢を用意しました(GitHub連携のトークンと同じ仕組み、詳細は
+        CLAUDE.mdの2026-08-27エントリ参照)。<strong>2026-08-27より前に平文で
+        保存したキーをお使いだった方は、念のためGoogle Cloud Console側で
+        キーを再発行(古いキーを削除)することをおすすめします</strong>
+        (このブラウザに平文で保存されていた期間があったため)。<br /><br />
+        <strong>🔒 Added 2026-08-27: you can also hand over this key more safely.</strong>
+        Instead of typing it into the form below and saving it to the browser, you can
+        now choose to ① read it from a local file each time (never saved, safest), or
+        ② encrypt it with a passphrase before saving (same mechanism as the GitHub
+        integration's token, see the 2026-08-27 entry in CLAUDE.md for details).
+        <strong>If you had previously saved a key in plain text before 2026-08-27, we
+        recommend regenerating it in the Google Cloud Console (and deleting the old
+        one)</strong> as a precaution, since it was stored in plain text in this
+        browser for a while.
+      </p>
+      <label class="setup-label">
+        キーの受け渡し方法 / How to hand over the key<br />
+        <select id="google-search-key-mode" class="setup-input">
+          <option value="plain">③ フォームに入力して平文で保存(従来方式) / Type into the form, saved in plain text (old behavior)</option>
+          <option value="file">① ローカルファイルから読み込む(推奨) / Read from a local file (recommended)</option>
+          <option value="encrypted">② パスフレーズで暗号化して保存 / Encrypt with a passphrase</option>
+        </select>
       </label>
-      <label class="settings-field">
-        Search Engine ID (cx) / 検索エンジンID
-        <input type="text" id="google-search-cx" autocomplete="off" placeholder="e.g. e4990caa4651e48ba" />
-      </label>
-      <div class="settings-buttons">
-        <button type="button" id="google-search-save" class="setup-btn">Save / 保存</button>
-        <button type="button" id="google-search-clear" class="setup-btn">Clear / 消去</button>
+
+      <div id="google-search-plain-section">
+        <label class="settings-field">
+          API Key / APIキー
+          <input type="password" id="google-search-api-key" autocomplete="off" placeholder="AIzaSy... (or AQ....)" />
+        </label>
+        <label class="settings-field">
+          Search Engine ID (cx) / 検索エンジンID
+          <input type="text" id="google-search-cx" autocomplete="off" placeholder="e.g. e4990caa4651e48ba" />
+        </label>
+        <div class="settings-buttons">
+          <button type="button" id="google-search-save" class="setup-btn">Save / 保存</button>
+          <button type="button" id="google-search-clear" class="setup-btn">Clear / 消去</button>
+        </div>
+      </div>
+
+      <div id="google-search-file-section" class="hidden">
+        <p class="setup-note">
+          <code>{"api_key": "...", "cx": "..."}</code>という内容のJSONファイルを
+          あらかじめ用意しておき、ここで選択してください(保存されません)。<br />
+          Prepare a JSON file with <code>{"api_key": "...", "cx": "..."}</code> and
+          select it here (never saved).
+        </p>
+        <button type="button" id="google-search-file-btn" class="setup-btn">📂 ファイルを選択 / Select file</button>
+      </div>
+
+      <div id="google-search-encrypted-section" class="hidden">
+        <label class="settings-field">
+          パスフレーズ(保存されません) / Passphrase (never saved)
+          <input type="password" id="google-search-passphrase" autocomplete="off" />
+        </label>
+        <label class="settings-field">
+          API Key / APIキー(暗号化保存時のみ)
+          <input type="password" id="google-search-api-key-enc" autocomplete="off" placeholder="AIzaSy... (or AQ....)" />
+        </label>
+        <label class="settings-field">
+          Search Engine ID (cx) / 検索エンジンID(暗号化保存時のみ)
+          <input type="text" id="google-search-cx-enc" autocomplete="off" placeholder="e.g. e4990caa4651e48ba" />
+        </label>
+        <div class="settings-buttons">
+          <button type="button" id="google-search-save-encrypted" class="setup-btn">🔐 暗号化して保存 / Encrypt &amp; save</button>
+          <button type="button" id="google-search-unlock-encrypted" class="setup-btn">🔓 パスフレーズで復号 / Decrypt with passphrase</button>
+          <button type="button" id="google-search-clear-encrypted" class="setup-btn">🗑 削除 / Clear</button>
+        </div>
       </div>
       <p id="google-search-status" class="setup-note"></p>
     </div>
@@ -474,6 +534,26 @@ cargo run --release</pre>
         as runtime settings (memory only, never written to disk there either).<br />
         このブラウザのローカルストレージにのみ保存され、ご自身のaruaru-llmへ実行時設定
         として送られます(aruaru-llm側もメモリ上保持のみ、ディスクへは保存しません)。
+      </p>
+      <p class="setup-honest">
+        <strong>🔒 2026-08-27追記、正直な開示: これらのキーは暗号化保存の対象外です。</strong>
+        フリーランス開発コーナーのGitHubトークンやGoogle検索キーとは異なり、
+        これらのAPIキーは<strong>機能上、必ずご自身のaruaru-llmサーバーへ平文で送信される</strong>
+        設計です(サーバー側がそのキーを使ってChatGPT/DeepSeek/Gemini/Claude等を呼び出す
+        ため)。ブラウザ側の保存を暗号化しても、送信先のサーバーで平文として扱われる点は
+        変わらないため、意味のある改善にならず、今回は対応していません。
+        <strong>ご自身が信頼できるサーバーでのみ設定する</strong>、
+        <strong>各サービス側で使用量上限・スコープを絞ったキーを使う</strong>、
+        <strong>定期的にキーをローテーションする</strong>、といった対策を推奨します。<br /><br />
+        <strong>🔒 Added 2026-08-27, honest disclosure: these keys are not covered by the
+        encrypted-storage option.</strong> Unlike the GitHub token in the Freelance Dev Corner or
+        the Google Search key, these API keys are <strong>always sent in plain text to your own
+        aruaru-llm server</strong> by design (the server uses them to call ChatGPT/DeepSeek/Gemini/
+        Claude on your behalf). Encrypting the browser-side copy wouldn't meaningfully help, since
+        the server still receives and holds them in plain text — so we haven't added that here.
+        We recommend: <strong>only configure these on a server you trust</strong>,
+        <strong>use keys scoped with spend limits where the provider supports it</strong>, and
+        <strong>rotate keys periodically</strong>.
       </p>
       <label class="settings-field">
         OpenAI (ChatGPT) API Key
@@ -932,6 +1012,29 @@ cd aruaru-db
         <strong>③ Save in plain text (not recommended, the old behavior)</strong>:
         saves the token as plain text in localStorage as before. Most convenient,
         but less secure than ① or ②.
+      </p>
+      <p class="setup-honest">
+        <strong>⚠️ 2026-08-27追記、移行前にお読みください:</strong> 2026-08-26〜27の間、
+        この機能には③平文保存しか選択肢がありませんでした。その間にGitHubトークンを
+        入力・保存されていた方は、<strong>念のためGitHub側でそのトークンを失効
+        (Settings → Developer settings → Personal access tokens → Revoke)し、
+        ①または②の方法で新しいトークンを発行し直すこと</strong>をおすすめします。
+        同様に、<strong>VPS/レンタルサーバーのSSH秘密鍵・公開鍵や、他サービスの
+        APIキー・IDについても、この安全な受け渡しの仕組みが導入される前にどこかへ
+        平文で入力・保存していたものがあれば、破棄(失効・再発行)することを
+        強く推奨します</strong>(このアプリ自体はSSH鍵の入力機能を持っていません
+        が、他の場面で平文保存していた場合の一般的な注意として)。<br /><br />
+        <strong>⚠️ Added 2026-08-27, please read before migrating:</strong> between
+        2026-08-26 and 2026-08-27, this feature only offered ③ plain-text storage. If
+        you entered and saved a GitHub token during that window, <strong>we recommend
+        revoking it on GitHub (Settings → Developer settings → Personal access tokens
+        → Revoke) as a precaution, and issuing a new one to use with option ① or ②</strong>.
+        Likewise, <strong>if you have any VPS/rental-server SSH private/public keys, or
+        other services' API keys/IDs, that were entered or saved in plain text
+        somewhere before this secure hand-over mechanism existed, we strongly
+        recommend discarding them (revoke and reissue)</strong> — this app itself has
+        no SSH key input feature, but this is general advice for anywhere else you may
+        have stored such secrets in plain text.
       </p>
       <label class="setup-label">
         トークンの受け渡し方法 / How to hand over the token<br />

@@ -3630,8 +3630,23 @@ const googleSearchStatusEl = document.getElementById("google-search-status");
 // リクエストはそのグローバルなキーを使わない・消費しない。
 const GOOGLE_SEARCH_LOCAL_KEY = "open-english.googleSearchApiKey";
 const GOOGLE_SEARCH_LOCAL_CX = "open-english.googleSearchCx";
+const GOOGLE_SEARCH_ENCRYPTED_LOCAL_KEY = "open-english.googleSearchCredsEncrypted";
 
+// 2026-08-27追加: ①ローカルファイル読込・②パスフレーズ復号のいずれかで
+// 得られた資格情報を、この変数にのみ保持する(localStorageへは書かない、
+// タブを閉じる/リロードで消える)。freelance GitHubトークンと同じ設計。
+let googleSearchUnlockedCreds = null;
+
+// 呼び出し元(チャット送信時など)は同期的にこの関数を呼ぶ前提のため、
+// ①②はここでは「既に読込/復号済みのメモリ上の値」しか返せない
+// (ファイル選択・パスフレーズ入力はユーザー操作を要するため非同期)。
+// モーダルを開いて①②を選んだままファイル選択/復号をしていない場合は
+// nullを返す(黙って③の古い値にフォールバックしない、正直な挙動)。
 function loadOwnGoogleSearchCredentials() {
+  const mode = document.getElementById("google-search-key-mode")?.value || "plain";
+  if (mode === "file" || mode === "encrypted") {
+    return googleSearchUnlockedCreds;
+  }
   try {
     const api_key = localStorage.getItem(GOOGLE_SEARCH_LOCAL_KEY) || "";
     const cx = localStorage.getItem(GOOGLE_SEARCH_LOCAL_CX) || "";
@@ -3728,6 +3743,121 @@ if (googleSearchBtn && googleSearchModal) {
       googleSearchStatusEl.textContent = `⚠ Failed to clear / 消去に失敗しました: ${err.message}`;
     }
   });
+
+  // --- 2026-08-27追加: ①ファイル/②暗号化モードの切り替えと処理 ---
+  const googleSearchKeyModeEl = document.getElementById("google-search-key-mode");
+  const googleSearchPlainSectionEl = document.getElementById("google-search-plain-section");
+  const googleSearchFileSectionEl = document.getElementById("google-search-file-section");
+  const googleSearchEncryptedSectionEl = document.getElementById("google-search-encrypted-section");
+  const googleSearchFileBtn = document.getElementById("google-search-file-btn");
+  const googleSearchPassphraseEl = document.getElementById("google-search-passphrase");
+  const googleSearchApiKeyEncEl = document.getElementById("google-search-api-key-enc");
+  const googleSearchCxEncEl = document.getElementById("google-search-cx-enc");
+  const googleSearchSaveEncryptedBtn = document.getElementById("google-search-save-encrypted");
+  const googleSearchUnlockEncryptedBtn = document.getElementById("google-search-unlock-encrypted");
+  const googleSearchClearEncryptedBtn = document.getElementById("google-search-clear-encrypted");
+
+  function updateGoogleSearchModeSections() {
+    const mode = googleSearchKeyModeEl?.value || "plain";
+    googleSearchPlainSectionEl?.classList.toggle("hidden", mode !== "plain");
+    googleSearchFileSectionEl?.classList.toggle("hidden", mode !== "file");
+    googleSearchEncryptedSectionEl?.classList.toggle("hidden", mode !== "encrypted");
+    refreshGoogleSearchStatus();
+  }
+  if (googleSearchKeyModeEl) {
+    googleSearchKeyModeEl.addEventListener("change", updateGoogleSearchModeSections);
+    updateGoogleSearchModeSections();
+  }
+
+  if (googleSearchFileBtn) {
+    googleSearchFileBtn.addEventListener("click", () => {
+      const input = document.createElement("input");
+      input.type = "file";
+      input.accept = ".json,application/json";
+      input.addEventListener("change", async () => {
+        const file = input.files?.[0];
+        if (!file) return;
+        try {
+          const parsed = JSON.parse(await file.text());
+          if (!parsed.api_key || !parsed.cx) {
+            throw new Error('JSON must contain "api_key" and "cx" / JSONに"api_key"と"cx"が必要です');
+          }
+          googleSearchUnlockedCreds = { api_key: parsed.api_key, cx: parsed.cx };
+          refreshGoogleSearchStatus();
+        } catch (err) {
+          if (googleSearchStatusEl) {
+            googleSearchStatusEl.textContent = `⚠ Failed to read file / ファイルの読み込みに失敗しました: ${err.message || err}`;
+          }
+        }
+      });
+      input.click();
+    });
+  }
+
+  if (googleSearchSaveEncryptedBtn) {
+    googleSearchSaveEncryptedBtn.addEventListener("click", async () => {
+      const api_key = googleSearchApiKeyEncEl?.value.trim();
+      const cx = googleSearchCxEncEl?.value.trim();
+      const passphrase = googleSearchPassphraseEl?.value || "";
+      if (!api_key || !cx || !passphrase) {
+        if (googleSearchStatusEl) {
+          googleSearchStatusEl.textContent =
+            "⚠ API Key・cx・パスフレーズをすべて入力してください / Please enter the API key, cx, and passphrase";
+        }
+        return;
+      }
+      try {
+        const payload = await owEncryptSecret(JSON.stringify({ api_key, cx }), passphrase);
+        localStorage.setItem(GOOGLE_SEARCH_ENCRYPTED_LOCAL_KEY, payload);
+        googleSearchUnlockedCreds = { api_key, cx };
+        if (googleSearchApiKeyEncEl) googleSearchApiKeyEncEl.value = "";
+        if (googleSearchCxEncEl) googleSearchCxEncEl.value = "";
+        if (googleSearchPassphraseEl) googleSearchPassphraseEl.value = "";
+        refreshGoogleSearchStatus();
+      } catch (err) {
+        if (googleSearchStatusEl) googleSearchStatusEl.textContent = `⚠ Encryption failed / 暗号化に失敗しました: ${err}`;
+      }
+    });
+  }
+  if (googleSearchUnlockEncryptedBtn) {
+    googleSearchUnlockEncryptedBtn.addEventListener("click", async () => {
+      const passphrase = googleSearchPassphraseEl?.value || "";
+      let payload;
+      try {
+        payload = localStorage.getItem(GOOGLE_SEARCH_ENCRYPTED_LOCAL_KEY);
+      } catch {
+        payload = null;
+      }
+      if (!payload) {
+        if (googleSearchStatusEl) googleSearchStatusEl.textContent = "⚠ No encrypted key saved yet / 暗号化済みキーがありません";
+        return;
+      }
+      if (!passphrase) {
+        if (googleSearchStatusEl) googleSearchStatusEl.textContent = "⚠ Please enter your passphrase / パスフレーズを入力してください";
+        return;
+      }
+      try {
+        const decoded = JSON.parse(await owDecryptSecret(payload, passphrase));
+        googleSearchUnlockedCreds = decoded;
+        if (googleSearchPassphraseEl) googleSearchPassphraseEl.value = "";
+        refreshGoogleSearchStatus();
+      } catch (err) {
+        googleSearchUnlockedCreds = null;
+        if (googleSearchStatusEl) {
+          googleSearchStatusEl.textContent = "⚠ Decryption failed (wrong passphrase?) / 復号に失敗しました(パスフレーズが違う可能性があります)";
+        }
+      }
+    });
+  }
+  if (googleSearchClearEncryptedBtn) {
+    googleSearchClearEncryptedBtn.addEventListener("click", () => {
+      try {
+        localStorage.removeItem(GOOGLE_SEARCH_ENCRYPTED_LOCAL_KEY);
+      } catch { /* ignore */ }
+      googleSearchUnlockedCreds = null;
+      refreshGoogleSearchStatus();
+    });
+  }
 }
 
 // AIプロバイダの優先順位パネル(2026-08-26新設、ユーザー指示「Google、
@@ -10649,10 +10779,17 @@ if (freelanceGithubTokenFileBtn) {
   });
 }
 
-// ランダムな salt(PBKDF2用)・iv(AES-GCM用)を都度生成し、パスフレーズ
-// からWeb Crypto APIでAES-GCM鍵を導出して暗号化する。パスフレーズ自体は
+// ============================================================
+// 2026-08-27汎用化: 元はfreelance GitHubトークン専用だった暗号化
+// ヘルパーを汎用関数へ切り出し(`ow`プレフィックス)、Google検索API
+// キー・AIプロバイダキーなど他の秘密情報でも使い回せるようにした
+// (ユーザー指示「Google検索などのAPI KeyやID、AIなどのKeyやIDも
+// 暗号化で安全に受け渡し出来るように」への対応)。ランダムな
+// salt(PBKDF2用)・iv(AES-GCM用)を都度生成し、パスフレーズから
+// Web Crypto APIでAES-GCM鍵を導出して暗号化する。パスフレーズ自体は
 // どこにも保存しない(呼び出し側が毎回入力する前提)。
-async function freelanceDeriveAesKey(passphrase, salt) {
+// ============================================================
+async function owDeriveAesKey(passphrase, salt) {
   const baseKey = await crypto.subtle.importKey(
     "raw", new TextEncoder().encode(passphrase), "PBKDF2", false, ["deriveKey"]
   );
@@ -10665,36 +10802,39 @@ async function freelanceDeriveAesKey(passphrase, salt) {
   );
 }
 
-function freelanceBytesToBase64(bytes) {
+function owBytesToBase64(bytes) {
   let binary = "";
   for (const b of bytes) binary += String.fromCharCode(b);
   return btoa(binary);
 }
-function freelanceBase64ToBytes(b64) {
+function owBase64ToBytes(b64) {
   return Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
 }
 
-async function freelanceEncryptGithubToken(token, passphrase) {
+// `plaintext`(任意のUTF-8文字列——単一の値でも、複数の値をまとめた
+// JSON文字列でも良い)を暗号化し、salt/iv/ciphertextをまとめた
+// JSON文字列を返す(そのままlocalStorageへ保存できる)。
+async function owEncryptSecret(plaintext, passphrase) {
   const salt = crypto.getRandomValues(new Uint8Array(16));
   const iv = crypto.getRandomValues(new Uint8Array(12));
-  const key = await freelanceDeriveAesKey(passphrase, salt);
+  const key = await owDeriveAesKey(passphrase, salt);
   const ciphertext = await crypto.subtle.encrypt(
-    { name: "AES-GCM", iv }, key, new TextEncoder().encode(token)
+    { name: "AES-GCM", iv }, key, new TextEncoder().encode(plaintext)
   );
   return JSON.stringify({
-    salt: freelanceBytesToBase64(salt),
-    iv: freelanceBytesToBase64(iv),
-    ciphertext: freelanceBytesToBase64(new Uint8Array(ciphertext)),
+    salt: owBytesToBase64(salt),
+    iv: owBytesToBase64(iv),
+    ciphertext: owBytesToBase64(new Uint8Array(ciphertext)),
   });
 }
 
-async function freelanceDecryptGithubToken(payloadJson, passphrase) {
+async function owDecryptSecret(payloadJson, passphrase) {
   const payload = JSON.parse(payloadJson);
-  const salt = freelanceBase64ToBytes(payload.salt);
-  const iv = freelanceBase64ToBytes(payload.iv);
-  const key = await freelanceDeriveAesKey(passphrase, salt);
+  const salt = owBase64ToBytes(payload.salt);
+  const iv = owBase64ToBytes(payload.iv);
+  const key = await owDeriveAesKey(passphrase, salt);
   const plainBytes = await crypto.subtle.decrypt(
-    { name: "AES-GCM", iv }, key, freelanceBase64ToBytes(payload.ciphertext)
+    { name: "AES-GCM", iv }, key, owBase64ToBytes(payload.ciphertext)
   );
   return new TextDecoder().decode(plainBytes);
 }
@@ -10711,7 +10851,7 @@ if (freelanceGithubSaveTokenBtn) {
       return;
     }
     try {
-      const payload = await freelanceEncryptGithubToken(token, passphrase);
+      const payload = await owEncryptSecret(token, passphrase);
       window.localStorage.setItem(FREELANCE_GITHUB_TOKEN_ENCRYPTED_LOCAL_KEY, payload);
       freelanceGithubUnlockedToken = token; // このセッションでは既に復号済み扱い
       if (freelanceGithubTokenEl) freelanceGithubTokenEl.value = "";
@@ -10746,7 +10886,7 @@ if (freelanceGithubUnlockTokenBtn) {
       return;
     }
     try {
-      freelanceGithubUnlockedToken = await freelanceDecryptGithubToken(payload, passphrase);
+      freelanceGithubUnlockedToken = await owDecryptSecret(payload, passphrase);
       if (freelanceGithubPassphraseEl) freelanceGithubPassphraseEl.value = "";
       freelanceRefreshGithubTokenStatus();
     } catch (err) {
