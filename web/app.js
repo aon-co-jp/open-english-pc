@@ -1397,6 +1397,46 @@ async function askTrainer(userText) {
   }
   const prompt = `${trainerRole} ${levelInstruction} ${langInstruction}\nStudent: ${userText}\nTrainer:`;
 
+  // マルチLLMプロバイダ優先順位機能が有効な場合、まずChatGPT/DeepSeek/
+  // Gemini/Claudeを試す(ユーザー指摘「実際にチャットへ連携していない
+  // のでは」への対応、2026-08-26)。成功すればそのままそれを返信として
+  // 使う(GPT-2ローカル推論は呼ばない)。**「有料版も契約していたら自動で
+  // 継続する」という要件は、この経路自体が既に満たしている**——有料契約
+  // (課金設定)済みのプロバイダは無料枠切れの429を返さずそのまま成功する
+  // ため、無料/有料の切替を明示的に行うロジックは不要(同じAPIキーで
+  // 課金が有効なら黙って成功するだけ)。全プロバイダが無料枠切れだった
+  // 場合のみ、日英併記の「本日の無料枠は使い切りました」を先頭に付けた
+  // 上で、既存のGPT-2ローカル推論へ自動的にフォールバックする(サービス
+  // 全体を止めない、既存の可用性優先の設計を踏襲)。
+  let quotaExceededPrefix = "";
+  if (typeof window.tryPriorityProviderReply === "function") {
+    const priorityResult = await window.tryPriorityProviderReply(prompt);
+    if (priorityResult && typeof priorityResult.text === "string") {
+      let reply = ensureScriptGuaranteedReply(ensureHybridReply(trimDegenerateRepetition(priorityResult.text), userText));
+      if (priorityResult.provider) {
+        reply += `\n\n🤖 via ${priorityResult.provider} (external LLM) / 外部LLM(${priorityResult.provider})経由`;
+      }
+      reply += await referralsSuffix(userText);
+      reply += consumptionTaxSuffix(userText);
+      reply += incomeWallSuffix(userText);
+      reply += vendingMachineSuffix(userText);
+      reply += internetAccessSuffix(userText);
+      reply += govConsultingSuffix(userText);
+      reply += fairTradeSuffix(userText);
+      reply += await newsSuffix(userText);
+      reply += troubledSuffix(userText);
+      reply += nuclearDeterrenceSuffix(userText);
+      reply += egovSuffix(userText);
+      return reply;
+    }
+    if (priorityResult && priorityResult.quotaExceeded) {
+      quotaExceededPrefix =
+        "⚠ Today's free quota has been used up for all configured AI providers. Switching to the " +
+        "built-in local AI for this reply. / 設定済みの全AIプロバイダで本日の無料枠は使い切りました。" +
+        "この返信は内蔵のローカルAIに切り替えて生成します。\n\n";
+    }
+  }
+
   // Google検索補強(ユーザー指示「発話・入力の都度Google検索する」への
   // 対応、ブリッジ式)。トグルON時は`/v1/generate-with-search`を叩く
   // ——`aruaru-llm`側でAPIキー未設定なら自動的に検索無しへフォールバック
@@ -3709,6 +3749,11 @@ if (googleSearchBtn && googleSearchModal) {
   const PROVIDER_KEY_LOCAL_PREFIX = "open-english.providerKey.";
   const PROVIDER_PRIORITY_ORDER_KEY = "open-english.providerPriorityOrder";
   const PROVIDER_PRIORITY_ENABLED_KEY = "open-english.providerPriorityEnabled";
+  const PROVIDER_PRIORITY_USE_GOOGLE_KEY = "open-english.providerPriorityUseGoogle";
+  const PROVIDER_PRIORITY_USE_GITHUB_KEY = "open-english.providerPriorityUseGithub";
+  const PROVIDER_PRIORITY_USE_YOUTUBE_KEY = "open-english.providerPriorityUseYoutube";
+  const GITHUB_TOKEN_LOCAL_KEY = "open-english.githubToken";
+  const YOUTUBE_API_KEY_LOCAL_KEY = "open-english.youtubeApiKey";
 
   let priorityOrder = PROVIDER_PRIORITY_SERVICES.map((s) => s.id);
   try {
@@ -3728,10 +3773,18 @@ if (googleSearchBtn && googleSearchModal) {
   const saveBtn = document.getElementById("provider-priority-save");
   const clearBtn = document.getElementById("provider-priority-clear");
   const statusEl = document.getElementById("provider-priority-status");
+  const useGoogleEl = document.getElementById("provider-priority-use-google");
+  const useGithubEl = document.getElementById("provider-priority-use-github");
+  const githubTokenEl = document.getElementById("provider-priority-github-token");
+  const useYoutubeEl = document.getElementById("provider-priority-use-youtube");
+  const youtubeKeyEl = document.getElementById("provider-priority-youtube-key");
   if (!btn || !modal || !listEl) return;
 
   try {
     enabledEl.checked = localStorage.getItem(PROVIDER_PRIORITY_ENABLED_KEY) === "1";
+    if (useGoogleEl) useGoogleEl.checked = localStorage.getItem(PROVIDER_PRIORITY_USE_GOOGLE_KEY) === "1";
+    if (useGithubEl) useGithubEl.checked = localStorage.getItem(PROVIDER_PRIORITY_USE_GITHUB_KEY) === "1";
+    if (useYoutubeEl) useYoutubeEl.checked = localStorage.getItem(PROVIDER_PRIORITY_USE_YOUTUBE_KEY) === "1";
   } catch (e) {
     /* ignore */
   }
@@ -3848,6 +3901,11 @@ if (googleSearchBtn && googleSearchModal) {
     const enabled = !!enabledEl.checked;
     try {
       localStorage.setItem(PROVIDER_PRIORITY_ENABLED_KEY, enabled ? "1" : "0");
+      localStorage.setItem(PROVIDER_PRIORITY_USE_GOOGLE_KEY, useGoogleEl && useGoogleEl.checked ? "1" : "0");
+      localStorage.setItem(PROVIDER_PRIORITY_USE_GITHUB_KEY, useGithubEl && useGithubEl.checked ? "1" : "0");
+      localStorage.setItem(PROVIDER_PRIORITY_USE_YOUTUBE_KEY, useYoutubeEl && useYoutubeEl.checked ? "1" : "0");
+      if (githubTokenEl && githubTokenEl.value.trim()) localStorage.setItem(GITHUB_TOKEN_LOCAL_KEY, githubTokenEl.value.trim());
+      if (youtubeKeyEl && youtubeKeyEl.value.trim()) localStorage.setItem(YOUTUBE_API_KEY_LOCAL_KEY, youtubeKeyEl.value.trim());
     } catch (e) {
       /* ignore */
     }
@@ -3870,10 +3928,12 @@ if (googleSearchBtn && googleSearchModal) {
       ["gemini", "provider-key-gemini"],
       ["claude", "provider-key-claude"],
     ];
+    const savedValues = {};
     for (const [provider, elId] of keyFields) {
       const el = document.getElementById(elId);
       const value = el ? el.value.trim() : "";
       if (!value) continue;
+      savedValues[provider] = value;
       try {
         localStorage.setItem(PROVIDER_KEY_LOCAL_PREFIX + provider, value);
       } catch (e) {
@@ -3892,8 +3952,179 @@ if (googleSearchBtn && googleSearchModal) {
       el.value = "";
     }
 
+    await maybeOfferProviderKeyDbSave(savedValues);
+
     statusEl.textContent = `Saved / 保存しました\n${results.join("\n")}`;
   }
+
+  // ダウンロードPC版(このページ自体をopen-english-server〈localhost〉が
+  // 配信している場合)とブラウザ版(file://直接、または開発者用の別サーバー
+  // からの配信)を区別する(ユーザー指示「ダウンロードPC版は端末のPCです
+  // よね？そのDATABASEに保存して次回そこから読んで良いか質問する機能を
+  // 搭載して」への対応)。判定は「同一オリジンの`/v1/db/settings`
+  // (open-english-serverのSQLite設定API)が実際に到達可能かどうか」で
+  // 行う——これはブラウザ版(共有VPS等)でも技術的には到達可能なため
+  // 完全に確実な判定ではないが、少なくとも「サーバーへ到達できない
+  // ケース(file://直接オープン等)」では絶対にDB保存を提案しない
+  // (fetchが失敗しそもそも提案自体が出ない)。
+  //
+  // **正直な開示・セキュリティ上の判断**: APIキーは機微情報のため、
+  // 既存の`persistSetting()`(他の一般設定用、確認無しでDBへも自動保存)
+  // とは異なり、**必ずユーザーの明示的な同意(confirm)を得てから**
+  // ローカルSQLiteへ平文で保存する。同意は`open-english.
+  // providerKeyDbSaveChoice`にキャッシュし、次回以降は毎回聞き直さない
+  // (ただし「保存しない」を選んだ場合も次回また聞く——保存する場合だけ
+  // 記憶する、既存のGoogle検索キー〈ブラウザのみに保存、サーバーへは
+  // 一切送らない〉という設計方針との整合を保ちつつ、PC版限定でDB保存の
+  // 選択肢を追加する形)。
+  async function isDbReachable() {
+    try {
+      const res = await fetchWithTimeout("/v1/db/settings", { cache: "no-store" }, 3000);
+      return res.ok;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  async function maybeOfferProviderKeyDbSave(savedValues) {
+    const providers = Object.keys(savedValues);
+    if (!providers.length) return;
+    if (!(await isDbReachable())) return; // ブラウザ版(サーバー未検出)では何もしない
+
+    let saveChoice = null;
+    try {
+      saveChoice = localStorage.getItem("open-english.providerKeyDbSaveChoice");
+    } catch (e) {
+      /* ignore */
+    }
+    if (saveChoice !== "1") {
+      const confirmed = window.confirm(
+        "Save these AI provider API keys to the local database on this PC, so you don't have to " +
+          "re-enter them next time you start the app? They will be stored in plain text in the local " +
+          "SQLite file on this device only (never uploaded elsewhere).\n\n" +
+          "これらのAIプロバイダのAPIキーを、このPCのローカルデータベースに保存し、次回アプリ起動時に " +
+          "再入力を省略できるようにしますか？この端末上のローカルSQLiteファイルに平文で保存されます " +
+          "(他のどこにもアップロードされません)。"
+      );
+      try {
+        localStorage.setItem("open-english.providerKeyDbSaveChoice", confirmed ? "1" : "0");
+      } catch (e) {
+        /* ignore */
+      }
+      if (!confirmed) return;
+    } else if (saveChoice === "0") {
+      return;
+    }
+
+    for (const provider of providers) {
+      persistSetting(`open-english.dbProviderKey.${provider}`, savedValues[provider]);
+    }
+  }
+
+  // 起動時、ダウンロードPC版でDBに前回保存されたキーが見つかれば、
+  // 読み込んで良いか確認する(ユーザー指示「次回そこから読んで良いか
+  // 質問する機能を搭載して」への対応)。一度「はい」と答えたら以降は
+  // 確認なしで自動適用する(`providerKeyDbAutoApply`)——「いいえ」の
+  // 場合は次回また尋ねる(保存側と同じ、慎重側に倒す設計)。
+  async function maybeRestoreProviderKeysFromDb() {
+    if (!(await isDbReachable())) return;
+    let settings;
+    try {
+      const res = await fetchWithTimeout("/v1/db/settings", { cache: "no-store" }, 3000);
+      if (!res.ok) return;
+      settings = await res.json();
+    } catch (e) {
+      return;
+    }
+    if (!settings || typeof settings !== "object") return;
+    const providers = ["openai", "deepseek", "gemini", "claude"];
+    const found = providers.filter((p) => typeof settings[`open-english.dbProviderKey.${p}`] === "string" && settings[`open-english.dbProviderKey.${p}`]);
+    if (!found.length) return;
+
+    let autoApply = false;
+    try {
+      autoApply = localStorage.getItem("open-english.providerKeyDbAutoApply") === "1";
+    } catch (e) {
+      /* ignore */
+    }
+    if (!autoApply) {
+      const confirmed = window.confirm(
+        `Found ${found.length} AI provider API key(s) saved in this PC's local database from a previous ` +
+          "session. Load and apply them to aruaru-llm now?\n\n" +
+          `前回保存されたAIプロバイダのAPIキーがこのPCのローカルデータベースに${found.length}件見つかりました。` +
+          "今すぐ読み込んでaruaru-llmへ適用しますか？"
+      );
+      if (!confirmed) return;
+      try {
+        localStorage.setItem("open-english.providerKeyDbAutoApply", "1");
+      } catch (e) {
+        /* ignore */
+      }
+    }
+
+    const base = apiBaseEl ? apiBaseEl.value.trim() : "";
+    if (!base) return;
+    for (const provider of found) {
+      const value = settings[`open-english.dbProviderKey.${provider}`];
+      try {
+        await fetchWithTimeout(
+          `${base}/v1/settings/chat-providers`,
+          { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ provider, api_key: value }) },
+          8000
+        );
+      } catch (e) {
+        /* best-effort */
+      }
+    }
+    if (statusEl) statusEl.textContent = `✅ Restored ${found.length} key(s) from local database / データベースから${found.length}件のキーを復元しました`;
+  }
+  // 起動直後は`apiBaseEl.value`が未確定な場合があるため少し遅らせる
+  // (`refreshGoogleSearchStatus`の既存パターンと同じ)。
+  setTimeout(() => {
+    maybeRestoreProviderKeysFromDb();
+  }, 1500);
+
+  // APIキー取得先への直リンク(ユーザー指示「それぞれ、API Keyは何処を
+  // 参照したら良いかそのURLリンクを表示してクリック出来るようにして」
+  // への対応)。**正直な開示**: これらの発行ページ自体はいずれも国・
+  // 地域別のURLを持たない単一のグローバルURL(各社のダッシュボード自体が
+  // ブラウザ言語設定に応じて表示言語を自動的に切り替える仕組みを持つ
+  // ため)。「IPアドレスから国や言語別に参照するURLを自動変更」という
+  // 要望のうち、唯一Google AI Studio(Gemini)だけが`?hl=<言語コード>`
+  // という表示言語指定クエリパラメータを公式にサポートしている
+  // ことを確認できたため、そこだけ`navigator.language`(IPベースの
+  // 国別ジオロケーションではなく、ブラウザ自身が申告する言語設定——
+  // IPジオロケーションは外部サービスへの問い合わせを伴いプライバシー上の
+  // 懸念があるため意図的に不採用)を使って`hl`を付与する。他3社は
+  // そのような言語指定パラメータを公式提供していないため、プレーンな
+  // リンクのみとする(存在しない機能を実装したと偽らない)。
+  const PROVIDER_KEY_LINKS = {
+    openai: "https://platform.openai.com/api-keys",
+    deepseek: "https://platform.deepseek.com/api_keys",
+    gemini: "https://aistudio.google.com/apikey",
+    claude: "https://console.anthropic.com/settings/keys",
+  };
+  Object.entries(PROVIDER_KEY_LINKS).forEach(([provider, baseUrl]) => {
+    const input = document.getElementById(`provider-key-${provider}`);
+    if (!input || !input.parentElement) return;
+    let url = baseUrl;
+    if (provider === "gemini") {
+      try {
+        const lang = (navigator.language || "en").split("-")[0];
+        url = `${baseUrl}?hl=${encodeURIComponent(lang)}`;
+      } catch (e) {
+        /* keep plain baseUrl */
+      }
+    }
+    const link = document.createElement("a");
+    link.href = url;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    link.className = "setup-note";
+    link.style.display = "block";
+    link.textContent = "🔗 Where do I get this key? / このキーはどこで取得できますか?";
+    input.insertAdjacentElement("afterend", link);
+  });
 
   if (saveBtn) {
     saveBtn.addEventListener("click", () => {
@@ -3905,26 +4136,105 @@ if (googleSearchBtn && googleSearchModal) {
     clearBtn.addEventListener("click", async () => {
       const base = apiBaseEl ? apiBaseEl.value.trim() : "";
       try {
-        ["openai", "deepseek", "gemini", "claude"].forEach((p) => localStorage.removeItem(PROVIDER_KEY_LOCAL_PREFIX + p));
+        ["openai", "deepseek", "gemini", "claude"].forEach((p) => {
+          localStorage.removeItem(PROVIDER_KEY_LOCAL_PREFIX + p);
+          localStorage.removeItem(`open-english.dbProviderKey.${p}`);
+        });
         localStorage.removeItem(PROVIDER_PRIORITY_ENABLED_KEY);
         localStorage.removeItem(PROVIDER_PRIORITY_ORDER_KEY);
+        localStorage.removeItem(PROVIDER_PRIORITY_USE_GOOGLE_KEY);
+        localStorage.removeItem(PROVIDER_PRIORITY_USE_GITHUB_KEY);
+        localStorage.removeItem(PROVIDER_PRIORITY_USE_YOUTUBE_KEY);
+        localStorage.removeItem(GITHUB_TOKEN_LOCAL_KEY);
+        localStorage.removeItem(YOUTUBE_API_KEY_LOCAL_KEY);
+        localStorage.removeItem("open-english.providerKeyDbSaveChoice");
+        localStorage.removeItem("open-english.providerKeyDbAutoApply");
       } catch (e) {
         /* ignore */
       }
       priorityOrder = PROVIDER_PRIORITY_SERVICES.map((s) => s.id);
       enabledEl.checked = false;
+      if (useGoogleEl) useGoogleEl.checked = false;
+      if (useGithubEl) useGithubEl.checked = false;
+      if (useYoutubeEl) useYoutubeEl.checked = false;
+      if (githubTokenEl) githubTokenEl.value = "";
+      if (youtubeKeyEl) youtubeKeyEl.value = "";
       renderList();
       if (base) {
         try {
           await fetchWithTimeout(`${base}/v1/settings/chat-providers`, { method: "DELETE" }, 8000);
           await fetchWithTimeout(`${base}/v1/settings/provider-priority`, { method: "DELETE" }, 8000);
+          await fetchWithTimeout(`${base}/v1/settings/github-search`, { method: "DELETE" }, 8000);
+          await fetchWithTimeout(`${base}/v1/settings/youtube-search`, { method: "DELETE" }, 8000);
         } catch (e) {
           /* ignore, best-effort */
         }
       }
+      if (await isDbReachable()) {
+        ["openai", "deepseek", "gemini", "claude"].forEach((p) => persistSetting(`open-english.dbProviderKey.${p}`, ""));
+      }
       statusEl.textContent = "🗑 Cleared from this browser and aruaru-llm / このブラウザとaruaru-llmから消去しました";
     });
   }
+
+  // askTrainer()(チャット送信フロー)から呼ばれる、優先順位設定に基づく
+  // 外部LLM呼び出し(ユーザー指摘「実際にチャットへ連携していないのでは」
+  // への対応——従来この機能は設定パネルからのみ呼び出し可能で、実際の
+  // 会話フローには一切配線されていなかった)。
+  window.tryPriorityProviderReply = async function tryPriorityProviderReply(prompt) {
+    let enabled = false;
+    try {
+      enabled = localStorage.getItem(PROVIDER_PRIORITY_ENABLED_KEY) === "1";
+    } catch (e) {
+      /* ignore */
+    }
+    if (!enabled) return null;
+    const base = apiBaseEl ? apiBaseEl.value.trim() : "";
+    if (!base) return null;
+
+    const body = { prompt };
+    try {
+      if (localStorage.getItem(PROVIDER_PRIORITY_USE_GOOGLE_KEY) === "1") {
+        body.use_google_search = true;
+        const creds = typeof loadOwnGoogleSearchCredentials === "function" ? loadOwnGoogleSearchCredentials() : null;
+        if (creds) {
+          body.google_search_api_key = creds.api_key;
+          body.google_search_cx = creds.cx;
+        }
+      }
+      if (localStorage.getItem(PROVIDER_PRIORITY_USE_GITHUB_KEY) === "1") {
+        body.use_github_search = true;
+        const token = localStorage.getItem(GITHUB_TOKEN_LOCAL_KEY);
+        if (token) body.github_token = token;
+      }
+      if (localStorage.getItem(PROVIDER_PRIORITY_USE_YOUTUBE_KEY) === "1") {
+        body.use_youtube_search = true;
+        const key = localStorage.getItem(YOUTUBE_API_KEY_LOCAL_KEY);
+        if (key) body.youtube_api_key = key;
+      }
+    } catch (e) {
+      /* ignore */
+    }
+
+    try {
+      const res = await fetchWithTimeout(
+        `${base}/v1/chat-providers/complete-priority`,
+        { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) },
+        45000
+      );
+      if (!res.ok) return null;
+      const data = await res.json();
+      if (data.reply && typeof data.reply.text === "string") {
+        return { text: data.reply.text, provider: data.reply.provider, searchNotes: data.search_notes || [] };
+      }
+      if (data.all_quota_exceeded) {
+        return { quotaExceeded: true, searchNotes: data.search_notes || [] };
+      }
+      return null;
+    } catch (e) {
+      return null;
+    }
+  };
 })();
 
 document.querySelectorAll(".copy-btn").forEach((btn) => {

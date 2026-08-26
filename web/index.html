@@ -433,6 +433,40 @@ cargo run --release</pre>
       </p>
       <div id="provider-priority-list"></div>
 
+      <h3>Search Augmentation / 検索連携</h3>
+      <p class="setup-honest">
+        <strong>Honest disclosure:</strong> When checked, this app searches the chosen service
+        for your message and inserts the top results as context before asking the AI to reply —
+        the AI's answer may then reflect what the search found (it does not guarantee accuracy).
+        GitHub search works without a token (rate-limited); a Personal Access Token raises the
+        rate limit. YouTube search requires your own YouTube Data API v3 key.<br /><br />
+        <strong>正直な開示:</strong> チェックすると、選んだサービスであなたの発話内容を検索し、
+        上位結果をAIへの依頼文の前にコンテキストとして挿入します——AIの回答はその検索結果を
+        踏まえたものになる可能性があります(正確性は保証されません)。GitHub検索はトークン
+        無しでも動作します(レート制限あり、Personal Access Tokenで緩和可)。YouTube検索には
+        ご自身のYouTube Data API v3のAPIキーが必要です。
+      </p>
+      <label class="settings-field">
+        <input type="checkbox" id="provider-priority-use-google" />
+        Use Google Search too / Google検索も使う
+      </label>
+      <label class="settings-field">
+        <input type="checkbox" id="provider-priority-use-github" />
+        Use GitHub Search too / GitHub検索も使う
+      </label>
+      <label class="settings-field">
+        GitHub Personal Access Token (optional) / GitHub個人アクセストークン(任意)
+        <input type="password" id="provider-priority-github-token" autocomplete="off" placeholder="ghp_... (optional / 任意)" />
+      </label>
+      <label class="settings-field">
+        <input type="checkbox" id="provider-priority-use-youtube" />
+        Use YouTube Search too / YouTube検索も使う
+      </label>
+      <label class="settings-field">
+        YouTube Data API v3 Key / YouTube Data API v3のAPIキー
+        <input type="password" id="provider-priority-youtube-key" autocomplete="off" placeholder="AIzaSy..." />
+      </label>
+
       <h3>API Keys / APIキー</h3>
       <p class="setup-note">
         Saved only in this browser's local storage and sent to your own aruaru-llm instance
