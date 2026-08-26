@@ -10739,6 +10739,10 @@ function freelanceRefreshGithubTokenStatus() {
       : hasEncrypted
         ? "暗号化済みトークンが保存されています。パスフレーズで復号してください。 / An encrypted token is saved — decrypt it with your passphrase."
         : "暗号化トークン未設定です。 / No encrypted token saved yet.";
+  } else if (mode === "vault") {
+    freelanceGithubTokenStatusEl.textContent = freelanceVaultOrigin
+      ? `Vault読み込み済み(${freelanceVaultOrigin})。トークンの解錠はvault内で行います。 / Vault loaded (${freelanceVaultOrigin}). Unlock the token inside the vault itself.`
+      : "Vault未読み込みです。上の欄でURLを指定して読み込んでください。 / Vault not loaded yet — enter its URL above and load it.";
   } else {
     const token = (() => { try { return window.localStorage.getItem(FREELANCE_GITHUB_TOKEN_LOCAL_KEY) || ""; } catch { return ""; } })();
     freelanceGithubTokenStatusEl.textContent = token
@@ -10747,15 +10751,85 @@ function freelanceRefreshGithubTokenStatus() {
   }
 }
 
+const freelanceGithubTokenVaultSectionEl = document.getElementById("freelance-github-token-vault-section");
+const freelanceVaultUrlEl = document.getElementById("freelance-vault-url");
+const freelanceVaultLoadBtn = document.getElementById("freelance-vault-load-btn");
+const freelanceVaultStatusEl = document.getElementById("freelance-vault-status");
+const freelanceVaultIframeEl = document.getElementById("freelance-vault-iframe");
+let freelanceVaultOrigin = null; // 読み込み済みvaultのorigin(postMessage送信先の検証に使う)
+
 function freelanceUpdateGithubTokenModeSections() {
   const mode = freelanceGithubTokenModeEl?.value || "file";
   freelanceGithubTokenFileSectionEl?.classList.toggle("hidden", mode !== "file");
   freelanceGithubTokenEncryptedSectionEl?.classList.toggle("hidden", mode !== "encrypted");
   freelanceGithubTokenPlainSectionEl?.classList.toggle("hidden", mode !== "plain");
+  freelanceGithubTokenVaultSectionEl?.classList.toggle("hidden", mode !== "vault");
   freelanceRefreshGithubTokenStatus();
 }
 if (freelanceGithubTokenModeEl) {
   freelanceGithubTokenModeEl.addEventListener("change", freelanceUpdateGithubTokenModeSections);
+}
+
+// vault.htmlをiframeとして読み込み、このページのoriginをparentOrigin
+// クエリパラメータとして渡す(vault.html側はこのoriginからのメッセージ
+// のみ受け付ける、双方向のorigin検証)。
+if (freelanceVaultLoadBtn) {
+  freelanceVaultLoadBtn.addEventListener("click", () => {
+    const url = (freelanceVaultUrlEl?.value || "").trim();
+    if (!url) {
+      if (freelanceVaultStatusEl) freelanceVaultStatusEl.textContent = "⚠ vault.htmlのURLを入力してください / Please enter the vault.html URL";
+      return;
+    }
+    let vaultUrlObj;
+    try {
+      vaultUrlObj = new URL(url);
+    } catch {
+      if (freelanceVaultStatusEl) freelanceVaultStatusEl.textContent = "⚠ 無効なURLです / Invalid URL";
+      return;
+    }
+    freelanceVaultOrigin = vaultUrlObj.origin;
+    vaultUrlObj.searchParams.set("parentOrigin", window.location.origin);
+    if (freelanceVaultIframeEl) {
+      freelanceVaultIframeEl.src = vaultUrlObj.toString();
+      freelanceVaultIframeEl.classList.remove("hidden");
+    }
+    if (freelanceVaultStatusEl) {
+      const sameOrigin = freelanceVaultOrigin === window.location.origin;
+      freelanceVaultStatusEl.textContent = sameOrigin
+        ? "⚠ 読み込みました(同一オリジンのため分離効果はありません) / Loaded (same-origin, no isolation benefit)"
+        : "✅ 読み込みました(別オリジン) / Loaded (cross-origin)";
+    }
+  });
+}
+
+// vault.html内でGitHub pushを実行させ、結果(URLまたはエラー)を
+// postMessageで受け取る。平文トークンはこの関数の外へ一切出てこない。
+function freelanceRequestVaultGithubPush(pushArgs) {
+  return new Promise((resolve, reject) => {
+    if (!freelanceVaultIframeEl || !freelanceVaultIframeEl.contentWindow || !freelanceVaultOrigin) {
+      reject(new Error("Vaultが読み込まれていません。先に読み込んでください。 / Vault is not loaded yet — load it first."));
+      return;
+    }
+    const requestId = `${Date.now()}-${Math.random()}`;
+    const timeoutId = setTimeout(() => {
+      window.removeEventListener("message", onMessage);
+      reject(new Error("Vaultからの応答がタイムアウトしました。 / Timed out waiting for a response from the vault."));
+    }, 30000);
+    function onMessage(event) {
+      if (event.origin !== freelanceVaultOrigin) return;
+      const data = event.data || {};
+      if (data.type !== "vault:githubPushResult" || data.requestId !== requestId) return;
+      clearTimeout(timeoutId);
+      window.removeEventListener("message", onMessage);
+      if (data.ok) resolve(data.url);
+      else reject(new Error(data.error || "unknown vault error"));
+    }
+    window.addEventListener("message", onMessage);
+    freelanceVaultIframeEl.contentWindow.postMessage(
+      { type: "vault:githubPush", requestId, ...pushArgs },
+      freelanceVaultOrigin
+    );
+  });
 }
 
 if (freelanceGithubTokenFileBtn) {
@@ -11069,7 +11143,16 @@ if (freelanceGithubPushBtn) {
     }
     freelanceGithubPushBtn.disabled = true;
     try {
-      const url = await freelanceGithubCreateRepoAndPush();
+      const mode = freelanceGithubTokenModeEl?.value || "file";
+      const url = mode === "vault"
+        ? await freelanceRequestVaultGithubPush({
+            repoName: (freelanceGithubRepoNameEl?.value || "").trim(),
+            isPrivate: !!freelanceGithubPrivateEl?.checked,
+            filePath: (freelanceGithubFilePathEl?.value || "README.md").trim() || "README.md",
+            fileContent: freelanceGithubFileContentEl?.value || "",
+            commitMessage: (freelanceGithubCommitMessageEl?.value || "Initial commit").trim() || "Initial commit",
+          })
+        : await freelanceGithubCreateRepoAndPush();
       if (freelanceGithubPushStatusEl) {
         freelanceGithubPushStatusEl.innerHTML =
           `完了しました / Done: <a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>`;

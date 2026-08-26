@@ -1055,8 +1055,68 @@ cd aruaru-db
           <option value="file">① ローカルファイルから読み込む(推奨) / Read from a local file (recommended)</option>
           <option value="encrypted">② パスフレーズで暗号化して保存 / Encrypt with a passphrase</option>
           <option value="plain">③ 平文で保存(非推奨) / Save in plain text (not recommended)</option>
+          <option value="vault">④ クロスオリジンiframe保管庫(実験的) / Cross-origin iframe vault (experimental)</option>
         </select>
       </label>
+
+      <div id="freelance-github-token-vault-section" class="hidden">
+        <p class="setup-honest">
+          <strong>🧪 実験的機能(2026-08-27新設):</strong> トークンの復号・GitHub APIへの
+          実際の呼び出しを、<code>vault.html</code>という別ページをiframeとして埋め込み、
+          その中だけで行います。平文トークンはこの本体ページ(index.html)側のJSには
+          <strong>一切渡りません</strong>——本体が受け取るのはpush結果のURLだけです。
+          <strong>正直な制約</strong>: この効果を本当に得るには、<code>vault.html</code>を
+          本体とは<strong>別オリジン(別サブドメイン等)</strong>で配信する必要があります。
+          下の欄が空、または本体と同じオリジンのままだと、分離の効果はありません
+          (通常のiframeと同じ)。詳細は<code>vault.html</code>冒頭のコメント・
+          CLAUDE.mdの2026-08-27エントリ参照。<br /><br />
+          <strong>🧪 Experimental (added 2026-08-27):</strong> token decryption and the actual
+          call to the GitHub API happen inside an embedded <code>vault.html</code> page, run as
+          an iframe. The plain-text token <strong>never reaches this page's (index.html) own
+          JavaScript</strong> — it only receives the resulting URL. <strong>Honest
+          limitation</strong>: to get the real isolation benefit, <code>vault.html</code> must be
+          served from a <strong>different origin</strong> (a different subdomain, etc.) than this
+          page. If the field below is empty, or set to the same origin as this page, there is no
+          isolation benefit (it behaves like a normal iframe). See the comments at the top of
+          <code>vault.html</code> and the 2026-08-27 CLAUDE.md entry for details.
+        </p>
+        <label class="setup-label">
+          vault.htmlのURL(別オリジン推奨) / vault.html URL (a different origin is recommended)<br />
+          <input type="text" id="freelance-vault-url" class="setup-input" placeholder="https://vault.example.com/vault.html" />
+        </label>
+        <button type="button" id="freelance-vault-load-btn" class="setup-btn">🔌 vaultを読み込む / Load vault</button>
+        <p class="setup-note" id="freelance-vault-status"></p>
+        <iframe id="freelance-vault-iframe" class="hidden"
+          sandbox="allow-scripts allow-same-origin allow-forms"
+          style="width:100%;height:340px;border:1px solid #666;border-radius:8px;"></iframe>
+        <p class="setup-note">
+          <code>sandbox="allow-scripts allow-same-origin allow-forms"</code>のみ許可(最小権限):
+          vault.html自身のスクリプト実行・localStorage読み書き・フォーム入力に必要な分だけ。
+          ポップアップ・トップレベルナビゲーション・自動再生等は許可していません。<br />
+          Only <code>sandbox="allow-scripts allow-same-origin allow-forms"</code> is granted
+          (least privilege): just enough for vault.html's own script execution, localStorage
+          access, and form input. Popups, top-level navigation, autoplay, etc. are not allowed.
+        </p>
+        <p class="setup-honest">
+          <strong>⚠️ 正直な注記: <code>sandbox</code>属性だけでは分離になりません。</strong>
+          <code>allow-scripts</code>+<code>allow-same-origin</code>を同時に許可すると、もし
+          vault.htmlが本体(index.html)と<strong>同一オリジン</strong>で配信されている場合、
+          埋め込んだページのJSからこのiframe内へアクセスできてしまい(既知の仕様上の落とし穴)、
+          sandbox属性が実質的に無効化されます。<code>allow-same-origin</code>を外すと今度は
+          vault.html自身がlocalStorageを使えなくなり機能しません。<strong>結局のところ、真の
+          分離はvault.htmlを実際に別オリジンで配信することでしか得られません</strong>——
+          sandbox属性は補助的な多層防御であり、それ単体を主たる安全対策とみなさないでください。<br />
+          <strong>⚠️ Honest note: the <code>sandbox</code> attribute alone does not provide
+          isolation.</strong> Combining <code>allow-scripts</code> with
+          <code>allow-same-origin</code> is a well-known pitfall: if vault.html is served from the
+          <strong>same origin</strong> as the parent page, the embedding page's JS can reach into
+          this iframe, effectively neutralizing the sandbox. Removing
+          <code>allow-same-origin</code> would break the vault (it needs localStorage).
+          <strong>Real isolation only comes from actually serving vault.html from a different
+          origin</strong> — treat the sandbox attribute as defense-in-depth, not the primary
+          safeguard.
+        </p>
+      </div>
 
       <div id="freelance-github-token-file-section">
         <button type="button" id="freelance-github-token-file-btn" class="setup-btn">📂 トークンファイルを選択 / Select token file</button>
