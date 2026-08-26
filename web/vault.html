@@ -52,12 +52,13 @@
 -->
 <h3>🔒 vault</h3>
 <p class="warn" id="origin-warning"></p>
+<p class="warn" id="incognito-notice"></p>
 
 <div>
   <label>受け渡し方法 / mode<br />
     <select id="mode">
+      <option value="file" selected>① ローカルファイル(推奨: シークレットモードと併用) / Local file (recommended: pair with incognito mode)</option>
       <option value="encrypted">② パスフレーズで暗号化 / Passphrase-encrypted</option>
-      <option value="file">① ローカルファイル / Local file</option>
     </select>
   </label>
 </div>
@@ -101,6 +102,89 @@
       "⚠ Same origin as the parent — no real isolation benefit right now (see comments at the top of this file). / " +
       "親ページと同一オリジンです——現状は分離の効果がありません(このファイル冒頭のコメント参照)。";
   }
+
+  // ---- Chrome/シークレットモードの案内(2026-08-27追加、ユーザー提案
+  // 「ブラウザをChromeに強制し、強制的にシークレットモードへ変更」
+  // への対応)。
+  //
+  // **正直な開示、必ず読むこと**: Webページ(このvault.htmlを含む)から、
+  // (1) 利用者が使うブラウザをChromeへ強制的に切り替えさせる、
+  // (2) ブラウザをシークレット/プライベートモードへ強制的に切り替え
+  // させる、のいずれも**技術的に不可能**です。ブラウザベンダーが
+  // セキュリティ・プライバシー上の理由で意図的にブロックしている仕様
+  // であり、回避策はありません(そう主張するツールがあれば眉唾です)。
+  // 実現できるのは、(a) 現在のブラウザ・モードを推測ヒント表示する、
+  // (b) 手動での切り替え手順を案内する、の2点のみです。
+  //
+  // シークレットモード判定はChromeの`navigator.storage.estimate()`の
+  // クォータが通常モードよりはるかに小さいことを利用したヒューリス
+  // ティック(2026年時点で広く使われる手法、100%正確ではない——
+  // ブラウザのアップデートで判定ロジックが陳腐化する可能性があるため
+  // 「断定」ではなく「推測」として表示する)。
+  (async () => {
+    const incognitoNoticeEl = document.getElementById("incognito-notice");
+    const ua = navigator.userAgent || "";
+    const isChrome = /Chrome\//.test(ua) && !/Edg\/|OPR\/|Brave/.test(ua);
+
+    let likelyIncognito = null; // true/false/null(判定不能)
+    try {
+      if (navigator.storage && navigator.storage.estimate) {
+        const { quota } = await navigator.storage.estimate();
+        // 通常モードのクォータは数百MB〜数GB、シークレットモードは
+        // 数十MB程度に制限されることが多い(Chromeでの既知の挙動)。
+        // しきい値は目安であり保証ではない。
+        likelyIncognito = typeof quota === "number" && quota < 200 * 1024 * 1024;
+      }
+    } catch { /* 判定不能のままにする */ }
+
+    const parts = [];
+    parts.push(
+      "🏆 推奨の組み合わせ: シークレット/プライベートモード + ①ローカルファイル方式です" +
+      "(何も保存しない設計同士で目的が一致し、矛盾がありません)。 / " +
+      "🏆 Recommended combination: incognito/private mode + ① local file mode (both are " +
+      "designed to persist nothing, so they're aligned rather than in conflict)."
+    );
+    parts.push(
+      "ℹ️ ブラウザ・モードの強制切り替えはWeb技術上不可能です(ブラウザ側で意図的にブロック)。" +
+      "以下は推測に基づく案内であり、断定ではありません。 / " +
+      "Forcing a browser or mode switch is technically impossible from a web page (browsers " +
+      "deliberately block it). The following is best-effort guidance, not a guarantee."
+    );
+    if (!isChrome) {
+      parts.push(
+        "🌐 Chromeを推奨: シークレット判定の仕組みが最も広く検証されているのはChromeです。" +
+        "他のブラウザでも動作しますが、シークレット判定はできない場合があります。 / " +
+        "Chrome is recommended: incognito detection is best-tested there. This vault still works " +
+        "in other browsers, but incognito detection may not be available."
+      );
+    }
+    if (likelyIncognito === true) {
+      parts.push("🕵️ シークレット/プライベートモードで開かれている可能性が高いです(推測)。 / You appear to be in incognito/private mode (best guess).");
+    } else if (likelyIncognito === false) {
+      parts.push(
+        "🔓 通常モードで開かれている可能性が高いです(推測)。より安全にしたい場合は、この" +
+        "vaultのURLを新しいシークレット/プライベートウィンドウで開き直してください" +
+        "(Chrome/Edge: Ctrl+Shift+N、Firefox: Ctrl+Shift+P、Safari: ⌘+Shift+N)。 / " +
+        "You appear to be in normal mode (best guess). For extra safety, reopen this vault's URL " +
+        "in a new incognito/private window (Chrome/Edge: Ctrl+Shift+N, Firefox: Ctrl+Shift+P, " +
+        "Safari: Cmd+Shift+N)."
+      );
+    } else {
+      parts.push(
+        "❓ シークレットモードかどうか判定できませんでした(このブラウザ・バージョンでは非対応)。 / " +
+        "Could not determine whether you're in incognito mode (unsupported in this browser/version)."
+      );
+    }
+    parts.push(
+      "⚠️ 重要な注意: シークレットモードではウィンドウを閉じるとlocalStorageも消えるため、" +
+      "「②パスフレーズで暗号化して保存」した内容は次回開いた時には残っていません。シークレット" +
+      "モードで使うなら「①ローカルファイル」方式(そもそも保存しない)の方が相性が良いです。 / " +
+      "Important: in incognito mode, localStorage is cleared when the window closes, so anything " +
+      "saved via \"② encrypt & save\" will be gone next time. If you use incognito mode, option " +
+      "\"① local file\" (which never persists anything) fits better."
+    );
+    incognitoNoticeEl.textContent = parts.join(" ");
+  })();
 
   // ---- 汎用暗号化ヘルパー(open-english/app.js のowEncryptSecret/
   // owDecryptSecretと同一アルゴリズム・同一データ形式。意図的に複製
