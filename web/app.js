@@ -1504,8 +1504,17 @@ async function askTrainer(userText) {
 
   const useDirectSearchPath = useWebSearch && (ownGoogleSearchCreds || useVaultSearchPath);
   const endpoint = useWebSearch && !useDirectSearchPath ? "/v1/generate-with-search" : "/v1/generate";
+  // 2026-08-27バグ修正: `prompt`(メイドカフェ講師ペルソナ+レベル指示+
+  // 「Student: ...\nTrainer:」まで組み込んだ、既にラップ済みのテンプレート)
+  // をそのまま`buildSearchAugmentedPromptClient`の「質問」として渡すと、
+  // 「Question: {ペルソナ全文...Trainer:}\nAnswer:」という、質問の中に
+  // 別の生成キュー(Trainer:)が入れ子になった分かりにくいプロンプトに
+  // なってしまっていた(実機テストで発見)。「質問」には`userText`
+  // (利用者が実際に入力した生の発話)だけを使うよう修正——検索結果を
+  // 踏まえた回答の核心は「利用者の発話に対する回答」であり、ペルソナ
+  // 指示文はその周辺情報であって「質問」そのものではないため。
   const effectivePrompt = useDirectSearchPath && directSearchResults && directSearchResults.length > 0
-    ? buildSearchAugmentedPromptClient(formatSearchResultsAsContext(directSearchResults), prompt)
+    ? buildSearchAugmentedPromptClient(formatSearchResultsAsContext(directSearchResults), userText)
     : prompt;
 
   // タイムアウト上限(2026-08-22追加)。GPT-2のCPU貪欲デコードは
