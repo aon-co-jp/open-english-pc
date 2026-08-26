@@ -10454,10 +10454,20 @@ const freelanceJobNotesEl = document.getElementById("freelance-job-notes");
 const freelanceSampleListEl = document.getElementById("freelance-sample-list");
 const freelanceAskTeacherBtn = document.getElementById("freelance-ask-teacher-btn");
 
-// GitHub連携要素
+// GitHub連携要素(2026-08-27: トークンの受け渡し方法を3種類に拡張)
+const freelanceGithubTokenModeEl = document.getElementById("freelance-github-token-mode");
+const freelanceGithubTokenFileSectionEl = document.getElementById("freelance-github-token-file-section");
+const freelanceGithubTokenEncryptedSectionEl = document.getElementById("freelance-github-token-encrypted-section");
+const freelanceGithubTokenPlainSectionEl = document.getElementById("freelance-github-token-plain-section");
+const freelanceGithubTokenFileBtn = document.getElementById("freelance-github-token-file-btn");
+const freelanceGithubPassphraseEl = document.getElementById("freelance-github-passphrase");
 const freelanceGithubTokenEl = document.getElementById("freelance-github-token");
 const freelanceGithubSaveTokenBtn = document.getElementById("freelance-github-save-token-btn");
+const freelanceGithubUnlockTokenBtn = document.getElementById("freelance-github-unlock-token-btn");
 const freelanceGithubClearTokenBtn = document.getElementById("freelance-github-clear-token-btn");
+const freelanceGithubTokenPlainEl = document.getElementById("freelance-github-token-plain");
+const freelanceGithubSaveTokenPlainBtn = document.getElementById("freelance-github-save-token-plain-btn");
+const freelanceGithubClearTokenPlainBtn = document.getElementById("freelance-github-clear-token-plain-btn");
 const freelanceGithubTokenStatusEl = document.getElementById("freelance-github-token-status");
 const freelanceGithubRepoNameEl = document.getElementById("freelance-github-repo-name");
 const freelanceGithubPrivateEl = document.getElementById("freelance-github-private");
@@ -10468,6 +10478,12 @@ const freelanceGithubPushBtn = document.getElementById("freelance-github-push-bt
 const freelanceGithubPushStatusEl = document.getElementById("freelance-github-push-status");
 
 const FREELANCE_GITHUB_TOKEN_LOCAL_KEY = "open-english.freelanceGithubToken";
+const FREELANCE_GITHUB_TOKEN_ENCRYPTED_LOCAL_KEY = "open-english.freelanceGithubTokenEncrypted";
+
+// メモリ上のみで保持するトークン(①ファイル読込・②復号後)。
+// どちらもlocalStorageへは書き込まない——タブを閉じる/リロードすると消える。
+let freelanceGithubFileToken = null;
+let freelanceGithubUnlockedToken = null;
 
 // 練習用サンプル案件(架空、実在の求人ではない——setup-honestで開示済み)。
 const FREELANCE_SAMPLE_LISTINGS = [
@@ -10564,7 +10580,13 @@ function freelanceRenderSamples() {
   }
 }
 
+// 現在選択中の受け渡し方法("file" | "encrypted" | "plain")に応じて、
+// 実際にGitHub APIへ渡すトークン文字列を1つ返す(無ければ空文字列)。
+// ①②はメモリ上の変数のみ、③のみlocalStorageを読む。
 function freelanceLoadGithubToken() {
+  const mode = freelanceGithubTokenModeEl?.value || "file";
+  if (mode === "file") return freelanceGithubFileToken || "";
+  if (mode === "encrypted") return freelanceGithubUnlockedToken || "";
   try {
     return window.localStorage.getItem(FREELANCE_GITHUB_TOKEN_LOCAL_KEY) || "";
   } catch {
@@ -10574,17 +10596,212 @@ function freelanceLoadGithubToken() {
 
 function freelanceRefreshGithubTokenStatus() {
   if (!freelanceGithubTokenStatusEl) return;
-  const token = freelanceLoadGithubToken();
-  freelanceGithubTokenStatusEl.textContent = token
-    ? "トークンが保存されています(このブラウザのみ)。 / A token is saved (this browser only)."
-    : "トークン未設定です。 / No token saved.";
+  const mode = freelanceGithubTokenModeEl?.value || "file";
+  if (mode === "file") {
+    freelanceGithubTokenStatusEl.textContent = freelanceGithubFileToken
+      ? "ファイルから読み込み済み(保存はされていません)。 / Loaded from file (not saved anywhere)."
+      : "ファイル未選択です。 / No file selected yet.";
+  } else if (mode === "encrypted") {
+    let hasEncrypted = false;
+    try { hasEncrypted = !!window.localStorage.getItem(FREELANCE_GITHUB_TOKEN_ENCRYPTED_LOCAL_KEY); } catch { /* ignore */ }
+    freelanceGithubTokenStatusEl.textContent = freelanceGithubUnlockedToken
+      ? "パスフレーズで復号済み(メモリ上のみ)。 / Decrypted with your passphrase (in memory only)."
+      : hasEncrypted
+        ? "暗号化済みトークンが保存されています。パスフレーズで復号してください。 / An encrypted token is saved — decrypt it with your passphrase."
+        : "暗号化トークン未設定です。 / No encrypted token saved yet.";
+  } else {
+    const token = (() => { try { return window.localStorage.getItem(FREELANCE_GITHUB_TOKEN_LOCAL_KEY) || ""; } catch { return ""; } })();
+    freelanceGithubTokenStatusEl.textContent = token
+      ? "トークンが平文で保存されています(このブラウザのみ)。 / A token is saved in plain text (this browser only)."
+      : "トークン未設定です。 / No token saved.";
+  }
+}
+
+function freelanceUpdateGithubTokenModeSections() {
+  const mode = freelanceGithubTokenModeEl?.value || "file";
+  freelanceGithubTokenFileSectionEl?.classList.toggle("hidden", mode !== "file");
+  freelanceGithubTokenEncryptedSectionEl?.classList.toggle("hidden", mode !== "encrypted");
+  freelanceGithubTokenPlainSectionEl?.classList.toggle("hidden", mode !== "plain");
+  freelanceRefreshGithubTokenStatus();
+}
+if (freelanceGithubTokenModeEl) {
+  freelanceGithubTokenModeEl.addEventListener("change", freelanceUpdateGithubTokenModeSections);
+}
+
+if (freelanceGithubTokenFileBtn) {
+  freelanceGithubTokenFileBtn.addEventListener("click", () => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".txt,text/plain";
+    input.addEventListener("change", async () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      try {
+        freelanceGithubFileToken = (await file.text()).trim();
+        freelanceRefreshGithubTokenStatus();
+      } catch (err) {
+        if (freelanceGithubTokenStatusEl) {
+          freelanceGithubTokenStatusEl.textContent = `ファイルの読み込みに失敗しました / Failed to read file: ${err}`;
+        }
+      }
+    });
+    input.click();
+  });
+}
+
+// ランダムな salt(PBKDF2用)・iv(AES-GCM用)を都度生成し、パスフレーズ
+// からWeb Crypto APIでAES-GCM鍵を導出して暗号化する。パスフレーズ自体は
+// どこにも保存しない(呼び出し側が毎回入力する前提)。
+async function freelanceDeriveAesKey(passphrase, salt) {
+  const baseKey = await crypto.subtle.importKey(
+    "raw", new TextEncoder().encode(passphrase), "PBKDF2", false, ["deriveKey"]
+  );
+  return crypto.subtle.deriveKey(
+    { name: "PBKDF2", salt, iterations: 250000, hash: "SHA-256" },
+    baseKey,
+    { name: "AES-GCM", length: 256 },
+    false,
+    ["encrypt", "decrypt"]
+  );
+}
+
+function freelanceBytesToBase64(bytes) {
+  let binary = "";
+  for (const b of bytes) binary += String.fromCharCode(b);
+  return btoa(binary);
+}
+function freelanceBase64ToBytes(b64) {
+  return Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+}
+
+async function freelanceEncryptGithubToken(token, passphrase) {
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const key = await freelanceDeriveAesKey(passphrase, salt);
+  const ciphertext = await crypto.subtle.encrypt(
+    { name: "AES-GCM", iv }, key, new TextEncoder().encode(token)
+  );
+  return JSON.stringify({
+    salt: freelanceBytesToBase64(salt),
+    iv: freelanceBytesToBase64(iv),
+    ciphertext: freelanceBytesToBase64(new Uint8Array(ciphertext)),
+  });
+}
+
+async function freelanceDecryptGithubToken(payloadJson, passphrase) {
+  const payload = JSON.parse(payloadJson);
+  const salt = freelanceBase64ToBytes(payload.salt);
+  const iv = freelanceBase64ToBytes(payload.iv);
+  const key = await freelanceDeriveAesKey(passphrase, salt);
+  const plainBytes = await crypto.subtle.decrypt(
+    { name: "AES-GCM", iv }, key, freelanceBase64ToBytes(payload.ciphertext)
+  );
+  return new TextDecoder().decode(plainBytes);
+}
+
+if (freelanceGithubSaveTokenBtn) {
+  freelanceGithubSaveTokenBtn.addEventListener("click", async () => {
+    const token = (freelanceGithubTokenEl?.value || "").trim();
+    const passphrase = freelanceGithubPassphraseEl?.value || "";
+    if (!token || !passphrase) {
+      if (freelanceGithubTokenStatusEl) {
+        freelanceGithubTokenStatusEl.textContent =
+          "トークンとパスフレーズの両方を入力してください。 / Please enter both a token and a passphrase.";
+      }
+      return;
+    }
+    try {
+      const payload = await freelanceEncryptGithubToken(token, passphrase);
+      window.localStorage.setItem(FREELANCE_GITHUB_TOKEN_ENCRYPTED_LOCAL_KEY, payload);
+      freelanceGithubUnlockedToken = token; // このセッションでは既に復号済み扱い
+      if (freelanceGithubTokenEl) freelanceGithubTokenEl.value = "";
+      if (freelanceGithubPassphraseEl) freelanceGithubPassphraseEl.value = "";
+      freelanceRefreshGithubTokenStatus();
+    } catch (err) {
+      if (freelanceGithubTokenStatusEl) {
+        freelanceGithubTokenStatusEl.textContent = `暗号化に失敗しました / Encryption failed: ${err}`;
+      }
+    }
+  });
+}
+if (freelanceGithubUnlockTokenBtn) {
+  freelanceGithubUnlockTokenBtn.addEventListener("click", async () => {
+    const passphrase = freelanceGithubPassphraseEl?.value || "";
+    let payload;
+    try {
+      payload = window.localStorage.getItem(FREELANCE_GITHUB_TOKEN_ENCRYPTED_LOCAL_KEY);
+    } catch {
+      payload = null;
+    }
+    if (!payload) {
+      if (freelanceGithubTokenStatusEl) {
+        freelanceGithubTokenStatusEl.textContent = "暗号化済みトークンがありません。先に保存してください。 / No encrypted token saved yet.";
+      }
+      return;
+    }
+    if (!passphrase) {
+      if (freelanceGithubTokenStatusEl) {
+        freelanceGithubTokenStatusEl.textContent = "パスフレーズを入力してください。 / Please enter your passphrase.";
+      }
+      return;
+    }
+    try {
+      freelanceGithubUnlockedToken = await freelanceDecryptGithubToken(payload, passphrase);
+      if (freelanceGithubPassphraseEl) freelanceGithubPassphraseEl.value = "";
+      freelanceRefreshGithubTokenStatus();
+    } catch (err) {
+      freelanceGithubUnlockedToken = null;
+      if (freelanceGithubTokenStatusEl) {
+        freelanceGithubTokenStatusEl.textContent =
+          "復号に失敗しました(パスフレーズが違う可能性があります)。 / Decryption failed (wrong passphrase?).";
+      }
+    }
+  });
+}
+if (freelanceGithubClearTokenBtn) {
+  freelanceGithubClearTokenBtn.addEventListener("click", () => {
+    try {
+      window.localStorage.removeItem(FREELANCE_GITHUB_TOKEN_ENCRYPTED_LOCAL_KEY);
+    } catch { /* ignore */ }
+    freelanceGithubUnlockedToken = null;
+    freelanceRefreshGithubTokenStatus();
+  });
+}
+
+if (freelanceGithubSaveTokenPlainBtn) {
+  freelanceGithubSaveTokenPlainBtn.addEventListener("click", () => {
+    const token = (freelanceGithubTokenPlainEl?.value || "").trim();
+    if (!token) {
+      if (freelanceGithubTokenStatusEl) {
+        freelanceGithubTokenStatusEl.textContent = "トークンを入力してください。 / Please enter a token.";
+      }
+      return;
+    }
+    try {
+      window.localStorage.setItem(FREELANCE_GITHUB_TOKEN_LOCAL_KEY, token);
+      if (freelanceGithubTokenPlainEl) freelanceGithubTokenPlainEl.value = "";
+      freelanceRefreshGithubTokenStatus();
+    } catch (err) {
+      if (freelanceGithubTokenStatusEl) {
+        freelanceGithubTokenStatusEl.textContent = `保存に失敗しました / Failed to save: ${err}`;
+      }
+    }
+  });
+}
+if (freelanceGithubClearTokenPlainBtn) {
+  freelanceGithubClearTokenPlainBtn.addEventListener("click", () => {
+    try {
+      window.localStorage.removeItem(FREELANCE_GITHUB_TOKEN_LOCAL_KEY);
+    } catch { /* ignore */ }
+    freelanceRefreshGithubTokenStatus();
+  });
 }
 
 if (freelanceCornerBtn && freelanceCornerModal) {
   freelanceCornerBtn.addEventListener("click", () => {
     freelancePopulateLanguageSelect();
     freelanceRenderSamples();
-    freelanceRefreshGithubTokenStatus();
+    freelanceUpdateGithubTokenModeSections();
     freelanceCornerModal.classList.remove("hidden");
   });
 }
@@ -10639,36 +10856,9 @@ if (freelanceAskTeacherBtn) {
   });
 }
 
-// --- GitHub連携(2026-08-26新設、詳細な安全上の警告はindex.htmlのモーダル内setup-honest参照) ---
-
-if (freelanceGithubSaveTokenBtn) {
-  freelanceGithubSaveTokenBtn.addEventListener("click", () => {
-    const token = (freelanceGithubTokenEl?.value || "").trim();
-    if (!token) {
-      if (freelanceGithubTokenStatusEl) {
-        freelanceGithubTokenStatusEl.textContent = "トークンを入力してください。 / Please enter a token.";
-      }
-      return;
-    }
-    try {
-      window.localStorage.setItem(FREELANCE_GITHUB_TOKEN_LOCAL_KEY, token);
-      if (freelanceGithubTokenEl) freelanceGithubTokenEl.value = "";
-      freelanceRefreshGithubTokenStatus();
-    } catch (err) {
-      if (freelanceGithubTokenStatusEl) {
-        freelanceGithubTokenStatusEl.textContent = `保存に失敗しました / Failed to save: ${err}`;
-      }
-    }
-  });
-}
-if (freelanceGithubClearTokenBtn) {
-  freelanceGithubClearTokenBtn.addEventListener("click", () => {
-    try {
-      window.localStorage.removeItem(FREELANCE_GITHUB_TOKEN_LOCAL_KEY);
-    } catch { /* ignore */ }
-    freelanceRefreshGithubTokenStatus();
-  });
-}
+// --- GitHub連携(2026-08-26新設、トークンの受け渡し方法(①ファイル/
+// ②暗号化/③平文)は上のセクションで実装済み。詳細な安全上の警告は
+// index.htmlのモーダル内setup-honest参照) ---
 
 // UTF-8文字列をGitHub Contents APIが要求するBase64へ変換する(単純な
 // btoaはASCII前提でマルチバイト文字を扱えないため、TextEncoder経由)。

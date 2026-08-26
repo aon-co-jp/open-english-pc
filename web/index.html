@@ -888,12 +888,87 @@ cd aruaru-db
         done, (4) the risk of localStorage being read via a browser extension or XSS is not zero.
         <strong>Only proceed once you understand and accept this.</strong>
       </p>
+      <p class="setup-honest">
+        <strong>🔒 2026-08-27追記、トークンの受け渡し方法を3種類に拡張(ユーザー指示):</strong>
+        安全性の高い順に並べています。<strong>どれを選ぶかはご自身の判断</strong>です
+        (正直な比較、誇張しません)。<br /><br />
+        <strong>① ローカルファイルから読み込む(最も安全・推奨)</strong>:
+        トークンをテキストファイル(例: <code>github-token.txt</code>)に書いて
+        ご自身のPC上に保存しておき、使う都度そのファイルを選択します。
+        <strong>保存・記憶は一切行いません</strong>——このタブを閉じる、または
+        ページを再読み込みすると、メモリ上のトークンは消えます。localStorageより
+        安全な理由は、<strong>ブラウザを閉じた後にディスク上へ平文が残らない</strong>
+        ためです(拡張機能やマルウェアが後から漁れる保存領域が無くなります)。
+        欠点は毎回ファイル選択が必要な手間です。<br />
+        <strong>② パスフレーズで暗号化して保存(利便性と安全性の折衷)</strong>:
+        トークンをAES-GCM(ランダムな salt・iv を都度生成、PBKDF2でパスフレーズから
+        鍵を導出)で暗号化してからlocalStorageへ保存します。<strong>パスフレーズ
+        自体は保存しません</strong>(使う都度入力)。<strong>正直な限界</strong>:
+        このページが開かれ復号が行われている間(＝パスフレーズ入力後)は、XSS等で
+        乗っ取られた場合に平文トークンを読まれるリスクは①と同様に残ります——
+        暗号化が守るのは「ブラウザを閉じた後・パスフレーズ入力前」の保存領域です。
+        <strong>③ 平文で保存(非推奨、従来方式)</strong>: 従来どおりトークンを
+        平文のままlocalStorageへ保存します。最も手軽ですが、①②より安全性は
+        劣ります。<br /><br />
+        <strong>🔒 Added 2026-08-27, three ways to hand over the token (per user
+        request):</strong> listed from most to least secure. <strong>Which one you
+        use is your own call</strong> (an honest comparison, not oversold).<br /><br />
+        <strong>① Read from a local file (most secure, recommended)</strong>: write
+        the token into a text file (e.g. <code>github-token.txt</code>) on your own
+        machine, and pick that file each time you need it. <strong>Nothing is saved
+        or remembered</strong> — closing this tab or reloading the page clears the
+        token from memory. It's safer than localStorage because <strong>no plaintext
+        is left on disk once the browser is closed</strong> (nothing left for a
+        browser extension or malware to dig through later). The downside is having
+        to pick the file each time. <strong>② Encrypt with a passphrase before
+        saving (a convenience/security trade-off)</strong>: encrypts the token with
+        AES-GCM (a fresh random salt and IV each time, key derived from your
+        passphrase via PBKDF2) before storing it in localStorage. <strong>The
+        passphrase itself is never saved</strong> (you type it each time).
+        <strong>Honest limitation</strong>: while this page is open and the token
+        has been decrypted (i.e. after you've entered the passphrase), the same XSS
+        risk as option ① applies — encryption only protects storage at rest, after
+        the browser is closed and before the passphrase is entered again.
+        <strong>③ Save in plain text (not recommended, the old behavior)</strong>:
+        saves the token as plain text in localStorage as before. Most convenient,
+        but less secure than ① or ②.
+      </p>
       <label class="setup-label">
-        GitHub Personal Access Token(このブラウザにのみ保存) / GitHub PAT (stored in this browser only)<br />
-        <input type="password" id="freelance-github-token" class="setup-input" placeholder="github_pat_..." autocomplete="off" />
+        トークンの受け渡し方法 / How to hand over the token<br />
+        <select id="freelance-github-token-mode" class="setup-input">
+          <option value="file">① ローカルファイルから読み込む(推奨) / Read from a local file (recommended)</option>
+          <option value="encrypted">② パスフレーズで暗号化して保存 / Encrypt with a passphrase</option>
+          <option value="plain">③ 平文で保存(非推奨) / Save in plain text (not recommended)</option>
+        </select>
       </label>
-      <button type="button" id="freelance-github-save-token-btn" class="setup-btn">💾 トークンを保存 / Save token</button>
-      <button type="button" id="freelance-github-clear-token-btn" class="setup-btn">🗑 トークンを削除 / Clear token</button>
+
+      <div id="freelance-github-token-file-section">
+        <button type="button" id="freelance-github-token-file-btn" class="setup-btn">📂 トークンファイルを選択 / Select token file</button>
+        <p class="setup-note">選んだファイルは保存されません。このタブを開いている間だけメモリに保持されます。 / The selected file is never saved — it's kept in memory only while this tab stays open.</p>
+      </div>
+
+      <div id="freelance-github-token-encrypted-section" class="hidden">
+        <label class="setup-label">
+          パスフレーズ(保存されません、毎回入力) / Passphrase (never saved, enter each time)<br />
+          <input type="password" id="freelance-github-passphrase" class="setup-input" autocomplete="off" />
+        </label>
+        <label class="setup-label">
+          トークン(暗号化して保存する場合のみ入力) / Token (only needed when saving encrypted)<br />
+          <input type="password" id="freelance-github-token" class="setup-input" placeholder="github_pat_..." autocomplete="off" />
+        </label>
+        <button type="button" id="freelance-github-save-token-btn" class="setup-btn">🔐 暗号化して保存 / Encrypt &amp; save</button>
+        <button type="button" id="freelance-github-unlock-token-btn" class="setup-btn">🔓 パスフレーズで復号 / Decrypt with passphrase</button>
+        <button type="button" id="freelance-github-clear-token-btn" class="setup-btn">🗑 削除 / Clear</button>
+      </div>
+
+      <div id="freelance-github-token-plain-section" class="hidden">
+        <label class="setup-label">
+          GitHub Personal Access Token(平文でこのブラウザに保存) / GitHub PAT (saved in this browser, plain text)<br />
+          <input type="password" id="freelance-github-token-plain" class="setup-input" placeholder="github_pat_..." autocomplete="off" />
+        </label>
+        <button type="button" id="freelance-github-save-token-plain-btn" class="setup-btn">💾 トークンを保存 / Save token</button>
+        <button type="button" id="freelance-github-clear-token-plain-btn" class="setup-btn">🗑 トークンを削除 / Clear token</button>
+      </div>
       <p class="setup-note" id="freelance-github-token-status"></p>
       <label class="setup-label">
         リポジトリ名 / Repository name<br />
