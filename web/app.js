@@ -3468,12 +3468,41 @@ function loadOwnGoogleSearchCredentials() {
   }
 }
 
-function refreshGoogleSearchStatus() {
+// 2026-08-26追加(ユーザー指示「Google検索APIキーも簡単に手元の端末で
+// 設定したものを、利用出来るようにして」への対応): ブラウザの
+// localStorageにキーを入力しなくても、閲覧者自身の端末で動いている
+// aruaru-llm(このページのapiBaseEl、上記autoDetectAruaruLlmBase参照)
+// 側で既に環境変数(`ARUARU_LLM_GOOGLE_SEARCH_API_KEY`/`_CX`)や
+// `POST /v1/settings/google-search`で検索が設定済みなら、それをそのまま
+// 使う——ブラウザ版でも二重に入力させない。判定は`GET /v1/settings/
+// google-search`(aruaru-llm側の既存ステータスAPI)を閲覧者自身の端末へ
+// 問い合わせるだけで、キーの値自体はこの経路には一切現れない。
+async function isSearchConfiguredOnOwnDevice() {
+  try {
+    const base = apiBaseEl ? apiBaseEl.value.trim() : "";
+    if (!base) return false;
+    const res = await fetchWithTimeout(`${base}/v1/settings/google-search`, { cache: "no-store" }, 2000);
+    if (!res.ok) return false;
+    const data = await res.json();
+    return !!data.configured;
+  } catch (e) {
+    return false;
+  }
+}
+
+async function refreshGoogleSearchStatus() {
   const creds = loadOwnGoogleSearchCredentials();
+  const configuredOnDevice = !creds && (await isSearchConfiguredOnOwnDevice());
   if (googleSearchStatusEl) {
-    googleSearchStatusEl.textContent = creds
-      ? "✅ Your own key is saved in this browser / このブラウザにご自身のキーが保存されています"
-      : "⚪ Not set yet — search will not run for you / まだ設定されていません(検索は行われません)";
+    if (creds) {
+      googleSearchStatusEl.textContent = "✅ Your own key is saved in this browser / このブラウザにご自身のキーが保存されています";
+    } else if (configuredOnDevice) {
+      googleSearchStatusEl.textContent =
+        "✅ Already configured on your own aruaru-llm (localhost:4600) — no need to enter it here too / " +
+        "お使いの端末のaruaru-llm(localhost:4600)側で既に設定済みです——ここへ改めて入力する必要はありません";
+    } else {
+      googleSearchStatusEl.textContent = "⚪ Not set yet — search will not run for you / まだ設定されていません(検索は行われません)";
+    }
   }
   // トグル横にも簡潔なステータスを表示する(ユーザー指示「Google検索の
   // APIキーも利用者の方が設定して御利用になる前提だと明記してその設定も
@@ -3481,13 +3510,15 @@ function refreshGoogleSearchStatus() {
   // 「自分のキーが必要/既に設定済み」が分かるようにする)。
   const inlineEl = document.getElementById("web-search-own-key-status");
   if (inlineEl) {
-    inlineEl.textContent = creds
+    inlineEl.textContent = creds || configuredOnDevice
       ? "✅ your key set / ご自身のキー設定済み"
       : "⚠ set your own key to use search / 検索にはご自身のキー設定が必要";
   }
 }
-// 起動時にも一度反映しておく(トグルを押す前から状態が見える)。
-refreshGoogleSearchStatus();
+// 起動時にも一度反映しておく(トグルを押す前から状態が見える)。少し
+// 遅らせて呼ぶ(apiBaseEl.valueがautoDetectAruaruLlmBaseで確定して
+// からの方が、閲覧者自身の端末に対して正しく問い合わせできるため)。
+setTimeout(refreshGoogleSearchStatus, 500);
 
 if (googleSearchBtn && googleSearchModal) {
   googleSearchBtn.addEventListener("click", () => {
