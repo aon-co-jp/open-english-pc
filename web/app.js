@@ -2181,6 +2181,37 @@ function creatorIntroductionText() {
   return `👤 ${en}\n\n${ja}`;
 }
 
+// 「風天のとらさん(トラさん)の職業・仕事は何か」という趣旨の質問
+// かどうかを判定する(2026-08-27新設、ユーザー指示)。`isCreatorQuestion`
+// と同じ設計方針: GPT-2はキャラクター設定を確実には把握できないため、
+// 推論に任せず固定文で即答する。
+const TORA_NAME_JA = ["風天のとら", "風天のトラ", "とらさん", "トラさん", "とら先生", "トラ先生"];
+const TORA_NAME_EN = ["torasan", "tora-san", "tora "];
+const OCCUPATION_WORD_JA = ["職業", "仕事", "お仕事", "何をしている", "何してる"];
+const OCCUPATION_WORD_EN = ["occupation", "job", "profession", "what does", "what is", "work as"];
+
+function isToraOccupationQuestion(userText) {
+  const lower = userText.toLowerCase();
+  const mentionsToraJa = TORA_NAME_JA.some((k) => userText.includes(k));
+  const mentionsToraEn = TORA_NAME_EN.some((k) => lower.includes(k));
+  if (!mentionsToraJa && !mentionsToraEn) return false;
+
+  const asksOccupationJa = OCCUPATION_WORD_JA.some((k) => userText.includes(k));
+  const asksOccupationEn = OCCUPATION_WORD_EN.some((k) => lower.includes(k));
+  return asksOccupationJa || asksOccupationEn;
+}
+
+// 固定の回答文(日英併記)。既存の`trainingIntroLine`の設定
+// (「Hello, I am Tora, your butler trainer! / こんにちは、私は執事の
+// 先生、トラです!」)と一致させている。
+function toraOccupationAnswerText() {
+  return (
+    "Tora-san's job is a butler! / 風天のとらさんの職業は執事です!\n" +
+    "He works as the butler trainer here at the maid cafe. / " +
+    "このメイドカフェで執事の先生として働いています。"
+  );
+}
+
 // ---------------------------------------------------------------------------
 // イスラム教・イラン(ペルシャ)・アラブの歴史に関する中立的応答
 // (2026-08-23新設、ユーザー指示)
@@ -3052,6 +3083,19 @@ formEl.addEventListener("submit", async (e) => {
   // 事実でない答えを作ってしまう)。日次利用回数は消費しない。
   if (isCreatorQuestion(text)) {
     appendMessage("trainer", creatorIntroductionText());
+    return;
+  }
+
+  // 「風天のとらさん(トラさん)の職業・仕事は何か」という質問にも、
+  // AI推論を経ずに固定文で「執事」と即答する(ユーザー指示、2026-08-27
+  // 新設)。GPT-2はキャラクター設定を確実には把握できないため、推論に
+  // 任せると設定と矛盾する答えを作ってしまう——既存の`isCreatorQuestion`
+  // と同じ理由・同じパターン。既存の`trainingIntroLine`でも
+  // 「Hello, I am Tora, your butler trainer! / こんにちは、私は執事の
+  // 先生、トラです!」と既に「執事」という設定になっており、今回は
+  // その設定を通常の会話中の質問にも確実に反映させる対応。
+  if (isToraOccupationQuestion(text)) {
+    appendMessage("trainer", toraOccupationAnswerText());
     return;
   }
 
