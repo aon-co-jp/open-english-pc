@@ -3690,6 +3690,208 @@ if (googleSearchBtn && googleSearchModal) {
   });
 }
 
+// AIプロバイダの優先順位パネル(2026-08-26新設、ユーザー指示「Google、
+// ChatGPT/DeepSeek/Gemini/Claudeは、無料枠を優先で使い切り順番に使用、に
+// チェックを付けられる様にして。Googleなどは、順番を入力したり、数字の
+// ラジオボタンを押すかのどちらかで優先の順番を変更可能にして」への対応)。
+// APIキーはこのブラウザのlocalStorageにのみ保存し(Google Search設定と
+// 同じ方針)、保存操作のたびにaruaru-llm側の実行時設定
+// (`/v1/settings/chat-providers`・`/v1/settings/provider-priority`、
+// いずれもメモリ上保持のみ)へ送信する。
+(() => {
+  const PROVIDER_PRIORITY_SERVICES = [
+    { id: "googlesearch", label: "Google Search / Google検索" },
+    { id: "openai", label: "ChatGPT (OpenAI)" },
+    { id: "deepseek", label: "DeepSeek" },
+    { id: "gemini", label: "Gemini" },
+    { id: "claude", label: "Claude (Anthropic)" },
+  ];
+  const PROVIDER_KEY_LOCAL_PREFIX = "open-english.providerKey.";
+  const PROVIDER_PRIORITY_ORDER_KEY = "open-english.providerPriorityOrder";
+  const PROVIDER_PRIORITY_ENABLED_KEY = "open-english.providerPriorityEnabled";
+
+  let priorityOrder = PROVIDER_PRIORITY_SERVICES.map((s) => s.id);
+  try {
+    const saved = JSON.parse(localStorage.getItem(PROVIDER_PRIORITY_ORDER_KEY) || "null");
+    if (Array.isArray(saved) && saved.length === priorityOrder.length && saved.every((id) => priorityOrder.includes(id))) {
+      priorityOrder = saved;
+    }
+  } catch (e) {
+    /* fall back to default order */
+  }
+
+  const btn = document.getElementById("provider-priority-settings-btn");
+  const modal = document.getElementById("provider-priority-modal");
+  const closeBtn = document.getElementById("provider-priority-close");
+  const enabledEl = document.getElementById("provider-priority-enabled");
+  const listEl = document.getElementById("provider-priority-list");
+  const saveBtn = document.getElementById("provider-priority-save");
+  const clearBtn = document.getElementById("provider-priority-clear");
+  const statusEl = document.getElementById("provider-priority-status");
+  if (!btn || !modal || !listEl) return;
+
+  try {
+    enabledEl.checked = localStorage.getItem(PROVIDER_PRIORITY_ENABLED_KEY) === "1";
+  } catch (e) {
+    /* ignore */
+  }
+
+  // 番号入力欄・ラジオボタンいずれで指定しても同じ`setPosition`を通す
+  // (既存の言語表示順3系統連動指定〈`setLanguageOrderPosition`〉と同じ
+  // 「重複は入れ替えで解決する」設計)。
+  function setPosition(serviceId, pos) {
+    pos = Math.max(1, Math.min(priorityOrder.length, Math.round(pos)));
+    const currentIndex = priorityOrder.indexOf(serviceId);
+    const targetIndex = pos - 1;
+    if (currentIndex === -1 || currentIndex === targetIndex) return;
+    const other = priorityOrder[targetIndex];
+    priorityOrder[targetIndex] = serviceId;
+    priorityOrder[currentIndex] = other;
+    try {
+      localStorage.setItem(PROVIDER_PRIORITY_ORDER_KEY, JSON.stringify(priorityOrder));
+    } catch (e) {
+      /* ignore storage failures */
+    }
+    renderList();
+  }
+
+  function renderList() {
+    listEl.textContent = "";
+    priorityOrder.forEach((serviceId, idx) => {
+      const svc = PROVIDER_PRIORITY_SERVICES.find((s) => s.id === serviceId);
+      if (!svc) return;
+      const row = document.createElement("div");
+      row.className = "settings-field";
+
+      const label = document.createElement("span");
+      label.textContent = `${svc.label}: `;
+      row.appendChild(label);
+
+      const numberInput = document.createElement("input");
+      numberInput.type = "number";
+      numberInput.min = "1";
+      numberInput.max = String(priorityOrder.length);
+      numberInput.value = String(idx + 1);
+      numberInput.style.width = "3.5em";
+      numberInput.addEventListener("change", () => setPosition(serviceId, Number(numberInput.value)));
+      row.appendChild(numberInput);
+
+      for (let pos = 1; pos <= priorityOrder.length; pos++) {
+        const radioLabel = document.createElement("label");
+        radioLabel.style.marginLeft = "0.4em";
+        const radio = document.createElement("input");
+        radio.type = "radio";
+        radio.name = `provider-priority-radio-${serviceId}`;
+        radio.checked = idx + 1 === pos;
+        radio.addEventListener("change", () => setPosition(serviceId, pos));
+        radioLabel.appendChild(radio);
+        radioLabel.appendChild(document.createTextNode(String(pos)));
+        row.appendChild(radioLabel);
+      }
+
+      listEl.appendChild(row);
+    });
+  }
+  renderList();
+
+  if (btn && modal) {
+    btn.addEventListener("click", () => {
+      modal.classList.remove("hidden");
+    });
+    closeBtn.addEventListener("click", () => modal.classList.add("hidden"));
+    modal.addEventListener("click", (e) => {
+      if (e.target === modal) modal.classList.add("hidden");
+    });
+  }
+
+  async function saveToAruaruLlm() {
+    const base = apiBaseEl ? apiBaseEl.value.trim() : "";
+    if (!base) {
+      statusEl.textContent = "⚠ aruaru-llm base URL is not set / aruaru-llmの接続先が未設定です";
+      return;
+    }
+    const enabled = !!enabledEl.checked;
+    try {
+      localStorage.setItem(PROVIDER_PRIORITY_ENABLED_KEY, enabled ? "1" : "0");
+    } catch (e) {
+      /* ignore */
+    }
+
+    const results = [];
+    try {
+      const res = await fetchWithTimeout(
+        `${base}/v1/settings/provider-priority`,
+        { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ enabled, order: priorityOrder }) },
+        8000
+      );
+      results.push(res.ok ? "priority: ok" : `priority: HTTP ${res.status}`);
+    } catch (err) {
+      results.push(`priority: failed (${err.message})`);
+    }
+
+    const keyFields = [
+      ["openai", "provider-key-openai"],
+      ["deepseek", "provider-key-deepseek"],
+      ["gemini", "provider-key-gemini"],
+      ["claude", "provider-key-claude"],
+    ];
+    for (const [provider, elId] of keyFields) {
+      const el = document.getElementById(elId);
+      const value = el ? el.value.trim() : "";
+      if (!value) continue;
+      try {
+        localStorage.setItem(PROVIDER_KEY_LOCAL_PREFIX + provider, value);
+      } catch (e) {
+        /* ignore */
+      }
+      try {
+        const res = await fetchWithTimeout(
+          `${base}/v1/settings/chat-providers`,
+          { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ provider, api_key: value }) },
+          8000
+        );
+        results.push(res.ok ? `${provider}: ok` : `${provider}: HTTP ${res.status}`);
+      } catch (err) {
+        results.push(`${provider}: failed (${err.message})`);
+      }
+      el.value = "";
+    }
+
+    statusEl.textContent = `Saved / 保存しました\n${results.join("\n")}`;
+  }
+
+  if (saveBtn) {
+    saveBtn.addEventListener("click", () => {
+      saveToAruaruLlm();
+    });
+  }
+
+  if (clearBtn) {
+    clearBtn.addEventListener("click", async () => {
+      const base = apiBaseEl ? apiBaseEl.value.trim() : "";
+      try {
+        ["openai", "deepseek", "gemini", "claude"].forEach((p) => localStorage.removeItem(PROVIDER_KEY_LOCAL_PREFIX + p));
+        localStorage.removeItem(PROVIDER_PRIORITY_ENABLED_KEY);
+        localStorage.removeItem(PROVIDER_PRIORITY_ORDER_KEY);
+      } catch (e) {
+        /* ignore */
+      }
+      priorityOrder = PROVIDER_PRIORITY_SERVICES.map((s) => s.id);
+      enabledEl.checked = false;
+      renderList();
+      if (base) {
+        try {
+          await fetchWithTimeout(`${base}/v1/settings/chat-providers`, { method: "DELETE" }, 8000);
+          await fetchWithTimeout(`${base}/v1/settings/provider-priority`, { method: "DELETE" }, 8000);
+        } catch (e) {
+          /* ignore, best-effort */
+        }
+      }
+      statusEl.textContent = "🗑 Cleared from this browser and aruaru-llm / このブラウザとaruaru-llmから消去しました";
+    });
+  }
+})();
+
 document.querySelectorAll(".copy-btn").forEach((btn) => {
   btn.addEventListener("click", async () => {
     const target = btn.dataset.target;

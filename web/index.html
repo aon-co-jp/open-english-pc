@@ -196,6 +196,7 @@
       Google search boost / Google検索で補強
     </label>
     <button type="button" id="google-search-settings-btn" class="setup-btn">🔎 Setup Google Search.</button>
+    <button type="button" id="provider-priority-settings-btn" class="setup-btn">🔀 AI Provider Priority.</button>
     <span id="web-search-own-key-status" class="setup-note" style="display:inline-block;margin-left:6px;"></span>
     <button type="button" id="setup-btn" class="setup-btn">⚙ Setup aruaru-llm.</button>
     <button type="button" id="aruaru-db-setup-btn" class="setup-btn">🗄 Setup aruaru-db.</button>
@@ -393,6 +394,74 @@ cargo run --release</pre>
         <button type="button" id="google-search-clear" class="setup-btn">Clear / 消去</button>
       </div>
       <p id="google-search-status" class="setup-note"></p>
+    </div>
+  </div>
+
+  <div id="provider-priority-modal" class="setup-modal hidden">
+    <div class="setup-panel">
+      <button type="button" id="provider-priority-close" class="setup-close">✕</button>
+      <h2>AI Provider Priority / AIプロバイダの優先順位</h2>
+      <p class="setup-honest">
+        <strong>Honest disclosure:</strong> Google Search, ChatGPT, DeepSeek, Gemini, and Claude
+        each require your own API key (this app does not include or acquire one for you — see
+        the "Setup Google Search" panel and provider free-tier banner above). This panel lets you
+        enable "use free tiers in order, one after another" — when checked, this app tries each
+        configured provider in the order below and automatically moves to the next one if a
+        provider fails (e.g. its free quota is used up). Whether a failure really means "quota
+        exhausted" cannot always be detected precisely — this just retries the next provider on
+        any failure.<br /><br />
+        <strong>正直な開示:</strong> Google検索・ChatGPT・DeepSeek・Gemini・Claudeは
+        いずれもご自身のAPIキーが必要です(このアプリはキーを同梱・取得代行しません
+        ——上の「Setup Google Search」パネルや無料枠案内バナーを参照)。このパネルでは
+        「無料枠を優先で使い切り、順番に使用」を有効にできます——チェックすると、
+        下の順序に従って設定済みのプロバイダを順番に試し、失敗したら(無料枠を
+        使い切った等)自動的に次のプロバイダへ切り替えます。失敗の理由が本当に
+        「無料枠切れ」かどうかを常に正確に判別できるとは限りません——ここでは
+        単に「失敗したら次を試す」という仕組みです。
+      </p>
+
+      <label class="settings-field">
+        <input type="checkbox" id="provider-priority-enabled" />
+        Use free tiers in order (auto-fallback) / 無料枠を優先で使い切り順番に使用
+      </label>
+
+      <p class="setup-note">
+        Set the order either by typing a number (1–5) or clicking a numbered radio button.
+        Duplicates are resolved by swapping.<br />
+        番号を入力するか、番号のラジオボタンをクリックして順番を指定できます。
+        重複した場合は入れ替えで解決します。
+      </p>
+      <div id="provider-priority-list"></div>
+
+      <h3>API Keys / APIキー</h3>
+      <p class="setup-note">
+        Saved only in this browser's local storage and sent to your own aruaru-llm instance
+        as runtime settings (memory only, never written to disk there either).<br />
+        このブラウザのローカルストレージにのみ保存され、ご自身のaruaru-llmへ実行時設定
+        として送られます(aruaru-llm側もメモリ上保持のみ、ディスクへは保存しません)。
+      </p>
+      <label class="settings-field">
+        OpenAI (ChatGPT) API Key
+        <input type="password" id="provider-key-openai" autocomplete="off" placeholder="sk-..." />
+      </label>
+      <label class="settings-field">
+        DeepSeek API Key
+        <input type="password" id="provider-key-deepseek" autocomplete="off" placeholder="sk-..." />
+      </label>
+      <label class="settings-field">
+        Gemini API Key
+        <input type="password" id="provider-key-gemini" autocomplete="off" placeholder="AIzaSy..." />
+      </label>
+      <label class="settings-field">
+        Claude (Anthropic) API Key
+        <input type="password" id="provider-key-claude" autocomplete="off" placeholder="sk-ant-..." />
+      </label>
+
+      <div class="settings-buttons">
+        <button type="button" id="provider-priority-save" class="setup-btn">Save / 保存</button>
+        <button type="button" id="provider-priority-clear" class="setup-btn">Clear all / 全消去</button>
+      </div>
+      <p id="provider-priority-status" class="setup-note"></p>
     </div>
   </div>
 
