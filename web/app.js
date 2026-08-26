@@ -1477,9 +1477,24 @@ async function askTrainer(userText) {
   // (共有サーバー側のグローバル設定に任せたい場合)のみ、従来通り
   // `/v1/generate-with-search`へキー無しでリクエストする
   // (この経路はそもそもブラウザ側にキーが無いため、今回の変更は無関係)。
+  // 2026-08-27追加: 「④クロスオリジンiframe保管庫」モードの場合、
+  // APIキーの復号もGoogle Custom Search APIへの実際の呼び出しも
+  // vault.html内だけで行い、この本体ページのJSへは検索結果(タイトル・
+  // スニペット・URL)のみが渡る——キー自体はGitHubトークンと同様、
+  // 本体ページには一切現れない(ユーザー指示「全てセキュアモード
+  // ブラウザで受け渡しした方が良いのではないか」への対応)。
+  const googleSearchMode = document.getElementById("google-search-key-mode")?.value || "plain";
+  const useVaultSearchPath = useWebSearch && googleSearchMode === "vault";
+
   let directSearchResults = null;
   let directSearchError = null;
-  if (useWebSearch && ownGoogleSearchCreds) {
+  if (useVaultSearchPath) {
+    try {
+      directSearchResults = await googleSearchRequestVault(userText, 3);
+    } catch (err) {
+      directSearchError = err.message || String(err);
+    }
+  } else if (useWebSearch && ownGoogleSearchCreds) {
     try {
       directSearchResults = await googleSearchDirect(userText, ownGoogleSearchCreds.api_key, ownGoogleSearchCreds.cx, 3);
     } catch (err) {
@@ -1487,7 +1502,7 @@ async function askTrainer(userText) {
     }
   }
 
-  const useDirectSearchPath = useWebSearch && ownGoogleSearchCreds;
+  const useDirectSearchPath = useWebSearch && (ownGoogleSearchCreds || useVaultSearchPath);
   const endpoint = useWebSearch && !useDirectSearchPath ? "/v1/generate-with-search" : "/v1/generate";
   const effectivePrompt = useDirectSearchPath && directSearchResults && directSearchResults.length > 0
     ? buildSearchAugmentedPromptClient(formatSearchResultsAsContext(directSearchResults), prompt)
@@ -1540,16 +1555,19 @@ async function askTrainer(userText) {
 
   if (useWebSearch) {
     if (useDirectSearchPath) {
+      const viaLabel = useVaultSearchPath
+        ? "called from the vault iframe / vault内から呼び出し"
+        : "called directly from your browser / ブラウザから直接呼び出し";
       if (directSearchError) {
-        reply += `\n\n🔎 Google search failed (browser called Google directly, key never sent to aruaru-llm) / ` +
-          `Google検索に失敗しました(ブラウザから直接Googleを呼び出しており、キーはaruaru-llmへ送っていません): ${directSearchError}`;
+        reply += `\n\n🔎 Google search failed (${viaLabel}, key never sent to aruaru-llm) / ` +
+          `Google検索に失敗しました(${viaLabel}、キーはaruaru-llmへ送っていません): ${directSearchError}`;
       } else if (directSearchResults && directSearchResults.length > 0) {
         // 正直な開示・セキュリティ配慮: 検索結果のtitleは外部(Google経由の
         // Webサイト)由来のテキストのため、`innerHTML`へそのまま挿入せず
         // (XSSリスク回避)、プレーンテキストとしてURLをそのまま列挙する。
         const links = directSearchResults.map((r) => `${r.title} (${r.link})`).join(" / ");
-        reply += `\n\n🔎 Google search used, called directly from your browser (aruaru-llm never saw your key) / ` +
-          `Google検索を使用しました(ブラウザから直接呼び出し、キーはaruaru-llmへ渡していません): ${links}`;
+        reply += `\n\n🔎 Google search used (${viaLabel}, aruaru-llm never saw your key) / ` +
+          `Google検索を使用しました(${viaLabel}、キーはaruaru-llmへ渡していません): ${links}`;
       } else {
         reply += "\n\n🔎 Google search returned no results / Google検索結果が0件でした。";
       }
@@ -3692,6 +3710,36 @@ let googleSearchUnlockedCreds = null;
 // (ファイル選択・パスフレーズ入力はユーザー操作を要するため非同期)。
 // モーダルを開いて①②を選んだままファイル選択/復号をしていない場合は
 // nullを返す(黙って③の古い値にフォールバックしない、正直な挙動)。
+// vault.html内でGoogle検索を実行させ、結果(タイトル・スニペット・URL、
+// APIキーは含まない)をpostMessageで受け取る(2026-08-27追加、GitHubの
+// freelanceRequestVaultGithubPushと同じパターン)。
+function googleSearchRequestVault(query, maxResults) {
+  return new Promise((resolve, reject) => {
+    const iframe = document.getElementById("google-search-vault-iframe");
+    const origin = window.googleSearchVaultOrigin;
+    if (!iframe || !iframe.contentWindow || !origin) {
+      reject(new Error("Vaultが読み込まれていません。先に読み込んでください。 / Vault is not loaded yet — load it first."));
+      return;
+    }
+    const requestId = `${Date.now()}-${Math.random()}`;
+    const timeoutId = setTimeout(() => {
+      window.removeEventListener("message", onMessage);
+      reject(new Error("Vaultからの応答がタイムアウトしました。 / Timed out waiting for a response from the vault."));
+    }, 30000);
+    function onMessage(event) {
+      if (event.origin !== origin) return;
+      const data = event.data || {};
+      if (data.type !== "vault:googleSearchResult" || data.requestId !== requestId) return;
+      clearTimeout(timeoutId);
+      window.removeEventListener("message", onMessage);
+      if (data.ok) resolve(data.results);
+      else reject(new Error(data.error || "unknown vault error"));
+    }
+    window.addEventListener("message", onMessage);
+    iframe.contentWindow.postMessage({ type: "vault:googleSearch", requestId, query, maxResults }, origin);
+  });
+}
+
 function loadOwnGoogleSearchCredentials() {
   const mode = document.getElementById("google-search-key-mode")?.value || "plain";
   if (mode === "file" || mode === "encrypted") {
@@ -3854,16 +3902,52 @@ if (googleSearchBtn && googleSearchModal) {
   const googleSearchUnlockEncryptedBtn = document.getElementById("google-search-unlock-encrypted");
   const googleSearchClearEncryptedBtn = document.getElementById("google-search-clear-encrypted");
 
+  const googleSearchVaultSectionEl = document.getElementById("google-search-vault-section");
+  const googleSearchVaultUrlEl = document.getElementById("google-search-vault-url");
+  const googleSearchVaultLoadBtn = document.getElementById("google-search-vault-load-btn");
+  const googleSearchVaultStatusEl = document.getElementById("google-search-vault-status");
+  const googleSearchVaultIframeEl = document.getElementById("google-search-vault-iframe");
+
   function updateGoogleSearchModeSections() {
     const mode = googleSearchKeyModeEl?.value || "plain";
     googleSearchPlainSectionEl?.classList.toggle("hidden", mode !== "plain");
     googleSearchFileSectionEl?.classList.toggle("hidden", mode !== "file");
     googleSearchEncryptedSectionEl?.classList.toggle("hidden", mode !== "encrypted");
+    googleSearchVaultSectionEl?.classList.toggle("hidden", mode !== "vault");
     refreshGoogleSearchStatus();
   }
   if (googleSearchKeyModeEl) {
     googleSearchKeyModeEl.addEventListener("change", updateGoogleSearchModeSections);
     updateGoogleSearchModeSections();
+  }
+
+  if (googleSearchVaultLoadBtn) {
+    googleSearchVaultLoadBtn.addEventListener("click", () => {
+      const url = (googleSearchVaultUrlEl?.value || "").trim();
+      if (!url) {
+        if (googleSearchVaultStatusEl) googleSearchVaultStatusEl.textContent = "⚠ vault.htmlのURLを入力してください / Please enter the vault.html URL";
+        return;
+      }
+      let vaultUrlObj;
+      try {
+        vaultUrlObj = new URL(url);
+      } catch {
+        if (googleSearchVaultStatusEl) googleSearchVaultStatusEl.textContent = "⚠ 無効なURLです / Invalid URL";
+        return;
+      }
+      window.googleSearchVaultOrigin = vaultUrlObj.origin;
+      vaultUrlObj.searchParams.set("parentOrigin", window.location.origin);
+      if (googleSearchVaultIframeEl) {
+        googleSearchVaultIframeEl.src = vaultUrlObj.toString();
+        googleSearchVaultIframeEl.classList.remove("hidden");
+      }
+      if (googleSearchVaultStatusEl) {
+        const sameOrigin = window.googleSearchVaultOrigin === window.location.origin;
+        googleSearchVaultStatusEl.textContent = sameOrigin
+          ? "⚠ 読み込みました(同一オリジンのため分離効果はありません) / Loaded (same-origin, no isolation benefit)"
+          : "✅ 読み込みました(別オリジン) / Loaded (cross-origin)";
+      }
+    });
   }
 
   if (googleSearchFileBtn) {

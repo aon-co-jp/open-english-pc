@@ -74,6 +74,15 @@
   <button type="button" id="file-btn">📂 ファイルを選択 / Select file</button>
 </div>
 
+<hr />
+<h3>🔎 Google Search key</h3>
+<label>パスフレーズ / Passphrase<br /><input type="password" id="gs-passphrase" autocomplete="off" /></label>
+<label>API Key(新規保存時のみ) / API Key (only when saving new)<br /><input type="password" id="gs-key-input" autocomplete="off" placeholder="AIzaSy..." /></label>
+<label>Search Engine ID / cx(新規保存時のみ)<br /><input type="text" id="gs-cx-input" autocomplete="off" placeholder="e4990caa4651e48ba" /></label>
+<button type="button" id="gs-save-btn">🔐 暗号化して保存 / Encrypt &amp; save</button>
+<button type="button" id="gs-unlock-btn">🔓 復号 / Unlock</button>
+<button type="button" id="gs-clear-btn">🗑 削除 / Clear</button>
+
 <p class="status" id="status">Waiting for parent page... / 親ページからの操作待ちです...</p>
 
 <script>
@@ -195,6 +204,77 @@
     setStatus("🗑 Cleared / 削除しました");
   });
 
+  // ---- Google Search key(2026-08-27追加、GitHubトークンと同じ隔離を
+  // Google検索キーにも適用——ユーザー指示「全てセキュアモードブラウザで
+  // 受け渡しした方が良いのではないか」への対応) ----
+  const VAULT_GS_ENCRYPTED_KEY = "vault.googleSearchCredsEncrypted";
+  let unlockedGoogleSearchCreds = null; // {api_key, cx}、メモリ上のみ
+
+  const gsPassphraseEl = document.getElementById("gs-passphrase");
+  const gsKeyInputEl = document.getElementById("gs-key-input");
+  const gsCxInputEl = document.getElementById("gs-cx-input");
+
+  document.getElementById("gs-save-btn").addEventListener("click", async () => {
+    const apiKey = gsKeyInputEl.value.trim();
+    const cx = gsCxInputEl.value.trim();
+    const passphrase = gsPassphraseEl.value;
+    if (!apiKey || !cx || !passphrase) {
+      setStatus("⚠ Enter API key, cx, and passphrase / API key・cx・パスフレーズをすべて入力してください");
+      return;
+    }
+    try {
+      const payload = await encryptSecret(JSON.stringify({ api_key: apiKey, cx }), passphrase);
+      localStorage.setItem(VAULT_GS_ENCRYPTED_KEY, payload);
+      unlockedGoogleSearchCreds = { api_key: apiKey, cx };
+      gsKeyInputEl.value = "";
+      gsCxInputEl.value = "";
+      gsPassphraseEl.value = "";
+      setStatus("✅ Google Search key encrypted & saved, unlocked in memory / Google検索キーを暗号化して保存、メモリ上で復号済みです");
+    } catch (err) {
+      setStatus(`⚠ Failed / 失敗しました: ${err}`);
+    }
+  });
+
+  document.getElementById("gs-unlock-btn").addEventListener("click", async () => {
+    const passphrase = gsPassphraseEl.value;
+    const payload = localStorage.getItem(VAULT_GS_ENCRYPTED_KEY);
+    if (!payload) { setStatus("⚠ No encrypted Google Search key saved / 保存済みの暗号化Google検索キーがありません"); return; }
+    if (!passphrase) { setStatus("⚠ Enter your passphrase / パスフレーズを入力してください"); return; }
+    try {
+      unlockedGoogleSearchCreds = JSON.parse(await decryptSecret(payload, passphrase));
+      gsPassphraseEl.value = "";
+      setStatus("✅ Google Search key unlocked / Google検索キーを復号しました");
+    } catch (err) {
+      unlockedGoogleSearchCreds = null;
+      setStatus("⚠ Decryption failed (wrong passphrase?) / 復号に失敗(パスフレーズが違う可能性)");
+    }
+  });
+
+  document.getElementById("gs-clear-btn").addEventListener("click", () => {
+    localStorage.removeItem(VAULT_GS_ENCRYPTED_KEY);
+    unlockedGoogleSearchCreds = null;
+    setStatus("🗑 Google Search key cleared / Google検索キーを削除しました");
+  });
+
+  // Google Custom Search JSON APIをこのvault内から直接呼ぶ(親ページは
+  // 経由しない)。任意のOriginへAccess-Control-Allow-Originを返すことを
+  // 2026-08-27にcurlで実機確認済み(CORS対応済み)。
+  async function googleSearchDirect(query, apiKey, cx, maxResults) {
+    const url = `https://www.googleapis.com/customsearch/v1?key=${encodeURIComponent(apiKey)}&cx=${encodeURIComponent(cx)}&q=${encodeURIComponent(query)}&num=${Math.min(Math.max(maxResults || 3, 1), 10)}`;
+    const res = await fetch(url);
+    if (!res.ok) {
+      let detail = "";
+      try {
+        const body = await res.json();
+        detail = body && body.error && body.error.message ? ` — ${body.error.message}` : "";
+      } catch { /* ignore */ }
+      throw new Error(`Google Custom Search API returned HTTP ${res.status}${detail}`);
+    }
+    const data = await res.json();
+    const items = Array.isArray(data.items) ? data.items : [];
+    return items.map((item) => ({ title: item.title || "", snippet: item.snippet || "", link: item.link || "" }));
+  }
+
   document.getElementById("file-btn").addEventListener("click", () => {
     const input = document.createElement("input");
     input.type = "file";
@@ -258,7 +338,29 @@
         setStatus(`⚠ Push failed: ${err.message || err}`);
       }
     } else if (data.type === "vault:status") {
-      event.source.postMessage({ type: "vault:statusResult", requestId: data.requestId, unlocked: !!unlockedToken }, event.origin);
+      event.source.postMessage(
+        { type: "vault:statusResult", requestId: data.requestId, unlocked: !!unlockedToken, googleSearchUnlocked: !!unlockedGoogleSearchCreds },
+        event.origin
+      );
+    } else if (data.type === "vault:googleSearch") {
+      // Google検索結果(タイトル・スニペット・URL)は個人情報ではなく、
+      // 親ページへ渡しても問題ない情報のため、これだけは結果として返す
+      // (返さないのはAPIキー・cx自体のみ)。
+      if (!unlockedGoogleSearchCreds) {
+        event.source.postMessage(
+          { type: "vault:googleSearchResult", requestId: data.requestId, ok: false, error: "Google Search key is locked — unlock it in the vault first / Google検索キーがロックされています——vault内で先に復号してください" },
+          event.origin
+        );
+        return;
+      }
+      try {
+        const results = await googleSearchDirect(data.query, unlockedGoogleSearchCreds.api_key, unlockedGoogleSearchCreds.cx, data.maxResults);
+        event.source.postMessage({ type: "vault:googleSearchResult", requestId: data.requestId, ok: true, results }, event.origin);
+        setStatus(`✅ Searched for parent page: ${data.query}`);
+      } catch (err) {
+        event.source.postMessage({ type: "vault:googleSearchResult", requestId: data.requestId, ok: false, error: String(err.message || err) }, event.origin);
+        setStatus(`⚠ Search failed: ${err.message || err}`);
+      }
     }
   });
 })();

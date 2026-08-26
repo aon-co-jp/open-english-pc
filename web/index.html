@@ -440,8 +440,35 @@ cargo run --release</pre>
           <option value="plain">③ フォームに入力して平文で保存(従来方式) / Type into the form, saved in plain text (old behavior)</option>
           <option value="file">① ローカルファイルから読み込む(推奨) / Read from a local file (recommended)</option>
           <option value="encrypted">② パスフレーズで暗号化して保存 / Encrypt with a passphrase</option>
+          <option value="vault">④ クロスオリジンiframe保管庫(実験的、最も隔離度が高い) / Cross-origin iframe vault (experimental, most isolated)</option>
         </select>
       </label>
+
+      <div id="google-search-vault-section" class="hidden">
+        <p class="setup-honest">
+          <strong>🧪 実験的機能(2026-08-27新設):</strong> GitHubトークンと同じ仕組みです。
+          APIキー・cxの保管・復号・Google Custom Search APIへの実際の呼び出しを
+          <code>vault.html</code>というiframe内だけで行い、本体ページのJSへは<strong>検索結果
+          (タイトル・スニペット・URL、個人情報ではない)のみ</strong>が渡ります——APIキー自体は
+          本体ページには一切現れません。正直な制約は同じです: 本当の分離効果を得るには
+          <code>vault.html</code>を別オリジンで配信する必要があります。<br /><br />
+          <strong>🧪 Experimental (added 2026-08-27):</strong> Same mechanism as the GitHub
+          token. Storing/decrypting the API key + cx, and the actual call to the Google Custom
+          Search API, all happen inside the <code>vault.html</code> iframe — this page's own JS
+          only ever receives the <strong>search results</strong> (titles/snippets/URLs, not
+          personal data), never the API key itself. Same honest limitation: real isolation
+          requires serving <code>vault.html</code> from a different origin.
+        </p>
+        <label class="setup-label">
+          vault.htmlのURL(別オリジン推奨) / vault.html URL (a different origin is recommended)<br />
+          <input type="text" id="google-search-vault-url" class="setup-input" placeholder="https://vault.example.com/vault.html" />
+        </label>
+        <button type="button" id="google-search-vault-load-btn" class="setup-btn">🔌 vaultを読み込む / Load vault</button>
+        <p class="setup-note" id="google-search-vault-status"></p>
+        <iframe id="google-search-vault-iframe" class="hidden"
+          sandbox="allow-scripts allow-same-origin allow-forms"
+          style="width:100%;height:340px;border:1px solid #666;border-radius:8px;"></iframe>
+      </div>
 
       <div id="google-search-plain-section">
         <label class="settings-field">
