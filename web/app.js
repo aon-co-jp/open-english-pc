@@ -10409,3 +10409,347 @@ if (vschoolModal && vschoolBtn) {
   vschoolSubmitBtn.addEventListener("click", scoreVschoolQuiz);
   vschoolReviewBtn.addEventListener("click", reviewVschoolWithTrainer);
 }
+
+// ============================================================
+// 2026-08-26新設: フリーランス開発コーナー(ユーザー指示「フリーランス
+// プログラマー向け求人案件を参考にAI先生と開発するコーナー」)。
+// 範囲の正直な開示はモーダルHTML(index.html #freelance-corner-modal)
+// 側のsetup-honestに記載。実装方針: 求人検索はGoogle検索を新規タブで
+// 開く方式(APIキー不要、利用規約・レート制限に配慮)、GitHub連携は
+// ブラウザから直接GitHub REST APIを呼ぶ方式(トークンはこのブラウザの
+// localStorageにのみ保存、当アプリのサーバーへは送信しない)。
+// ============================================================
+
+// 代表的なプログラミング言語100種(TIOBE/GitHub Octoverse等で継続的に
+// 上位・話題に上る言語を中心に選定。「100種類から選択」というユーザー
+// 要望への対応、恣意的な優先順位付けはしていない・アルファベット順)。
+const FREELANCE_PROGRAMMING_LANGUAGES = [
+  "Ada", "Angular (TypeScript)", "Apex", "APL", "AppleScript", "Assembly (x86)",
+  "AutoHotkey", "AWK", "Ballerina", "Bash / Shell", "BASIC", "C", "C#", "C++",
+  "Clojure", "COBOL", "CoffeeScript", "Common Lisp", "Crystal", "Dart", "Delphi (Object Pascal)",
+  "Elixir", "Elm", "Erlang", "F#", "Flutter (Dart)", "Fortran", "GDScript", "Go",
+  "Groovy", "Hack", "Haskell", "HCL (Terraform)", "HTML/CSS", "Java", "JavaScript",
+  "Julia", "Kotlin", "LabVIEW", "Lua", "MATLAB", "Nim", "Node.js (JavaScript)",
+  "Objective-C", "OCaml", "Pascal", "Perl", "PHP", "PL/SQL", "PowerShell", "Prolog",
+  "Python", "R", "Racket", "React (JavaScript/TypeScript)", "Reason", "Ruby", "Rust",
+  "SAS", "Scala", "Scheme", "Scratch", "Shell (POSIX sh)", "Smalltalk", "Solidity",
+  "Solidity (EVM)", "SQL", "Svelte (JavaScript/TypeScript)", "Swift", "Tcl", "TypeScript",
+  "V (vlang)", "Vala", "VB.NET", "VBA", "Verilog", "VHDL", "Visual Basic", "Vue (JavaScript/TypeScript)",
+  "WebAssembly (WAT)", "X++", "Xojo", "Zig", "ABAP", "ActionScript", "Ceylon", "Chapel",
+  "D", "Dylan", "Eiffel", "Factor", "Forth", "Genie", "Io", "J", "Mercury", "Modula-2",
+  "Nix", "PostScript", "Pure Data", "Q#", "Red", "Rebol", "SuperCollider", "Wolfram Language",
+];
+
+const freelanceCornerBtn = document.getElementById("freelance-corner-btn");
+const freelanceCornerModal = document.getElementById("freelance-corner-modal");
+const freelanceCornerClose = document.getElementById("freelance-corner-close");
+const freelanceLanguageSelectEl = document.getElementById("freelance-language-select");
+const freelanceLanguageCustomEl = document.getElementById("freelance-language-custom");
+const freelanceFrameworkInputEl = document.getElementById("freelance-framework-input");
+const freelanceSearchOfficialBtn = document.getElementById("freelance-search-official-btn");
+const freelanceCopyOfficialUrlBtn = document.getElementById("freelance-copy-official-url-btn");
+const freelanceSearchJobsBtn = document.getElementById("freelance-search-jobs-btn");
+const freelanceCopyJobsUrlBtn = document.getElementById("freelance-copy-jobs-url-btn");
+const freelanceJobNotesEl = document.getElementById("freelance-job-notes");
+const freelanceSampleListEl = document.getElementById("freelance-sample-list");
+const freelanceAskTeacherBtn = document.getElementById("freelance-ask-teacher-btn");
+
+// GitHub連携要素
+const freelanceGithubTokenEl = document.getElementById("freelance-github-token");
+const freelanceGithubSaveTokenBtn = document.getElementById("freelance-github-save-token-btn");
+const freelanceGithubClearTokenBtn = document.getElementById("freelance-github-clear-token-btn");
+const freelanceGithubTokenStatusEl = document.getElementById("freelance-github-token-status");
+const freelanceGithubRepoNameEl = document.getElementById("freelance-github-repo-name");
+const freelanceGithubPrivateEl = document.getElementById("freelance-github-private");
+const freelanceGithubFilePathEl = document.getElementById("freelance-github-file-path");
+const freelanceGithubFileContentEl = document.getElementById("freelance-github-file-content");
+const freelanceGithubCommitMessageEl = document.getElementById("freelance-github-commit-message");
+const freelanceGithubPushBtn = document.getElementById("freelance-github-push-btn");
+const freelanceGithubPushStatusEl = document.getElementById("freelance-github-push-status");
+
+const FREELANCE_GITHUB_TOKEN_LOCAL_KEY = "open-english.freelanceGithubToken";
+
+// 練習用サンプル案件(架空、実在の求人ではない——setup-honestで開示済み)。
+const FREELANCE_SAMPLE_LISTINGS = [
+  {
+    title_ja: "【サンプル】Rustバックエンド開発(週3日リモート)",
+    title_en: "[Sample] Rust backend development (3 days/week, remote)",
+    text: "Rustで書かれたAPIサーバーの機能追加・パフォーマンス改善。tokio/axum経験歓迎。週3日リモート、期間3ヶ月〜。",
+  },
+  {
+    title_ja: "【サンプル】React + TypeScriptフロントエンド改修",
+    title_en: "[Sample] React + TypeScript frontend revamp",
+    text: "既存のReact/TypeScript SPAのUI刷新とアクセシビリティ改善。週2〜3日、フルリモート可。",
+  },
+  {
+    title_ja: "【サンプル】Python(Django)受託開発の一部担当",
+    title_en: "[Sample] Contract Django (Python) development, partial scope",
+    text: "Django製の業務システムに新機能を追加。DB設計の経験があれば尚可。単発〜継続どちらも相談可。",
+  },
+];
+
+function freelanceSelectedLanguage() {
+  const custom = (freelanceLanguageCustomEl?.value || "").trim();
+  if (custom) return custom;
+  return freelanceLanguageSelectEl?.value || "";
+}
+
+function freelancePopulateLanguageSelect() {
+  if (!freelanceLanguageSelectEl || freelanceLanguageSelectEl.options.length > 0) return;
+  for (const lang of FREELANCE_PROGRAMMING_LANGUAGES) {
+    const opt = document.createElement("option");
+    opt.value = lang;
+    opt.textContent = lang;
+    freelanceLanguageSelectEl.appendChild(opt);
+  }
+}
+
+async function freelanceCopyText(text, statusEl) {
+  try {
+    await navigator.clipboard.writeText(text);
+    if (statusEl) {
+      statusEl.textContent = "コピーしました / Copied.";
+      setTimeout(() => { statusEl.textContent = ""; }, 3000);
+    }
+  } catch (err) {
+    if (statusEl) statusEl.textContent = `コピーに失敗しました / Copy failed: ${err}`;
+  }
+}
+
+function freelanceBuildOfficialSearchUrl() {
+  const lang = freelanceSelectedLanguage();
+  const fw = (freelanceFrameworkInputEl?.value || "").trim();
+  const parts = [lang, fw, "official site OR github.com OR blog"].filter(Boolean);
+  return `https://www.google.com/search?q=${encodeURIComponent(parts.join(" "))}`;
+}
+
+function freelanceBuildJobSearchUrl() {
+  const lang = freelanceSelectedLanguage();
+  const fw = (freelanceFrameworkInputEl?.value || "").trim();
+  const parts = [lang, fw, "フリーランス 案件 OR freelance job"].filter(Boolean);
+  return `https://www.google.com/search?q=${encodeURIComponent(parts.join(" "))}`;
+}
+
+function freelanceRenderSamples() {
+  if (!freelanceSampleListEl) return;
+  freelanceSampleListEl.innerHTML = "";
+  for (const sample of FREELANCE_SAMPLE_LISTINGS) {
+    const card = document.createElement("div");
+    card.className = "setup-note";
+    card.style.border = "1px solid var(--border-color, #ccc)";
+    card.style.borderRadius = "8px";
+    card.style.padding = "8px";
+    card.style.marginBottom = "8px";
+
+    const heading = document.createElement("strong");
+    heading.textContent = `${sample.title_ja} / ${sample.title_en}`;
+    card.appendChild(heading);
+
+    const body = document.createElement("p");
+    body.textContent = sample.text;
+    card.appendChild(body);
+
+    const useBtn = document.createElement("button");
+    useBtn.type = "button";
+    useBtn.className = "setup-btn";
+    useBtn.textContent = "このサンプルを案件メモへ / Use this sample";
+    useBtn.addEventListener("click", () => {
+      if (freelanceJobNotesEl) {
+        freelanceJobNotesEl.value = `${sample.title_ja}\n${sample.text}`;
+      }
+    });
+    card.appendChild(useBtn);
+
+    freelanceSampleListEl.appendChild(card);
+  }
+}
+
+function freelanceLoadGithubToken() {
+  try {
+    return window.localStorage.getItem(FREELANCE_GITHUB_TOKEN_LOCAL_KEY) || "";
+  } catch {
+    return "";
+  }
+}
+
+function freelanceRefreshGithubTokenStatus() {
+  if (!freelanceGithubTokenStatusEl) return;
+  const token = freelanceLoadGithubToken();
+  freelanceGithubTokenStatusEl.textContent = token
+    ? "トークンが保存されています(このブラウザのみ)。 / A token is saved (this browser only)."
+    : "トークン未設定です。 / No token saved.";
+}
+
+if (freelanceCornerBtn && freelanceCornerModal) {
+  freelanceCornerBtn.addEventListener("click", () => {
+    freelancePopulateLanguageSelect();
+    freelanceRenderSamples();
+    freelanceRefreshGithubTokenStatus();
+    freelanceCornerModal.classList.remove("hidden");
+  });
+}
+if (freelanceCornerClose && freelanceCornerModal) {
+  freelanceCornerClose.addEventListener("click", () => {
+    freelanceCornerModal.classList.add("hidden");
+  });
+  freelanceCornerModal.addEventListener("click", (e) => {
+    if (e.target === freelanceCornerModal) freelanceCornerModal.classList.add("hidden");
+  });
+}
+
+if (freelanceSearchOfficialBtn) {
+  freelanceSearchOfficialBtn.addEventListener("click", () => {
+    window.open(freelanceBuildOfficialSearchUrl(), "_blank", "noopener,noreferrer");
+  });
+}
+if (freelanceCopyOfficialUrlBtn) {
+  freelanceCopyOfficialUrlBtn.addEventListener("click", () => {
+    freelanceCopyText(freelanceBuildOfficialSearchUrl(), null);
+  });
+}
+if (freelanceSearchJobsBtn) {
+  freelanceSearchJobsBtn.addEventListener("click", () => {
+    window.open(freelanceBuildJobSearchUrl(), "_blank", "noopener,noreferrer");
+  });
+}
+if (freelanceCopyJobsUrlBtn) {
+  freelanceCopyJobsUrlBtn.addEventListener("click", () => {
+    freelanceCopyText(freelanceBuildJobSearchUrl(), null);
+  });
+}
+
+if (freelanceAskTeacherBtn) {
+  freelanceAskTeacherBtn.addEventListener("click", () => {
+    const lang = freelanceSelectedLanguage();
+    const fw = (freelanceFrameworkInputEl?.value || "").trim();
+    const notes = (freelanceJobNotesEl?.value || "").trim();
+    if (!lang) {
+      alert("言語を選択または入力してください。 / Please choose or type a language first.");
+      return;
+    }
+    let question = `${lang}`;
+    if (fw) question += ` + ${fw}`;
+    question += " を使ったフリーランス案件について、学ぶべき基礎とレッスンの進め方を教えてください。";
+    if (notes) question += `\n\n参考にしている案件メモ:\n${notes}`;
+    if (inputEl && formEl) {
+      inputEl.value = question;
+      freelanceCornerModal?.classList.add("hidden");
+      formEl.requestSubmit();
+    }
+  });
+}
+
+// --- GitHub連携(2026-08-26新設、詳細な安全上の警告はindex.htmlのモーダル内setup-honest参照) ---
+
+if (freelanceGithubSaveTokenBtn) {
+  freelanceGithubSaveTokenBtn.addEventListener("click", () => {
+    const token = (freelanceGithubTokenEl?.value || "").trim();
+    if (!token) {
+      if (freelanceGithubTokenStatusEl) {
+        freelanceGithubTokenStatusEl.textContent = "トークンを入力してください。 / Please enter a token.";
+      }
+      return;
+    }
+    try {
+      window.localStorage.setItem(FREELANCE_GITHUB_TOKEN_LOCAL_KEY, token);
+      if (freelanceGithubTokenEl) freelanceGithubTokenEl.value = "";
+      freelanceRefreshGithubTokenStatus();
+    } catch (err) {
+      if (freelanceGithubTokenStatusEl) {
+        freelanceGithubTokenStatusEl.textContent = `保存に失敗しました / Failed to save: ${err}`;
+      }
+    }
+  });
+}
+if (freelanceGithubClearTokenBtn) {
+  freelanceGithubClearTokenBtn.addEventListener("click", () => {
+    try {
+      window.localStorage.removeItem(FREELANCE_GITHUB_TOKEN_LOCAL_KEY);
+    } catch { /* ignore */ }
+    freelanceRefreshGithubTokenStatus();
+  });
+}
+
+// UTF-8文字列をGitHub Contents APIが要求するBase64へ変換する(単純な
+// btoaはASCII前提でマルチバイト文字を扱えないため、TextEncoder経由)。
+function freelanceUtf8ToBase64(str) {
+  const bytes = new TextEncoder().encode(str);
+  let binary = "";
+  for (const b of bytes) binary += String.fromCharCode(b);
+  return btoa(binary);
+}
+
+// GitHub REST APIをブラウザから直接呼び、(1)リポジトリを新規作成し
+// (2)指定ファイルを1件push(Contents API、コミット1件)する。
+// トークンはこの関数の外(localStorage)から読むだけで、当アプリの
+// サーバーへは一切送信しない(fetch先は常にapi.github.com)。
+async function freelanceGithubCreateRepoAndPush() {
+  const token = freelanceLoadGithubToken();
+  const repoName = (freelanceGithubRepoNameEl?.value || "").trim();
+  const isPrivate = !!freelanceGithubPrivateEl?.checked;
+  const filePath = (freelanceGithubFilePathEl?.value || "README.md").trim() || "README.md";
+  const fileContent = freelanceGithubFileContentEl?.value || "";
+  const commitMessage = (freelanceGithubCommitMessageEl?.value || "Initial commit").trim() || "Initial commit";
+
+  if (!token) throw new Error("GitHubトークンが未設定です。上の欄に入力して保存してください。 / No GitHub token saved yet.");
+  if (!repoName) throw new Error("リポジトリ名を入力してください。 / Please enter a repository name.");
+
+  const headers = {
+    Authorization: `Bearer ${token}`,
+    Accept: "application/vnd.github+json",
+    "Content-Type": "application/json",
+  };
+
+  const createRes = await fetch("https://api.github.com/user/repos", {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ name: repoName, private: isPrivate, auto_init: false }),
+  });
+  if (!createRes.ok) {
+    const errBody = await createRes.text().catch(() => "");
+    throw new Error(`リポジトリ作成に失敗しました(HTTP ${createRes.status}) / repo creation failed: ${errBody}`);
+  }
+  const repo = await createRes.json();
+  const owner = repo.owner?.login;
+  if (!owner) throw new Error("GitHub APIのレスポンスにowner情報がありませんでした。 / GitHub API response had no owner info.");
+
+  const putRes = await fetch(
+    `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repoName)}/contents/${encodeURIComponent(filePath)}`,
+    {
+      method: "PUT",
+      headers,
+      body: JSON.stringify({
+        message: commitMessage,
+        content: freelanceUtf8ToBase64(fileContent),
+      }),
+    }
+  );
+  if (!putRes.ok) {
+    const errBody = await putRes.text().catch(() => "");
+    throw new Error(`ファイルpushに失敗しました(HTTP ${putRes.status}) / file push failed: ${errBody}`);
+  }
+
+  return repo.html_url;
+}
+
+if (freelanceGithubPushBtn) {
+  freelanceGithubPushBtn.addEventListener("click", async () => {
+    if (freelanceGithubPushStatusEl) {
+      freelanceGithubPushStatusEl.textContent = "処理中... / Working...";
+    }
+    freelanceGithubPushBtn.disabled = true;
+    try {
+      const url = await freelanceGithubCreateRepoAndPush();
+      if (freelanceGithubPushStatusEl) {
+        freelanceGithubPushStatusEl.innerHTML =
+          `完了しました / Done: <a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>`;
+      }
+    } catch (err) {
+      if (freelanceGithubPushStatusEl) {
+        freelanceGithubPushStatusEl.textContent = `エラー / Error: ${err.message || err}`;
+      }
+    } finally {
+      freelanceGithubPushBtn.disabled = false;
+    }
+  });
+}
