@@ -3745,6 +3745,19 @@ function loadOwnGoogleSearchCredentials() {
   if (mode === "file" || mode === "encrypted") {
     return googleSearchUnlockedCreds;
   }
+  // 2026-08-27バグ修正: ④vaultモードでは、キーの復号・使用はvault.html
+  // 内だけで完結させる設計のため、ここでは絶対に何も返してはならない。
+  // 修正前はここが③(plain)と同じlocalStorageチェックへフォールスルー
+  // しており、以前③モードで保存した平文キーが残っていた場合、vault
+  // モードを選んでいてもその平文キーが本体ページのJSメモリ
+  // (`ownGoogleSearchCreds`)へ読み込まれてしまっていた——実際の検索
+  // 処理はvault経由に切り替わるため実害は無かったが、「vaultモードでは
+  // 本体ページに一切キーを渡さない」という設計原則に反する不要な露出
+  // だった。GitHubトークン側の同種のテスト
+  // (`mode_switch_no_leak`)で確認した設計と揃える。
+  if (mode === "vault") {
+    return null;
+  }
   try {
     const api_key = localStorage.getItem(GOOGLE_SEARCH_LOCAL_KEY) || "";
     const cx = localStorage.getItem(GOOGLE_SEARCH_LOCAL_CX) || "";
@@ -3824,6 +3837,23 @@ async function isSearchConfiguredOnOwnDevice() {
 }
 
 async function refreshGoogleSearchStatus() {
+  // 2026-08-27バグ修正: ④vaultモードの場合、キーはvault.html内にのみ
+  // 存在し`loadOwnGoogleSearchCredentials()`は(正しく)nullを返すため、
+  // それをそのまま「未設定」扱いすると誤解を招く(vault内では設定・
+  // 復号済みでも、この本体側の文言が「未設定」のままになるバグだった)。
+  // vaultモードの実際の状態は`#google-search-vault-status`側で個別に
+  // 表示しているため、ここでは「vault側を確認してください」という
+  // 案内に留める。
+  const mode = document.getElementById("google-search-key-mode")?.value || "plain";
+  if (mode === "vault") {
+    if (googleSearchStatusEl) {
+      googleSearchStatusEl.textContent =
+        "ℹ️ vaultモードを使用中です。状態は下のvault欄をご確認ください。 / Using vault mode — check the vault status below.";
+    }
+    const inlineEl = document.getElementById("web-search-own-key-status");
+    if (inlineEl) inlineEl.textContent = "🔒 vault mode / vaultモード使用中";
+    return;
+  }
   const creds = loadOwnGoogleSearchCredentials();
   const configuredOnDevice = !creds && (await isSearchConfiguredOnOwnDevice());
   if (googleSearchStatusEl) {
