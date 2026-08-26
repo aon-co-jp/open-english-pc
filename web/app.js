@@ -1446,11 +1446,8 @@ async function askTrainer(userText) {
   }
 
   // Google検索補強(ユーザー指示「発話・入力の都度Google検索する」への
-  // 対応、ブリッジ式)。トグルON時は`/v1/generate-with-search`を叩く
-  // ——`aruaru-llm`側でAPIキー未設定なら自動的に検索無しへフォールバック
-  // する(`used_search:false`、正直な開示としてUIにも表示する)。
+  // 対応、ブリッジ式)。
   const useWebSearch = webSearchToggleEl && webSearchToggleEl.checked;
-  const endpoint = useWebSearch ? "/v1/generate-with-search" : "/v1/generate";
   // 2026-08-27追加(ユーザー指示「必要な所だけON/OFF」への対応): このON状態を
   // 使うのはこの1通のメッセージだけとし、送信の時点で即座にOFFへ戻す
   // (fetch開始前にリセットすることで、ネットワーク失敗時でもON状態が
@@ -1461,6 +1458,41 @@ async function askTrainer(userText) {
     webSearchToggleEl.checked = false;
   }
 
+  // 2026-08-25追加: Google検索補強がONの場合、このブラウザに保存された
+  // 訪問者自身のAPIキー/cx(あれば)を使う。
+  const ownGoogleSearchCreds = useWebSearch && typeof loadOwnGoogleSearchCredentials === "function"
+    ? loadOwnGoogleSearchCredentials()
+    : null;
+
+  // 2026-08-27追加(ユーザー指示「Google検索もGitHubトークンと同じく
+  // ブラウザから直接呼ぶ方式にして、aruaru-llmに一切キーを渡さないように
+  // して」への対応): 訪問者自身のキーがある場合は、Google Custom Search
+  // JSON APIを**ブラウザから直接**呼ぶ(`googleapis.com`が任意のOriginへ
+  // `Access-Control-Allow-Origin`を返すことを2026-08-27にcurlで実機確認
+  // 済み——CORS対応済み)。検索結果はブラウザ内で
+  // `aruaru-llm::web_search::build_search_augmented_prompt`と同一の
+  // 書式(QA形式プロンプト)へ組み立て、**通常の`/v1/generate`へキー無しで
+  // 送る**——これにより`aruaru-llm`は検索結果を含む文脈こそ受け取るが、
+  // Google APIキー・cx自体は一切見ない。訪問者自身のキーが無い場合
+  // (共有サーバー側のグローバル設定に任せたい場合)のみ、従来通り
+  // `/v1/generate-with-search`へキー無しでリクエストする
+  // (この経路はそもそもブラウザ側にキーが無いため、今回の変更は無関係)。
+  let directSearchResults = null;
+  let directSearchError = null;
+  if (useWebSearch && ownGoogleSearchCreds) {
+    try {
+      directSearchResults = await googleSearchDirect(userText, ownGoogleSearchCreds.api_key, ownGoogleSearchCreds.cx, 3);
+    } catch (err) {
+      directSearchError = err.message || String(err);
+    }
+  }
+
+  const useDirectSearchPath = useWebSearch && ownGoogleSearchCreds;
+  const endpoint = useWebSearch && !useDirectSearchPath ? "/v1/generate-with-search" : "/v1/generate";
+  const effectivePrompt = useDirectSearchPath && directSearchResults && directSearchResults.length > 0
+    ? buildSearchAugmentedPromptClient(formatSearchResultsAsContext(directSearchResults), prompt)
+    : prompt;
+
   // タイムアウト上限(2026-08-22追加)。GPT-2のCPU貪欲デコードは
   // 1トークンあたりほぼ一定時間かかるため、大きなモデル(gpt2-xl等)へ
   // 切り替えた環境では24トークンでも数十秒かかり得る。実測(distilgpt2・
@@ -1469,20 +1501,11 @@ async function askTrainer(userText) {
   // 従来挙動よりは遥かにましだが、「速くなる」わけではない(正直な開示)。
   const timeoutMs = useWebSearch ? 90000 : 60000;
   const startedAt = performance.now();
-  // 2026-08-25追加: Google検索補強がONの場合、このブラウザに保存された
-  // 訪問者自身のAPIキー/cx(あれば)を同梱する——これによりaruaru-llm側は
-  // グローバル共有設定(開発者が別途設定したキー)を消費せず、この訪問者
-  // 自身のキーだけをこのリクエスト限りで使う(`web_search.rs`の
-  // `search_with_credentials`参照)。未設定なら送らず、既定のフォール
-  // バック(グローバル設定があればそれ、無ければ検索無し)に任せる。
-  const ownGoogleSearchCreds = useWebSearch && typeof loadOwnGoogleSearchCredentials === "function"
-    ? loadOwnGoogleSearchCredentials()
-    : null;
-  const requestBody = { prompt, max_new_tokens: 24 };
-  if (ownGoogleSearchCreds) {
-    requestBody.google_search_api_key = ownGoogleSearchCreds.api_key;
-    requestBody.google_search_cx = ownGoogleSearchCreds.cx;
-  }
+  const requestBody = { prompt: effectivePrompt, max_new_tokens: 24 };
+  // useDirectSearchPathの場合はここでkey/cxを一切requestBodyへ入れない
+  // (aruaru-llmへ渡らないことがこの変更の目的そのもの)。訪問者自身の
+  // キーが無い場合の従来経路(/v1/generate-with-search)には元々キーが
+  // 付いていなかったため、この分岐でも変更は無い。
   const res = await fetchWithTimeout(`${base}${endpoint}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -1516,11 +1539,21 @@ async function askTrainer(userText) {
   let reply = ensureScriptGuaranteedReply(ensureHybridReply(trimDegenerateRepetition(completion), userText));
 
   if (useWebSearch) {
-    if (data.used_search && Array.isArray(data.search_results) && data.search_results.length > 0) {
-      // 正直な開示・セキュリティ配慮: 検索結果のtitleは外部(Google経由の
-      // Webサイト)由来のテキストのため、`innerHTML`へそのまま挿入せず
-      // (XSSリスク回避)、`appendMessage`が使うプレーンテキスト
-      // (`textContent`)としてURLをそのまま列挙する。
+    if (useDirectSearchPath) {
+      if (directSearchError) {
+        reply += `\n\n🔎 Google search failed (browser called Google directly, key never sent to aruaru-llm) / ` +
+          `Google検索に失敗しました(ブラウザから直接Googleを呼び出しており、キーはaruaru-llmへ送っていません): ${directSearchError}`;
+      } else if (directSearchResults && directSearchResults.length > 0) {
+        // 正直な開示・セキュリティ配慮: 検索結果のtitleは外部(Google経由の
+        // Webサイト)由来のテキストのため、`innerHTML`へそのまま挿入せず
+        // (XSSリスク回避)、プレーンテキストとしてURLをそのまま列挙する。
+        const links = directSearchResults.map((r) => `${r.title} (${r.link})`).join(" / ");
+        reply += `\n\n🔎 Google search used, called directly from your browser (aruaru-llm never saw your key) / ` +
+          `Google検索を使用しました(ブラウザから直接呼び出し、キーはaruaru-llmへ渡していません): ${links}`;
+      } else {
+        reply += "\n\n🔎 Google search returned no results / Google検索結果が0件でした。";
+      }
+    } else if (data.used_search && Array.isArray(data.search_results) && data.search_results.length > 0) {
       const links = data.search_results.map((r) => `${r.title} (${r.link})`).join(" / ");
       reply += `\n\n🔎 Google search used / Google検索を使用しました: ${links}`;
     } else {
@@ -3671,6 +3704,53 @@ function loadOwnGoogleSearchCredentials() {
   } catch (e) {
     return null;
   }
+}
+
+// 2026-08-27追加(ユーザー指示「Google検索もGitHubトークンと同じく
+// ブラウザから直接呼ぶ方式にして」への対応): Google Custom Search
+// JSON APIを`aruaru-llm`を経由せずブラウザから直接呼ぶ。
+// `www.googleapis.com`が任意のOriginへ`Access-Control-Allow-Origin`を
+// 返すことをcurlで実機確認済み(2026-08-27)——CORS対応済みのため
+// この方式が成立する(OpenAI/Gemini/DeepSeekは同じ方式が使えないことを
+// 既にCLAUDE.mdへ記録済み、Google Custom Searchは対象が異なるため
+// 別途確認が必要だった)。
+async function googleSearchDirect(query, apiKey, cx, maxResults) {
+  const url = `https://www.googleapis.com/customsearch/v1?key=${encodeURIComponent(apiKey)}&cx=${encodeURIComponent(cx)}&q=${encodeURIComponent(query)}&num=${Math.min(Math.max(maxResults || 3, 1), 10)}`;
+  const res = await fetch(url);
+  if (!res.ok) {
+    let detail = "";
+    try {
+      const body = await res.json();
+      detail = body?.error?.message ? ` — ${body.error.message}` : "";
+    } catch { /* ignore */ }
+    throw new Error(`Google Custom Search API returned HTTP ${res.status}${detail}`);
+  }
+  const data = await res.json();
+  const items = Array.isArray(data.items) ? data.items : [];
+  return items.map((item) => ({
+    title: item.title || "",
+    snippet: item.snippet || "",
+    link: item.link || "",
+  }));
+}
+
+// `aruaru-llm::web_search::format_results_as_context`と同一の書式
+// (番号付き箇条書き)。GPT-2のQ&Aパターン補完に乗せやすくする狙いは
+// Rust側と同じ(`aruaru-llm/CLAUDE.md`2026-08-26エントリ参照)。
+function formatSearchResultsAsContext(results) {
+  return results.map((r, i) => `${i + 1}. ${r.title}: ${r.snippet}`).join("\n");
+}
+
+// `aruaru-llm::web_search::build_search_augmented_prompt`と同一の
+// QA形式プロンプト。サーバー側のロジックと完全に同じ書式にすることで、
+// 「aruaru-llmにキーを渡さないよう変更した」以外の挙動差分を生まない
+// ようにしている(誠実さのため——検索結果活用の改善効果自体は変えない)。
+function buildSearchAugmentedPromptClient(context, question) {
+  return `Use the search results below to answer the question as accurately as possible. ` +
+    `If the search results don't contain the answer, say so honestly.\n\n` +
+    `Search results:\n${context}\n\n` +
+    `Question: ${question}\n` +
+    `Answer:`;
 }
 
 // 2026-08-26追加(ユーザー指示「Google検索APIキーも簡単に手元の端末で
