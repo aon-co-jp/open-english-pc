@@ -1451,6 +1451,15 @@ async function askTrainer(userText) {
   // する(`used_search:false`、正直な開示としてUIにも表示する)。
   const useWebSearch = webSearchToggleEl && webSearchToggleEl.checked;
   const endpoint = useWebSearch ? "/v1/generate-with-search" : "/v1/generate";
+  // 2026-08-27追加(ユーザー指示「必要な所だけON/OFF」への対応): このON状態を
+  // 使うのはこの1通のメッセージだけとし、送信の時点で即座にOFFへ戻す
+  // (fetch開始前にリセットすることで、ネットワーク失敗時でもON状態が
+  // 残らないようにする)。次のメッセージでもGoogle検索キーを使いたい場合は
+  // 利用者が毎回明示的にチェックし直す必要がある——「本当に必要な1回だけ
+  // aruaru-llmへキーを渡す」という意図をより確実にするための設計。
+  if (useWebSearch && webSearchToggleEl) {
+    webSearchToggleEl.checked = false;
+  }
 
   // タイムアウト上限(2026-08-22追加)。GPT-2のCPU貪欲デコードは
   // 1トークンあたりほぼ一定時間かかるため、大きなモデル(gpt2-xl等)へ
