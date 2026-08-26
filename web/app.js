@@ -3794,9 +3794,44 @@ if (googleSearchBtn && googleSearchModal) {
   }
   renderList();
 
+  // パネルを開くたびaruaru-llm側の実際の現状(有効/無効・順序・設定済み
+  // プロバイダ)を取得して表示する(2026-08-26追記、実機TEST中に発見した
+  // 使いやすさの粗——従来は保存操作をするまでサーバー側の実状態が
+  // 画面に一切反映されず、環境変数等で既に設定済みの場合でも「未設定」
+  // に見えていた)。取得に失敗しても画面はローカルの既定値のまま動作を
+  // 継続する(既存のGoogle Search設定パネルと同じ可用性優先の設計)。
+  async function refreshProviderPriorityStatus() {
+    const base = apiBaseEl ? apiBaseEl.value.trim() : "";
+    if (!base) return;
+    try {
+      const [priorityRes, keysRes] = await Promise.all([
+        fetchWithTimeout(`${base}/v1/settings/provider-priority`, { cache: "no-store" }, 4000),
+        fetchWithTimeout(`${base}/v1/settings/chat-providers`, { cache: "no-store" }, 4000),
+      ]);
+      if (priorityRes.ok) {
+        const data = await priorityRes.json();
+        if (Array.isArray(data.order) && data.order.length === priorityOrder.length) {
+          priorityOrder = data.order;
+          renderList();
+        }
+        enabledEl.checked = !!data.enabled;
+      }
+      if (keysRes.ok) {
+        const data = await keysRes.json();
+        const configured = Array.isArray(data.configured_providers) ? data.configured_providers : [];
+        statusEl.textContent = configured.length
+          ? `✅ Already configured on aruaru-llm / 設定済み: ${configured.join(", ")}`
+          : "⚪ No chat provider API keys configured yet on aruaru-llm / まだAPIキーは設定されていません";
+      }
+    } catch (e) {
+      /* best-effort only, keep local defaults on failure */
+    }
+  }
+
   if (btn && modal) {
     btn.addEventListener("click", () => {
       modal.classList.remove("hidden");
+      refreshProviderPriorityStatus();
     });
     closeBtn.addEventListener("click", () => modal.classList.add("hidden"));
     modal.addEventListener("click", (e) => {
