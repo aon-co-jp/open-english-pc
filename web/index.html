@@ -12,6 +12,52 @@
 <meta name="theme-color" content="#f096be" />
 </head>
 <body>
+  <!-- ログインゲート(2026-08-26新設、ユーザー指示「家族や会社で共有する
+       場合もあるので、ログインセキュリティシステムを導入しますか?」への
+       対応)。既定は非表示——`GET /v1/auth/config`がlogin_required:true を
+       返した場合のみ、`app.js`がこのオーバーレイを表示しページ全体を
+       覆う。実際のアクセス制御はサーバー側(/v1/db/*へのrequire_session
+       ゲート)が行うため、ここは主にUX上の導線。 -->
+  <div id="login-gate" class="login-gate hidden">
+    <div class="login-gate-box">
+      <h2>🔒 Login required / ログインが必要です</h2>
+      <p class="setup-note">
+        This device is protected with email login. Enter your email to receive a one-time code. /
+        この端末はログイン保護が有効になっています。メールアドレスを入力してワンタイムコードを受け取ってください。
+      </p>
+      <label class="settings-field">
+        Email / メールアドレス
+        <input type="email" id="login-email" autocomplete="email" placeholder="you@example.com" />
+      </label>
+      <button type="button" id="login-send-code-btn" class="setup-btn">Send code / コードを送信</button>
+      <div id="login-code-section" class="hidden">
+        <label class="settings-field">
+          Code / コード
+          <input type="text" id="login-code" autocomplete="one-time-code" placeholder="123456" maxlength="6" />
+        </label>
+        <button type="button" id="login-verify-btn" class="setup-btn">Verify / ログイン</button>
+      </div>
+      <p id="login-status" class="setup-note"></p>
+    </div>
+  </div>
+  <!-- 初回案内(2026-08-26新設): ログイン保護を導入するかどうかを日英
+       併記で一度だけ尋ねる。既定はオフのまま(利用者が明示的に有効化
+       した場合のみ、上記ログインゲートが働くようになる)。 -->
+  <div id="login-setup-prompt" class="login-gate hidden">
+    <div class="login-gate-box">
+      <h2>🔒 Login security / ログインセキュリティ</h2>
+      <p class="setup-note">
+        This PC/tablet/phone may be shared with family or coworkers. Would you like to enable login
+        security (email + one-time code)? You can change this later in settings. /
+        このPC・タブレット・スマホなどは、家族や会社で共有する場合もあります。ログインセキュリティ(メール+ワンタイムコード)を導入しますか?
+        後から設定でいつでも変更できます。
+      </p>
+      <div class="settings-buttons">
+        <button type="button" id="login-setup-enable-btn" class="setup-btn">Enable / 導入する</button>
+        <button type="button" id="login-setup-skip-btn" class="setup-btn">Use without login / ログインせずに利用する</button>
+      </div>
+    </div>
+  </div>
   <div id="maintenance-banner" class="maintenance-banner hidden">
     <p id="maintenance-banner-message">
       🛠️ Under maintenance. Please wait about 1 minute. / ただいまメンテナンス中です。1分ほどお待ち下さい。

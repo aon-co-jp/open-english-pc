@@ -371,6 +371,31 @@ body {
   cursor: pointer;
 }
 
+.login-gate {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 14, 24, 0.92);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+.login-gate.hidden {
+  display: none;
+}
+.login-gate-box {
+  background: var(--panel);
+  color: var(--text);
+  border-radius: 12px;
+  padding: 24px;
+  max-width: 420px;
+  width: 90%;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+.login-gate-box h2 {
+  margin-top: 0;
+}
+
 .maintenance-banner {
   position: fixed;
   top: 0;

@@ -392,6 +392,139 @@ makeCollapsiblePanel("topbar", "topbar-toggle", "topbar", "✕ CLOSE", "＋ OPEN
 makeCollapsiblePanel("maintenance-banner-detail", "maintenance-banner-toggle", "maintenanceBannerDetail", "✕ CLOSE", "＋ OPEN");
 makeCollapsiblePanel("download-recommend-banner", "download-recommend-banner-toggle", "downloadRecommendBanner", "✕ CLOSE", "＋ OPEN");
 
+// ログインゲート(2026-08-26新設、ユーザー指示「家族や会社で共有する
+// 場合もあるので、ログインセキュリティシステムを導入しますか?」への
+// 対応)。`GET /v1/auth/config`でこのサーバーがログイン保護を要求して
+// いるかを確認し、要求していれば`GET /v1/auth/session`でログイン済みか
+// 判定、未ログインならオーバーレイを表示する。要求していない場合は、
+// まだ一度も尋ねていなければ「導入しますか?」の案内を一度だけ表示する
+// (以後は`localStorage`のフラグで再表示しない、既存の設定永続化の
+// 慣習を踏襲)。
+const LOGIN_PROMPT_SHOWN_KEY = "open-english.loginPromptShown";
+(async function initLoginGate() {
+  const gateEl = document.getElementById("login-gate");
+  const promptEl = document.getElementById("login-setup-prompt");
+  if (!gateEl || !promptEl) return;
+  let config;
+  try {
+    const res = await fetch("/v1/auth/config", { cache: "no-store" });
+    config = await res.json();
+  } catch (e) {
+    // `/v1/auth/config`未提供の配信形態(file://直開き等)では
+    // ログイン保護なしの既定動作へ黙ってフォールバックする。
+    return;
+  }
+
+  if (config.login_required) {
+    try {
+      const res = await fetch("/v1/auth/session", { cache: "no-store" });
+      const session = await res.json();
+      if (!session.logged_in) {
+        gateEl.classList.remove("hidden");
+      }
+    } catch (e) {
+      gateEl.classList.remove("hidden");
+    }
+    return;
+  }
+
+  // ログイン保護は無効——まだ一度も尋ねていなければ案内する。
+  let alreadyShown = false;
+  try {
+    alreadyShown = localStorage.getItem(LOGIN_PROMPT_SHOWN_KEY) === "1";
+  } catch (e) {
+    /* localStorage不可なら毎回表示されるが実害は無い */
+  }
+  if (!alreadyShown) {
+    promptEl.classList.remove("hidden");
+  }
+})();
+
+const loginEmailEl = document.getElementById("login-email");
+const loginSendCodeBtn = document.getElementById("login-send-code-btn");
+const loginCodeSection = document.getElementById("login-code-section");
+const loginCodeEl = document.getElementById("login-code");
+const loginVerifyBtn = document.getElementById("login-verify-btn");
+const loginStatusEl = document.getElementById("login-status");
+
+if (loginSendCodeBtn) {
+  loginSendCodeBtn.addEventListener("click", async () => {
+    const email = loginEmailEl.value.trim();
+    if (!email) {
+      loginStatusEl.textContent = "Please enter your email / メールアドレスを入力してください";
+      return;
+    }
+    loginStatusEl.textContent = "Sending... / 送信中...";
+    try {
+      const res = await fetch("/v1/auth/request-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        loginStatusEl.textContent = "Code sent — check your email / コードを送信しました。メールをご確認ください";
+        loginCodeSection.classList.remove("hidden");
+      } else {
+        loginStatusEl.textContent = `⚠ ${data.error || "Failed to send code / コード送信に失敗しました"}`;
+      }
+    } catch (e) {
+      loginStatusEl.textContent = `⚠ ${e.message}`;
+    }
+  });
+}
+if (loginVerifyBtn) {
+  loginVerifyBtn.addEventListener("click", async () => {
+    const email = loginEmailEl.value.trim();
+    const code = loginCodeEl.value.trim();
+    loginStatusEl.textContent = "Verifying... / 確認中...";
+    try {
+      const res = await fetch("/v1/auth/verify-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, code }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        document.getElementById("login-gate").classList.add("hidden");
+      } else {
+        loginStatusEl.textContent = `⚠ ${data.error || "Incorrect code / コードが正しくありません"}`;
+      }
+    } catch (e) {
+      loginStatusEl.textContent = `⚠ ${e.message}`;
+    }
+  });
+}
+
+const loginSetupEnableBtn = document.getElementById("login-setup-enable-btn");
+const loginSetupSkipBtn = document.getElementById("login-setup-skip-btn");
+function dismissLoginSetupPrompt() {
+  document.getElementById("login-setup-prompt").classList.add("hidden");
+  try {
+    localStorage.setItem(LOGIN_PROMPT_SHOWN_KEY, "1");
+  } catch (e) {
+    /* 保存できなくても閉じる動作自体は継続 */
+  }
+}
+if (loginSetupEnableBtn) {
+  loginSetupEnableBtn.addEventListener("click", async () => {
+    try {
+      await fetch("/v1/auth/config", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ login_required: true }),
+      });
+    } catch (e) {
+      /* 失敗しても案内は閉じる、次回起動時に再度有効化を試せる */
+    }
+    dismissLoginSetupPrompt();
+    location.reload();
+  });
+}
+if (loginSetupSkipBtn) {
+  loginSetupSkipBtn.addEventListener("click", () => dismissLoginSetupPrompt());
+}
+
 const logEl = document.getElementById("log");
 const formEl = document.getElementById("chat-form");
 const inputEl = document.getElementById("chat-input");
