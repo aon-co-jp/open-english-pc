@@ -61,13 +61,25 @@
   可能です(Chromeの`--incognito`起動オプションを使う、実在する標準機能——裏技や
   抜け道ではありません)。作成スクリプト:
   <code>launchers/windows/create-vault-incognito-shortcut.ps1</code>
-  (PowerShellで実行するとデスクトップに専用アイコンが作成されます)。<br />
+  (PowerShellで実行するとデスクトップに専用アイコンが作成されます)。
+  <strong>このショートカットが開くのは本体アプリ(index.html)のトップページで、
+  vault.html単体ではありません</strong>——vault.htmlは親ページに埋め込まれた
+  iframeとしてのみ正しく動作する設計(GitHub push・Google検索の代行実行は
+  postMessageで親ページとやり取りする)のため、単体で開くとその機能が使えなく
+  なります(鍵の暗号化・保存・復号自体は単体でも動作します)。ローカルの
+  アドレスが既定(<code>127.0.0.1:4601</code>)と異なる場合は
+  <code>-ServerHost</code>/<code>-ServerPort</code>引数で指定してください。<br />
   This page itself cannot force a browser or mode switch, but <strong>if Chrome is installed
   ahead of time, a dedicated desktop shortcut can be created that always opens a fresh Chrome
   Incognito window</strong> when double-clicked (using Chrome's real, documented
   <code>--incognito</code> launch option — not a workaround). Creation script:
   <code>launchers/windows/create-vault-incognito-shortcut.ps1</code> (run it in PowerShell to
-  create the desktop icon).
+  create the desktop icon). <strong>The shortcut opens the main app's (index.html) top page, not
+  vault.html standalone</strong> — vault.html only works correctly when embedded as an iframe in
+  the parent page (GitHub push / Google Search delegation talk to the parent via postMessage),
+  so opening it standalone would break those features (key encryption/storage/decryption alone
+  still works). If your local address differs from the default (<code>127.0.0.1:4601</code>),
+  pass <code>-ServerHost</code>/<code>-ServerPort</code>.
 </p>
 
 <div>
