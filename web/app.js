@@ -6675,7 +6675,14 @@ if (worldLabGotoAiCodingBtn) {
 const worldLabGotoCgCadBtn = document.getElementById("world-lab-goto-cg-cad-btn");
 if (worldLabGotoCgCadBtn) {
   worldLabGotoCgCadBtn.addEventListener("click", () => {
-    const defaultCgCadBase = "http://127.0.0.1:4701/";
+    const isLocalHost = /^(127\.0\.0\.1|localhost|\[::1\])$/.test(location.hostname);
+    // 本番デプロイ(easy-web.tokyo等)では、open-cg-cadも同一オリジン配下に
+    // path prefixで同居しているため、そちらを既定にする(2026-08-27、
+    // 実際にeasy-web.tokyo/open-cg-cad/がVPS上で200を返すことを確認済み)。
+    // ローカル開発時(別ポート=別オリジン)は従来通りlocalhost既定のまま。
+    const defaultCgCadBase = isLocalHost
+      ? "http://127.0.0.1:4701/"
+      : location.origin + "/open-cg-cad/";
     let cgCadBase = defaultCgCadBase;
     try {
       cgCadBase = localStorage.getItem("open-english.cgCadBase") || defaultCgCadBase;
