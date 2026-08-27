@@ -240,6 +240,15 @@ body {
   line-height: 1.4;
 }
 
+/* 2026-08-27追加(ユーザー指示): 出典リンク(メイドカフェ接客ブログの
+   引用元・関連YouTube検索結果へのリンク)の文字色を白に変更。
+   .disclosureは背景が暗色(#3a2a1a)のため、ブラウザ既定のリンク色
+   (青/紫)より白の方が読みやすいという判断。 */
+.disclosure a,
+.disclosure a:visited {
+  color: #fff;
+}
+
 .disclosure-toggle-btn {
   margin-bottom: 6px;
   font-size: 0.85rem;
