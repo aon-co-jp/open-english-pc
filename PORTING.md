@@ -38,4 +38,15 @@
       aruaru-llm＋aruaru-db）、最大 `OPEN_ENGLISH_MAINTENANCE_FAST_TICKS` 回
       （既定 6＝約3分、0 で無効）。(2) 以降 30 分間隔。VPS で起動＋30 秒後の
       `maintenance-window update check (1/6, every 30s)` ログ発火を E2E 確認
-- [ ] pc / tablet / mobile それぞれのビルド・インストーラー構成（未着手）
+- [~] pc / tablet / mobile それぞれのビルド・インストーラー構成（進行中）
+      - [x] 共通ビルド基盤の設計 `BUILD.md`（web/ と web/version.json を単一の正本、
+            差分はパッケージングのみ、リリースは open-english の vX.Y.Z タグ1系統）
+      - [x] Android: 単一 Gradle プロジェクトを product flavor `phone` / `tablet` に分割
+            （tablet は applicationId `.tablet` サフィックス）、versionName を
+            web/version.json から自動取得
+      - [x] `open-english/.github/workflows/release.yml` に `build-android` ジョブ
+            （`assemblePhoneDebug` / `assembleTabletDebug` → Release へ APK 添付）。
+            workflow_dispatch で実走・success、phone/tablet 2 APK 生成を確認（2026-09-11）
+      - [ ] Android リリース署名鍵（`ANDROID_KEYSTORE_*` シークレット）→ `assemble*Release`
+      - [ ] `tablet` flavor のレイアウト最適化（`layout-sw600dp` 等）
+      - [ ] `pc/` のデスクトップ固有補助（必要になれば）
