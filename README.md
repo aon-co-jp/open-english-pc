@@ -5,9 +5,10 @@
 
 | ディレクトリ | 対象 | 状態 |
 |---|---|---|
-| [`pc/`](pc/) | デスクトップ版（Windows / Linux / macOS） | 移設作業中 |
-| [`tablet/`](tablet/) | タブレット版 | 移設作業中 |
-| [`mobile/`](mobile/) | モバイル版 | 移設作業中 |
+| [`web/`](web/) | 共有 Web クライアント（静的フロントエンド） | 履歴保持で移設済み（Phase 2） |
+| [`pc/`](pc/) | デスクトップ版（Windows / Linux / macOS）パッケージング | 骨組み（Phase 2b で本体から移設） |
+| [`tablet/`](tablet/) | タブレット版パッケージング | 骨組み |
+| [`mobile/`](mobile/) | モバイル版（`android/` は履歴保持で移設済み） | android 移設済み・Phase 2 |
 
 ## 位置づけ
 

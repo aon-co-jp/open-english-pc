@@ -11,10 +11,20 @@
 
 - [x] リポジトリ新設・モノレポ骨組み（`pc/` `tablet/` `mobile/`）
 - [x] `open-english/README.md` から本リポジトリ（および releases/latest）への静的リンク
-- [ ] Phase 2: クライアント資産を `git` 履歴付きで移設
-      （`index.html` `app.js` `style.css` `manifest.json` `auto-update.js`
-       `version.json` `android/`）
-- [ ] Phase 2: 移設後の本体側デモ配信の取得方法を決定（submodule / CI 取得）
-- [ ] Phase 3: 「メンテナンス表示中は 30 秒間隔」で `self_update` ＋
+- [x] **Phase 2**: クライアント資産を `git filter-repo` で履歴付き移設（2026-09-10）
+      - `web/` ← `index.html` `style.css` `app.js` `auto-update.js` `version.json`
+        `manifest.json` `exam-prep-questions.json` `sw.js` `facebook.html`
+        `qr-confirm.html` `vault.html` `icons/`
+      - `mobile/android/` ← 本体 `android/`
+      - `--allow-unrelated-histories` で骨組みへマージ、203 コミット
+- [ ] **Phase 2b**: 本体 `open-english` 側を `web/` 参照へ切替
+      - `.github/workflows/release.yml` の Package/cp 群
+      - `installer/windows/open-english.iss` の Source パス
+      - `server/src/main.rs` の静的 root 解決
+      - `android/` 参照
+      - 取得方法（submodule / CI clone）を決定 → 本体からコピー削除
+- [ ] **Phase 3**: 「起動してメンテナンス表示中は 30 秒間隔」で `self_update` ＋
       `component_update`（関連リポジトリ全てのバージョンチェック＆自動UP）を回す拡張
+      （正本ロジック: `open-english/server/src/{self_update,component_update}.rs`、
+       通常時は 30 分間隔）
 - [ ] pc / tablet / mobile それぞれのビルド・インストーラー構成

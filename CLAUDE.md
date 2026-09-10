@@ -20,16 +20,23 @@
 - **2026-09-10 リポジトリ新設**: `aon-co-jp/open-english-pc` を作成（public、
   デフォルトブランチ `main`）。モノレポ骨組み（`pc/` `tablet/` `mobile/` +
   各 README）を配置。
-  - **Phase 2（未）**: `open-english` から `index.html` / `app.js` / `style.css` /
-    `manifest.json` / `auto-update.js` / `version.json` / `android/` 等の
-    クライアント資産を、`pc/` `tablet/` `mobile/` へ `git` 履歴を保って移設。
-    移設後、`open-english` 本体はデモ／サーバー配信用のコピーをどう保つか
-    （このリポジトリを submodule 参照 or CI で取得）を決める。
-  - **Phase 3（未）**: 「起動してメンテナンス表示中は 30 秒間隔」で
-    `self_update` ＋ `component_update`（**関連リポジトリ全て**のバージョン
-    チェックと自動アップグレード）を回す拡張。正本ロジックは
-    `open-english/server/src/self_update.rs` ／ `component_update.rs`。
-    通常時の定期チェックは 30 分（`open-english` 側で 2026-09-09 に 6h→30m 済み）。
+- **2026-09-10 Phase 2 完了**: `git filter-repo` で `open-english` から
+  クライアント資産を**履歴保持**で移設し、`--allow-unrelated-histories` で
+  骨組みへマージ（203 コミット）。
+  - `web/` … 共有 Web クライアント（`index.html` `style.css` `app.js`
+    `auto-update.js` `version.json` `manifest.json` `exam-prep-questions.json`
+    `sw.js` `facebook.html` `qr-confirm.html` `vault.html` `icons/`）
+  - `mobile/android/` … 本体 `android/`
+- **Phase 2b（未）**: `open-english` 本体は現在も同じファイルのコピーを保持して
+  デモ配信中。本体の `.github/workflows/release.yml`（Package/cp）・
+  `installer/windows/open-english.iss`（Source パス）・`server/src/main.rs`
+  （静的 root 解決）・`android/` 参照を、この `web/` を参照する形へ切り替え、
+  取得方法（submodule / CI clone）を決めてから本体のコピーを削除する。
+- **Phase 3（未）**: 「起動してメンテナンス表示中は 30 秒間隔」で
+  `self_update` ＋ `component_update`（**関連リポジトリ全て**のバージョン
+  チェックと自動アップグレード）を回す拡張。正本ロジックは
+  `open-english/server/src/self_update.rs` ／ `component_update.rs`。
+  通常時の定期チェックは 30 分（`open-english` 側で 2026-09-09 に 6h→30m 済み）。
 
 ## GitHub organization
 
