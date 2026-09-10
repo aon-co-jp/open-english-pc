@@ -17,12 +17,21 @@
         `qr-confirm.html` `vault.html` `icons/`
       - `mobile/android/` ← 本体 `android/`
       - `--allow-unrelated-histories` で骨組みへマージ、203 コミット
-- [ ] **Phase 2b**: 本体 `open-english` 側を `web/` 参照へ切替
-      - `.github/workflows/release.yml` の Package/cp 群
-      - `installer/windows/open-english.iss` の Source パス
-      - `server/src/main.rs` の静的 root 解決
-      - `android/` 参照
-      - 取得方法（submodule / CI clone）を決定 → 本体からコピー削除
+- [x] **Phase 2b**（2026-09-10）: 本体 `open-english` を submodule `client/`
+      （= このリポジトリ）参照へ切替
+      - `.gitmodules`: `client` → `open-english-pc`（shallow）
+      - `server/src/main.rs`: 起動時に `client/web/` を配信ルートへミラーする
+        `sync_client_from_submodule()` を追加。インストール済みコピーでは no-op
+      - ルート直下のクライアントファイルを untrack + `.gitignore`
+      - `.github/workflows/release.yml`: `submodules: recursive` ＋
+        `client/web/` から同梱
+      - `installer/windows/open-english.iss`: `Source` を `..\..\client\web\` へ
+        （従来同梱漏れの `sw.js` / `*.html` / `world-language-*.json` も追加）
+      - **バージョンの正本は `web/version.json`**（現在 0.8.1）。リリース時は
+        ここを bump → コミット → 本体で `git add client` → 本体で `vX.Y.Z` タグ
+      - 検証: 本体 `cargo build --release` OK、開発機＋VPS(:8104/:8107)で
+        `client sync: mirrored 15 entries` ＋ 主要静的パス 200 を E2E 確認
+      - 未検証: Windows Inno Setup ビルド（開発機で不可、パス変更は機械的）
 - [ ] **Phase 3**: 「起動してメンテナンス表示中は 30 秒間隔」で `self_update` ＋
       `component_update`（関連リポジトリ全てのバージョンチェック＆自動UP）を回す拡張
       （正本ロジック: `open-english/server/src/{self_update,component_update}.rs`、
