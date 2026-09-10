@@ -32,8 +32,10 @@
       - 検証: 本体 `cargo build --release` OK、開発機＋VPS(:8104/:8107)で
         `client sync: mirrored 15 entries` ＋ 主要静的パス 200 を E2E 確認
       - 未検証: Windows Inno Setup ビルド（開発機で不可、パス変更は機械的）
-- [ ] **Phase 3**: 「起動してメンテナンス表示中は 30 秒間隔」で `self_update` ＋
-      `component_update`（関連リポジトリ全てのバージョンチェック＆自動UP）を回す拡張
-      （正本ロジック: `open-english/server/src/{self_update,component_update}.rs`、
-       通常時は 30 分間隔）
-- [ ] pc / tablet / mobile それぞれのビルド・インストーラー構成
+- [x] **Phase 3**（2026-09-10、open-english `060378b`、v0.8.1 で配布）:
+      定期ループを2フェーズ化。(1) 起動直後のメンテナンス表示中は **30 秒間隔**で
+      `self_update` ＋ `component_update::check_and_apply_all()`（本体＋
+      aruaru-llm＋aruaru-db）、最大 `OPEN_ENGLISH_MAINTENANCE_FAST_TICKS` 回
+      （既定 6＝約3分、0 で無効）。(2) 以降 30 分間隔。VPS で起動＋30 秒後の
+      `maintenance-window update check (1/6, every 30s)` ログ発火を E2E 確認
+- [ ] pc / tablet / mobile それぞれのビルド・インストーラー構成（未着手）
