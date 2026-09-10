@@ -1,6 +1,26 @@
+import java.io.File
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
+}
+
+// バージョンの正本は open-english-pc/web/version.json(BUILD.md 参照)。
+// ここから versionName を読み、versionCode を major*10000+minor*100+patch で導出する。
+// `rootProject.projectDir` = mobile/android なので web/version.json は ../../web/version.json。
+val clientVersionName: String = run {
+    val vf = File(rootProject.projectDir, "../../web/version.json")
+    if (vf.exists()) {
+        Regex("\"version\"\\s*:\\s*\"([^\"]+)\"").find(vf.readText())?.groupValues?.getOrNull(1)
+    } else null
+} ?: "0.0.0"
+
+val clientVersionCode: Int = run {
+    val parts = clientVersionName.split(".", "-").mapNotNull { it.toIntOrNull() }
+    val maj = parts.getOrElse(0) { 0 }
+    val min = parts.getOrElse(1) { 0 }
+    val pat = parts.getOrElse(2) { 0 }
+    (maj * 10000 + min * 100 + pat).coerceAtLeast(1)
 }
 
 android {
@@ -11,16 +31,28 @@ android {
         applicationId = "tokyo.runo.openenglish"
         minSdk = 24
         targetSdk = 35
-        // versionCode/versionNameは`../../version.json`の`version`と
-        // 手動で同期させること(自動ビルドパイプラインは無い、
-        // `CLAUDE.md`のバージョン管理節参照)。
-        versionCode = 11
-        versionName = "0.6.8"
+        versionCode = clientVersionCode
+        versionName = clientVersionName
         // 2026-08-11追加: 単体動作版(PC/Linux WEBサーバー不要)への対応。
         // 実機のスマホ/タブレットはarm64-v8aが主流、x86_64はエミュレータ
         // 検証用(open-web-server/dream-osの既存パターンと同じ)。
         ndk {
             abiFilters += listOf("arm64-v8a", "x86_64")
+        }
+    }
+
+    // フォームファクタ別ビルド(BUILD.md「mobile/・tablet/」節)。
+    // 共通コードは src/main/、差分は src/phone/ src/tablet/。
+    flavorDimensions += "formfactor"
+    productFlavors {
+        create("phone") {
+            dimension = "formfactor"
+        }
+        create("tablet") {
+            dimension = "formfactor"
+            // タブレット版は別アプリとして併存できるよう applicationId を分ける。
+            applicationIdSuffix = ".tablet"
+            versionNameSuffix = "-tablet"
         }
     }
 

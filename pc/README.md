@@ -11,3 +11,7 @@
   自動アップグレードを行う（`self_update` / `component_update` 拡張、Phase 3）。
   Windows: 新インストーラーで旧版を自動アンインストール。Linux/macOS:
   実行中バイナリのインプレース置換。
+
+## ビルド
+
+[`../BUILD.md`](../BUILD.md) を参照(pc/tablet/mobile 共通のビルド基盤設計)。
