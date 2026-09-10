@@ -31,7 +31,11 @@
         ここを bump → コミット → 本体で `git add client` → 本体で `vX.Y.Z` タグ
       - 検証: 本体 `cargo build --release` OK、開発機＋VPS(:8104/:8107)で
         `client sync: mirrored 15 entries` ＋ 主要静的パス 200 を E2E 確認
-      - 未検証: Windows Inno Setup ビルド（開発機で不可、パス変更は機械的）
+      - Windows Inno Setup ビルドも検証済み（2026-09-11、v0.8.2）: CI success、
+        `open-english-installer.exe` を開発機でサイレントインストール →
+        `client/web/` 由来の全 14 ファイル（従来 .iss 同梱漏れの sw.js /
+        *.html / world-language-*.json 含む）＋ icons/ が配置、自動起動した
+        サーバーが :4601 で全静的パス 200・version.json 0.8.2 を確認
 - [x] **Phase 3**（2026-09-10、open-english `060378b`、v0.8.1 で配布）:
       定期ループを2フェーズ化。(1) 起動直後のメンテナンス表示中は **30 秒間隔**で
       `self_update` ＋ `component_update::check_and_apply_all()`（本体＋
