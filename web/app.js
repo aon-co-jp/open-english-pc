@@ -1390,6 +1390,25 @@ async function applyDeploymentAruaruLlmBaseIfOwnDeviceUnavailable() {
   }
 }
 
+/**
+ * サーバー(open-english-server)自身からaruaru-llmへ到達できるかどうか
+ * (2026-09-12新設)。`true`なら、閲覧者自身の端末にaruaru-llmが無くても
+ * `askTrainer`が同一オリジンの`/v1/public/aruaru-llm/generate*`
+ * (グローバルなレート制限付き)へ自動フォールバックできる——ユーザー報告
+ * 「🔌 Could not reach aruaru-llm」(訪問者自身の端末未設置時に会話不可
+ * だった問題)への対応、ユーザー承認「レート制限付きで導入」。
+ */
+async function isAruaruLlmPublicChatAvailable() {
+  try {
+    const res = await fetch("/v1/config", { cache: "no-store" });
+    if (!res.ok) return false;
+    const data = await res.json();
+    return !!data.aruaru_llm_public_chat_available;
+  } catch (e) {
+    return false;
+  }
+}
+
 // 2つの初期化処理は互いに競合しないよう必ず順番に実行する
 // (`autoDetectAruaruLlmBase`が`apiBaseEl.value`を確定させてから、
 // `applyDeploymentAruaruLlmBaseIfOwnDeviceUnavailable`がそれを見て
@@ -2380,7 +2399,7 @@ async function askTrainer(userText) {
   // (aruaru-llmへ渡らないことがこの変更の目的そのもの)。訪問者自身の
   // キーが無い場合の従来経路(/v1/generate-with-search)には元々キーが
   // 付いていなかったため、この分岐でも変更は無い。
-  const res = await fetchWithTimeout(`${base}${endpoint}`, {
+  const fetchOpts = {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     // 正直な開示: max_new_tokensを48から24へ縮小した(ユーザー指摘
@@ -2389,7 +2408,20 @@ async function askTrainer(userText) {
     // 短縮になる——ファインチューニング無しの素のモデルであるという
     // 制約自体は変わらない。
     body: JSON.stringify(requestBody),
-  }, timeoutMs);
+  };
+  let res;
+  try {
+    res = await fetchWithTimeout(`${base}${endpoint}`, fetchOpts, timeoutMs);
+  } catch (err) {
+    // 閲覧者自身の端末(`base`)に到達できなかった場合、サーバーが
+    // VPS共有のaruaru-llmへ到達可能なら同一オリジンの公開プロキシへ
+    // 自動フォールバックする(2026-09-12、ユーザー報告「🔌 Could not
+    // reach aruaru-llm」でWEBデモが会話不可だった問題への対応。全来場者
+    // 合算のグローバルレート制限つき、ユーザー承認済み)。TypeError
+    // (ネットワーク到達不能)以外——タイムアウト等——はそのまま再送出する。
+    if (!(err instanceof TypeError) || !(await isAruaruLlmPublicChatAvailable())) throw err;
+    res = await fetchWithTimeout(`/v1/public/aruaru-llm${endpoint}`, fetchOpts, timeoutMs);
+  }
   if (!res.ok) {
     // 本文にaruaru-llm側の`error`フィールドが入っていることがあるので、
     // ステータスコードだけでなく理由も見せる(2026-08-22改善)。
