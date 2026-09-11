@@ -2386,13 +2386,16 @@ async function askTrainer(userText) {
     ? buildSearchAugmentedPromptClient(formatSearchResultsAsContext(directSearchResults), userText)
     : prompt;
 
-  // タイムアウト上限(2026-08-22追加)。GPT-2のCPU貪欲デコードは
-  // 1トークンあたりほぼ一定時間かかるため、大きなモデル(gpt2-xl等)へ
-  // 切り替えた環境では24トークンでも数十秒かかり得る。実測(distilgpt2・
-  // 32スレッドCPU)は24トークンで約5秒だったので、余裕を見て60秒
-  // (Google検索補強を挟む場合はさらに+30秒)を上限とする。無限に待つ
-  // 従来挙動よりは遥かにましだが、「速くなる」わけではない(正直な開示)。
-  const timeoutMs = useWebSearch ? 90000 : 60000;
+  // タイムアウト上限(2026-08-22追加、2026-09-12短縮)。GPT-2のCPU貪欲
+  // デコードは1トークンあたりほぼ一定時間かかるため、大きなモデル
+  // (gpt2-xl等)へ切り替えた環境では24トークンでも数十秒かかり得る。
+  // 実測(distilgpt2・32スレッドCPU)は24トークンで約5秒。Google検索補強
+  // 分の直接フェッチ(`googleSearchDirect`)には別途8秒のタイムアウトを
+  // 設けた(同日追加)ため、以前のように検索自体がハングして生成全体が
+  // 90秒以上固まることは無くなった——ユーザー指示「1分以内にして」に
+  // 対応し、生成自体のタイムアウトも60秒→45秒へ短縮する(検索補強分の
+  // 8秒を足しても余裕で1分以内に収まる)。
+  const timeoutMs = 45000;
   const startedAt = performance.now();
   const requestBody = { prompt: effectivePrompt, max_new_tokens: 24 };
   // useDirectSearchPathの場合はここでkey/cxを一切requestBodyへ入れない
@@ -6556,7 +6559,13 @@ function loadOwnGoogleSearchCredentials() {
 // 別途確認が必要だった)。
 async function googleSearchDirect(query, apiKey, cx, maxResults) {
   const url = `https://www.googleapis.com/customsearch/v1?key=${encodeURIComponent(apiKey)}&cx=${encodeURIComponent(cx)}&q=${encodeURIComponent(query)}&num=${Math.min(Math.max(maxResults || 3, 1), 10)}`;
-  const res = await fetch(url);
+  // 2026-09-12バグ修正: このfetchにタイムアウトが一切無く、Google検索
+  // 補強を「鍵設定後は常時ON」にした変更(同日)と組み合わさった結果、
+  // 検索が遅延/ハングすると会話全体が90秒以上「考え中」のまま固まる
+  // 実害が発生した(ユーザー報告)。他のGoogle検索/主要フェッチと同じ
+  // `fetchWithTimeout`パターンに揃え、遅延時は例外を投げて呼び出し元の
+  // catch(直接検索を諦めて通常生成へフォールバック)に任せる。
+  const res = await fetchWithTimeout(url, {}, 8000);
   if (!res.ok) {
     let detail = "";
     try {
