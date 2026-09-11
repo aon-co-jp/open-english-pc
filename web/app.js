@@ -8550,9 +8550,25 @@ if (languagePackModal) {
   const saveBtn = document.getElementById("language-pack-save");
   if (saveBtn) {
     saveBtn.addEventListener("click", () => {
+      const previouslyEnabled = new Set(loadEnabledLanguages());
       const codes = currentlyCheckedLanguageCodes();
       saveEnabledLanguages(codes);
       applyEnabledLanguagesToMenus();
+      // 音声入力の言語を素早く切り替えたい、というニーズ(2026-09-12
+      // ユーザー指示「音声入力がデフォルトが英語なので世界中の言語を簡単に
+      // 選択出来るように」)への対応。「有効化」だけでは音声認識の対象言語は
+      // 変わらない(上の`learn-target`ドロップダウンで別途選ぶ必要がある)
+      // ため、今回**新たに**チェックした言語が1つだけなら、そのまま
+      // 音声入力(学びたい言語)としても自動選択する——2手順を1手順にする。
+      const newlyEnabled = codes.filter((c) => !previouslyEnabled.has(c));
+      if (newlyEnabled.length === 1 && learnTargetEl) {
+        const opt = learnTargetEl.querySelector(`option[value="world:${newlyEnabled[0]}"]`);
+        if (opt) {
+          learnTargetEl.value = `world:${newlyEnabled[0]}`;
+          learnTargetEl.dispatchEvent(new Event("change"));
+        }
+      }
+      updateMicLangQuickLabel();
       if (languagePackStatusEl) {
         languagePackStatusEl.textContent = `保存しました(${DEFAULT_LANGUAGE_CODES.length + codes.length}言語有効: 英語・日本語 + ${codes.length}言語)。 / Saved: English, Japanese + ${codes.length} additional language(s).`;
       }
@@ -8564,6 +8580,31 @@ if (languagePackModal) {
     });
   }
 }
+
+// mic-btn横の🌐クイックボタン——タップ一発で言語パネルを開き、現在の
+// 音声入力言語を短いコードで常時表示する(2026-08-22の`🌐 Languages`
+// ボタンは設定メニューの奥にあり、「話す直前にサッと言語を変えたい」
+// ニーズに対しては遠かったため新設、2026-09-12)。
+function updateMicLangQuickLabel() {
+  const labelEl = document.getElementById("mic-lang-quick-label");
+  if (!labelEl) return;
+  const tag = typeof speechLangTag === "function" ? speechLangTag() : "en-US";
+  labelEl.textContent = String(tag).split("-")[0].toUpperCase();
+}
+const micLangQuickBtn = document.getElementById("mic-lang-quick-btn");
+if (micLangQuickBtn && typeof openLanguagePackModal === "function") {
+  micLangQuickBtn.addEventListener("click", () => {
+    openLanguagePackModal();
+    const filterInput = document.getElementById("language-pack-filter");
+    if (filterInput) filterInput.focus();
+  });
+}
+if (learnTargetEl) learnTargetEl.addEventListener("change", updateMicLangQuickLabel);
+// この時点では`SPEECH_LANG_TAGS`(このファイルの後方で`const`定義)が
+// まだ未初期化(TDZ)のため、`speechLangTag()`を呼ぶ`updateMicLangQuickLabel()`
+// を直接ここで呼ぶと`ReferenceError`になる。スクリプト全体の評価が終わって
+// から実行されるよう1ティック遅らせる。
+setTimeout(updateMicLangQuickLabel, 0);
 
 // --- 多言語の連続表示・連続読み上げ ---------------------------------------
 // ユーザー指示(2026-08-22)への対応: 選択した2〜5か国語(英語・日本語を含む)

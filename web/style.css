@@ -193,6 +193,22 @@ body {
   animation: pulse 0.6s infinite alternate;
 }
 
+.mic-lang-quick-btn {
+  padding: 6px 10px;
+  border-radius: 20px;
+  border: 1px solid var(--accent);
+  background: transparent;
+  color: inherit;
+  font-weight: bold;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.mic-lang-quick-btn:hover {
+  background: var(--accent);
+  color: #332200;
+}
+
 @keyframes pulse {
   from {
     box-shadow: 0 0 0 0 rgba(255, 94, 142, 0.6);
