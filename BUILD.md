@@ -63,9 +63,16 @@
   ストア提出用のリリース署名鍵〈`ANDROID_KEYSTORE_*` シークレット〉導入は
   TODO——導入後 `assemble*Release` へ切替。）
 
-## 4. TODO
+## 4. 状態（2026-09-11 時点）
 
-- [ ] Android リリース署名鍵（GitHub Actions シークレット）を用意し
-      `assemblePhoneRelease` / `assembleTabletRelease` へ切替
-- [ ] `tablet` flavor のレイアウト最適化（`layout-sw600dp` 等）
-- [ ] `pc/` のデスクトップ固有補助（必要になれば）
+- [x] Android リリース署名鍵を導入済み。`ANDROID_KEYSTORE_BASE64` 等が
+      Actions シークレットに設定されていれば `assemble*Release`、
+      無ければ `assemble*Debug` にフォールバック（`build.gradle.kts` 参照）。
+- [x] `tablet` flavor 専用レイアウト（操作パネルを中央 600dp 幅へ）。
+- [x] `pc/` は追加のビルド構成なしで完結（デスクトップの実体は本体
+      `open-english-server` ＋ `client/web/`）。
+
+今後の拡張候補（未着手・必須ではない）:
+- [ ] Play Store 提出を行う場合の App Bundle（`.aab`）対応
+- [ ] `tablet` flavor 向けのさらなるレイアウト調整（二カラム化等、実機/
+      実データが無いため現時点では見送り）
