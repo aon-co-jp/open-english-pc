@@ -56,9 +56,34 @@ android {
         }
     }
 
+    // リリース署名(2026-09-11追加、BUILD.md TODO対応)。CI
+    // (open-english/.github/workflows/release.yml の build-android ジョブ)は
+    // ANDROID_KEYSTORE_PATH 等の環境変数をエクスポートしてから
+    // `assemble*Release` を呼ぶ。ローカル/PR ビルド等でこれらが未設定の
+    // 場合は debug 署名へフォールバックする(assemble*Release がビルド
+    // 不能にならないようにするための開発時の便宜——ストア配布はしない
+    // 前提〈MainActivity.kt の既存の正直な開示のとおり〉なので、
+    // 未署名で困ることはない)。
+    val releaseKeystorePath = System.getenv("ANDROID_KEYSTORE_PATH")
+    signingConfigs {
+        if (releaseKeystorePath != null) {
+            create("release") {
+                storeFile = file(releaseKeystorePath)
+                storePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("ANDROID_KEY_ALIAS")
+                keyPassword = System.getenv("ANDROID_KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
+            signingConfig = if (releaseKeystorePath != null) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug")
+            }
         }
     }
 
