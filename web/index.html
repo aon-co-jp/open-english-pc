@@ -337,10 +337,13 @@
         <option value="he">עברית / ヘブライ語のみ</option>
       </select>
     </label>
-    <label class="web-search-toggle" title="Turns off again after each message you send — check it again each time you want to use your Google Search key. / メッセージを送るたびに自動でOFFに戻ります——Google検索キーを使いたい時は毎回チェックし直してください。">
-      <input type="checkbox" id="web-search-toggle" />
-      Google search boost (auto-off after each send) / Google検索で補強(送信ごとに自動OFF)
-    </label>
+    <span
+      id="web-search-boost-status"
+      class="web-search-toggle"
+      title="Always applied automatically once your Google Search key is set up — no need to turn it on each time. / ご自身のGoogle検索キーを設定後は、毎回のON操作なしで常に自動適用されます。"
+    >
+      🔎 Google search boost: forced ON once your key is set up / Google検索で補強: キー設定後は常時ON
+    </span>
     <button type="button" id="google-search-settings-btn" class="setup-btn">🔎 Setup Google Search.</button>
     <button type="button" id="provider-priority-settings-btn" class="setup-btn">🔀 AI Provider Priority.</button>
     <span id="web-search-own-key-status" class="setup-note" style="display:inline-block;margin-left:6px;"></span>

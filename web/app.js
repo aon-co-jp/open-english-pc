@@ -1406,25 +1406,15 @@ const levelEl = document.getElementById("level");
 const ageGroupEl = document.getElementById("age-group");
 const businessEnglishEl = document.getElementById("business-english-toggle");
 const replyLangEl = document.getElementById("reply-lang");
-const webSearchToggleEl = document.getElementById("web-search-toggle");
-// 2026-09-01追加(ユーザー指示「前回チェックをつけていれば、覚えている
-// ように」への対応): 送信のたびに自動でOFFへ戻す既存の仕様(2026-08-27、
-// 「本当に必要な1回だけキーを渡す」という設計、下の`askTrainer`内の
-// 処理を参照)はそのまま維持しつつ、**利用者が最後に手動でON/OFFを
-// 切り替えた状態**をlocalStorageへ別途記録し、次回ページを開いた時の
-// 初期状態として復元する。送信時の自動OFF処理自体はこのlocalStorageを
-// 更新しない(利用者の「好み」と「今の送信1回限りの状態」を分けるため)。
-const WEB_SEARCH_PREF_KEY = "open-english.webSearchPreferredOn";
-if (webSearchToggleEl) {
-  try {
-    webSearchToggleEl.checked = localStorage.getItem(WEB_SEARCH_PREF_KEY) === "1";
-  } catch { /* ignore */ }
-  webSearchToggleEl.addEventListener("change", () => {
-    try {
-      localStorage.setItem(WEB_SEARCH_PREF_KEY, webSearchToggleEl.checked ? "1" : "0");
-    } catch { /* ignore */ }
-  });
-}
+// 2026-09-12変更(ユーザー指示「Google search boost、切り替えなしで、
+// SETUP後は強制ONにして」への対応): 旧来は手動トグル+送信のたびに自動
+// OFFへ戻す設計(2026-08-27、「本当に必要な1回だけキーを渡す」という
+// コスト意識からの設計)だったが、これを撤廃し、ご自身のGoogle検索キーが
+// 設定されていれば毎回自動でON(常時適用)にする。ON/OFFの手動切替は無く
+// なった——キーそのものを設定/削除することが唯一の制御手段になる
+// (`#google-search-settings-btn`のモーダルから)。
+// `refreshGoogleSearchStatus()`(下方)が、設定済みかどうかをこの変数へ反映する。
+let googleSearchKeyConfigured = false;
 const micBtn = document.getElementById("mic-btn");
 const voiceOutEl = document.getElementById("voice-out");
 
@@ -2313,17 +2303,10 @@ async function askTrainer(userText) {
   }
 
   // Google検索補強(ユーザー指示「発話・入力の都度Google検索する」への
-  // 対応、ブリッジ式)。
-  const useWebSearch = webSearchToggleEl && webSearchToggleEl.checked;
-  // 2026-08-27追加(ユーザー指示「必要な所だけON/OFF」への対応): このON状態を
-  // 使うのはこの1通のメッセージだけとし、送信の時点で即座にOFFへ戻す
-  // (fetch開始前にリセットすることで、ネットワーク失敗時でもON状態が
-  // 残らないようにする)。次のメッセージでもGoogle検索キーを使いたい場合は
-  // 利用者が毎回明示的にチェックし直す必要がある——「本当に必要な1回だけ
-  // aruaru-llmへキーを渡す」という意図をより確実にするための設計。
-  if (useWebSearch && webSearchToggleEl) {
-    webSearchToggleEl.checked = false;
-  }
+  // 対応、ブリッジ式)。2026-09-12以降、キーが設定済みなら手動トグル無しで
+  // 毎回自動的にON(強制適用)——`googleSearchKeyConfigured`は
+  // `refreshGoogleSearchStatus()`が更新する。
+  const useWebSearch = googleSearchKeyConfigured;
 
   // 2026-08-25追加: Google検索補強がONの場合、このブラウザに保存された
   // 訪問者自身のAPIキー/cx(あれば)を使う。
@@ -6825,10 +6808,16 @@ async function refreshGoogleSearchStatus() {
     }
     const inlineEl = document.getElementById("web-search-own-key-status");
     if (inlineEl) inlineEl.textContent = "🔒 vault mode / vaultモード使用中";
+    // vaultモードは実際の鍵の有無をここでは判定できないため、既存の
+    // 「設定済みとみなす」挙動を踏襲する(vault.html側で完結する設計)。
+    googleSearchKeyConfigured = true;
+    updateWebSearchBoostStatusLabel();
     return;
   }
   const creds = loadOwnGoogleSearchCredentials();
   const configuredOnDevice = !creds && (await isSearchConfiguredOnOwnDevice());
+  googleSearchKeyConfigured = !!(creds || configuredOnDevice);
+  updateWebSearchBoostStatusLabel();
   if (googleSearchStatusEl) {
     if (creds) {
       googleSearchStatusEl.textContent = "✅ Your own key is saved in this browser / このブラウザにご自身のキーが保存されています";
@@ -6851,9 +6840,20 @@ async function refreshGoogleSearchStatus() {
       : "⚠ set your own key to use search / 検索にはご自身のキー設定が必要";
   }
 }
-// 起動時にも一度反映しておく(トグルを押す前から状態が見える)。少し
-// 遅らせて呼ぶ(apiBaseEl.valueがautoDetectAruaruLlmBaseで確定して
-// からの方が、閲覧者自身の端末に対して正しく問い合わせできるため)。
+/** `#web-search-boost-status`の文言を、キー設定済みかどうかで出し分ける。 */
+function updateWebSearchBoostStatusLabel() {
+  const el = document.getElementById("web-search-boost-status");
+  if (!el) return;
+  el.textContent = googleSearchKeyConfigured
+    ? "🔎 Google search boost: ON (your key is set up, applied to every message) / Google検索で補強: ON(キー設定済み、毎回自動適用)"
+    : "🔎 Google search boost: set your own key to enable (forced ON once set up) / Google検索で補強: ご自身のキーを設定すると有効(設定後は常時ON)";
+}
+
+// 起動時にも一度反映しておく(以前はトグルを押す前から状態が見えるように、
+// という意図だったが、トグル撤廃後も「今ONかどうか」を示す表示として同じ
+// タイミングで反映する)。少し遅らせて呼ぶ(apiBaseEl.valueが
+// autoDetectAruaruLlmBaseで確定してからの方が、閲覧者自身の端末に対して
+// 正しく問い合わせできるため)。
 setTimeout(refreshGoogleSearchStatus, 500);
 
 if (googleSearchBtn && googleSearchModal) {
