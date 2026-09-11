@@ -1381,6 +1381,10 @@ async function applyDeploymentAruaruLlmBaseIfOwnDeviceUnavailable() {
       // 閲覧者自身の端末への接続はまだ確立していない、VPS側へフォールバック。
     }
     apiBaseEl.value = data.aruaru_llm_base_url;
+    // 閲覧者自身の端末ではなくVPS等の共有インスタンスへフォールバックした
+    // ことを記録する(おすすめLLMモーダルが公開プロキシ経由・install禁止
+    // モードへ切り替えるための判定に使う、2026-09-12)。
+    window.__aruaruLlmSharedDeployment = true;
   } catch (e) {
     // `/v1/config`未提供の配信形態(file://直開き等)では黙って既定のまま。
   }
@@ -9159,7 +9163,45 @@ function catalogEntryLabel(entry) {
   return `${entry.display_name_en} / ${entry.display_name_ja} (~${entry.approx_size_mb}MB)`;
 }
 
+// 共有デプロイ(VPSデモ等、`window.__aruaruLlmSharedDeployment`)では
+// 同一オリジンの公開プロキシ(`/v1/public/aruaru-llm/*`)を使う——
+// installを一切呼ばず(新規ダウンロードは管理者専用のまま)、既に
+// インストール済みのモデルへのselectのみ許可する設計(2026-09-12、
+// ユーザー指示「デモでも見せるようにして、デモ利用者でも無理のない
+// 大きさのLLMに変更出来るように」への対応。「他の利用者がLLM変更中は
+// 表示して」にも対応——サーバー側が切替中フラグを立て、この画面は
+// それをポーリングして`llm-switching-banner`を出し入れする)。
+function isSharedLlmDeployment() {
+  return window.__aruaruLlmSharedDeployment === true;
+}
+
 async function installAndSwitchModel(base, id, statusEl) {
+  if (isSharedLlmDeployment()) {
+    statusEl.textContent = `Switching to ${id}… / ${id}へ切替中…`;
+    try {
+      const selectRes = await fetch("/v1/public/aruaru-llm/models/select", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+      const data = await selectRes.json().catch(() => ({}));
+      if (selectRes.status === 429) {
+        statusEl.innerHTML =
+          "⏳ You cannot switch again for 5 minutes. Please wait about 5 minutes before switching again. / " +
+          "LLMを変更後5分間は変更出来ません。再度LLM変更する場合は、5分ほどお待ち下さい。<br />" +
+          `<em>(~${data.cooldown_seconds_remaining || "?"}s remaining / あと約${data.cooldown_seconds_remaining || "?"}秒)</em>`;
+        return;
+      }
+      if (!selectRes.ok) throw new Error(data.error_ja || data.error || `HTTP ${selectRes.status}`);
+      statusEl.innerHTML =
+        `✅ Switched to ${id} / ${id}へ切り替えました<br />` +
+        "<em>You cannot switch again for 5 minutes. Please wait about 5 minutes before switching again. / " +
+        "LLMを変更後5分間は変更出来ません。再度LLM変更する場合は、5分ほどお待ち下さい。</em>";
+    } catch (err) {
+      statusEl.textContent = `⚠ Failed / 失敗しました: ${err.message}`;
+    }
+    return;
+  }
   statusEl.textContent = `Installing & switching to ${id}… / ${id}へインストール・切替中…`;
   try {
     const installRes = await fetch(`${base}/v1/models/install`, {
@@ -9182,19 +9224,29 @@ async function installAndSwitchModel(base, id, statusEl) {
 
 async function detectAndCompareLlm() {
   const base = apiBaseEl.value.trim();
+  const shared = isSharedLlmDeployment();
+  const llmSwitchingBannerEl = document.getElementById("llm-switching-banner");
+  const llmDemoSharedNoteEl = document.getElementById("llm-demo-shared-note");
+  if (llmDemoSharedNoteEl) llmDemoSharedNoteEl.classList.toggle("hidden", !shared);
   llmRecommendBody.innerHTML = "<p class=\"setup-note\">Detecting… / 検出中…</p>";
   try {
-    const [recRes, catalogRes] = await Promise.all([fetch(`${base}/v1/recommend`), fetch(`${base}/v1/models/catalog`)]);
+    const recUrl = shared ? "/v1/public/aruaru-llm/recommend" : `${base}/v1/recommend`;
+    const catalogUrl = shared ? "/v1/public/aruaru-llm/models/catalog" : `${base}/v1/models/catalog`;
+    const [recRes, catalogRes] = await Promise.all([fetch(recUrl), fetch(catalogUrl)]);
     if (!recRes.ok || !catalogRes.ok) throw new Error(`HTTP ${recRes.status}/${catalogRes.status}`);
     const rec = await recRes.json();
     const catalog = await catalogRes.json();
+    const installedIds = new Set(catalog.installed_ids || []);
     const models = catalog.models.slice().sort((a, b) => a.approx_size_mb - b.approx_size_mb);
     const recIndex = models.findIndex((m) => m.id === rec.recommended_model_id);
 
-    const choices = [];
+    let choices = [];
     if (recIndex >= 0) choices.push({ role: "Recommended / おすすめ", entry: models[recIndex] });
     if (recIndex + 1 < models.length) choices.push({ role: "One size larger / もう一つ大きいサイズ", entry: models[recIndex + 1] });
     if (recIndex - 1 >= 0) choices.push({ role: "One size smaller / もう一つ小さいサイズ", entry: models[recIndex - 1] });
+    // 共有デプロイでは、来場者が選べるのはサーバーに既にインストール
+    // 済みのモデルのみ(新規ダウンロードは管理者専用)。
+    if (shared) choices = choices.filter((c) => installedIds.has(c.entry.id));
 
     const hwLine =
       `GPU: ${rec.hardware.gpu_name || "not detected / 未検出"} ` +
@@ -9214,6 +9266,15 @@ async function detectAndCompareLlm() {
       "Similar open-source local LLMs are available — which would you like? / " +
       "似たようなオープンソースのローカルLLMがあります。どちらになさいますか?";
     llmRecommendBody.appendChild(questionP);
+
+    if (shared && choices.length === 0) {
+      const noneP = document.createElement("p");
+      noneP.className = "setup-note";
+      noneP.textContent =
+        "No alternative size is installed on this shared server yet. / " +
+        "この共有サーバーには他サイズがまだインストールされていません。";
+      llmRecommendBody.appendChild(noneP);
+    }
 
     choices.forEach((choice) => {
       const row = document.createElement("div");
@@ -9237,11 +9298,58 @@ async function detectAndCompareLlm() {
   }
 }
 
+// 他の利用者がLLM切替中かどうかをポーリングし、モーダル上部の
+// バナーを出し入れする(共有デプロイのみ意味を持つが、自分専用の
+// aruaru-llmでも同一オリジンのエンドポイントなので害はなく常時ポーリング
+// してよい——サーバー側は常に`switching:false`を返すだけ)。
+let llmSwitchingPollTimer = null;
+async function pollLlmSwitchingStatus() {
+  const bannerEl = document.getElementById("llm-switching-banner");
+  if (!bannerEl) return;
+  try {
+    const res = await fetch("/v1/public/aruaru-llm/switch-status", { cache: "no-store" });
+    if (!res.ok) return;
+    const data = await res.json();
+    if (data.switching) {
+      bannerEl.innerHTML =
+        "🔄 <strong>Another visitor is switching the shared LLM right now — please wait a moment.</strong><br />" +
+        "<strong>他の利用者がLLMを変更中です。しばらくお待ちください。</strong>";
+      bannerEl.classList.remove("hidden");
+    } else if (data.cooldown_seconds_remaining) {
+      bannerEl.innerHTML =
+        "⏳ <strong>You cannot switch again for 5 minutes. Please wait about 5 minutes before switching again. / " +
+        "LLMを変更後5分間は変更出来ません。再度LLM変更する場合は、5分ほどお待ち下さい。</strong><br />" +
+        `<em>(~${data.cooldown_seconds_remaining}s remaining / あと約${data.cooldown_seconds_remaining}秒)</em>`;
+      bannerEl.classList.remove("hidden");
+    } else {
+      bannerEl.classList.add("hidden");
+    }
+  } catch (e) {
+    // 到達不能時は何もしない(バナーの表示状態を維持)。
+  }
+}
+
 if (llmRecommendBtn && llmRecommendModal) {
-  llmRecommendBtn.addEventListener("click", () => llmRecommendModal.classList.remove("hidden"));
-  llmRecommendClose.addEventListener("click", () => llmRecommendModal.classList.add("hidden"));
+  llmRecommendBtn.addEventListener("click", () => {
+    llmRecommendModal.classList.remove("hidden");
+    pollLlmSwitchingStatus();
+    if (!llmSwitchingPollTimer) llmSwitchingPollTimer = setInterval(pollLlmSwitchingStatus, 4000);
+  });
+  llmRecommendClose.addEventListener("click", () => {
+    llmRecommendModal.classList.add("hidden");
+    if (llmSwitchingPollTimer) {
+      clearInterval(llmSwitchingPollTimer);
+      llmSwitchingPollTimer = null;
+    }
+  });
   llmRecommendModal.addEventListener("click", (e) => {
-    if (e.target === llmRecommendModal) llmRecommendModal.classList.add("hidden");
+    if (e.target === llmRecommendModal) {
+      llmRecommendModal.classList.add("hidden");
+      if (llmSwitchingPollTimer) {
+        clearInterval(llmSwitchingPollTimer);
+        llmSwitchingPollTimer = null;
+      }
+    }
   });
   llmRecommendDetectBtn.addEventListener("click", detectAndCompareLlm);
 }

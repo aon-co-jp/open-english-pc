@@ -992,6 +992,17 @@ cargo run --release</pre>
     <div class="setup-panel">
       <button type="button" id="llm-recommend-close" class="setup-close">✕</button>
       <h2>Recommend an LLM / おすすめLLM</h2>
+      <p id="llm-switching-banner" class="setup-honest hidden" style="background:#fff3cd;border-color:#ffe69c;">
+        🔄 <strong>Another visitor is switching the shared LLM right now — please wait a moment.</strong><br />
+        <strong>他の利用者がLLMを変更中です。しばらくお待ちください。</strong>
+      </p>
+      <p id="llm-demo-shared-note" class="setup-note hidden">
+        This demo shares one LLM instance with all visitors. You can switch to a smaller/lighter
+        model already installed on the server if it feels slow, but new downloads are
+        administrator-only. / このデモは全利用者で1つのLLMを共有しています。動作が重いと感じたら
+        サーバーに既にインストール済みの、より軽いモデルへ切り替えられます(新規ダウンロードは
+        管理者のみ可能です)。
+      </p>
       <p class="setup-honest">
         <strong>Honest disclosure:</strong> This reads your GPU VRAM/CPU/system-memory/NPU
         detection results from <code>aruaru-llm</code> (<code>GET /v1/recommend</code>) and
