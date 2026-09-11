@@ -2420,7 +2420,12 @@ async function askTrainer(userText) {
     // 合算のグローバルレート制限つき、ユーザー承認済み)。TypeError
     // (ネットワーク到達不能)以外——タイムアウト等——はそのまま再送出する。
     if (!(err instanceof TypeError) || !(await isAruaruLlmPublicChatAvailable())) throw err;
-    res = await fetchWithTimeout(`/v1/public/aruaru-llm${endpoint}`, fetchOpts, timeoutMs);
+    // `endpoint`は既に`/v1/generate`(または`/v1/generate-with-search`)
+    // を含むため、単純に`/v1/public/aruaru-llm`と連結すると
+    // `/v1/public/aruaru-llm/v1/generate`という二重パスになってしまう
+    // (実機で404を確認して発覚したバグ、2026-09-12)。先頭の`/v1`を
+    // 取り除いてから公開プロキシのプレフィックスへ付け替える。
+    res = await fetchWithTimeout(`/v1/public/aruaru-llm${endpoint.replace(/^\/v1/, "")}`, fetchOpts, timeoutMs);
   }
   if (!res.ok) {
     // 本文にaruaru-llm側の`error`フィールドが入っていることがあるので、
@@ -7186,11 +7191,18 @@ if (googleSearchBtn && googleSearchModal) {
 // (`/v1/settings/chat-providers`・`/v1/settings/provider-priority`、
 // いずれもメモリ上保持のみ)へ送信する。
 (() => {
+  // 既定の優先順位(2026-09-12ユーザー指示「デフォルトでGoogle検索を無料の
+  // 範囲を使い終わったらChatGPTの次はGeminiの次は、DeepSeekの次はGrokの
+  // 無料枠と順番に一つずつ無料枠を毎日使い切っていって」への対応)。
+  // **正直な開示**: Grok(xAI)は本アプリ・aruaru-llmサーバーいずれにも
+  // まだプロバイダ実装が無い(APIキー入力欄・サーバー側HTTPクライアント
+  // ともに未実装)ため、この一覧には含めていない。実装が必要な場合は
+  // 別途対応する。Claudeは指示に無かったため既定の並びの末尾に維持。
   const PROVIDER_PRIORITY_SERVICES = [
     { id: "googlesearch", label: "Google Search / Google検索" },
     { id: "openai", label: "ChatGPT (OpenAI)" },
-    { id: "deepseek", label: "DeepSeek" },
     { id: "gemini", label: "Gemini" },
+    { id: "deepseek", label: "DeepSeek" },
     { id: "claude", label: "Claude (Anthropic)" },
   ];
   const PROVIDER_KEY_LOCAL_PREFIX = "open-english.providerKey.";
