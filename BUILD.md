@@ -59,9 +59,9 @@
   `open-english/.github/workflows/release.yml` の `build-android` ジョブが
   `client/mobile/android/` から `assemblePhoneRelease` /
   `assembleTabletRelease` を実行し、APK を同じ GitHub Release へ添付する。
-  （当面は `assemble*Debug` で自動署名済み・インストール可能な APK を出す。
-  ストア提出用のリリース署名鍵〈`ANDROID_KEYSTORE_*` シークレット〉導入は
-  TODO——導入後 `assemble*Release` へ切替。）
+  リリース署名鍵（`ANDROID_KEYSTORE_*` シークレット、2026-09-11 導入済み）が
+  あれば `assemble*Release`（リリース署名済み）、無ければ `assemble*Debug`
+  （自動署名・インストール可能）にフォールバックする。
 
 ## 4. 状態（2026-09-11 時点）
 
