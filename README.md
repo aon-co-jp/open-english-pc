@@ -1,3 +1,5 @@
+> Latest translations / 翻訳の最新版: [0-LATEST-TRANSLATIONS.md](0-LATEST-TRANSLATIONS.md)
+
 # open-english-pc
 
 [`open-english`](https://github.com/aon-co-jp/open-english) の**クライアント**を
